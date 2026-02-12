@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: financial-advisor
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/financialadvisor}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  websocket:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+server:
+  port: ${PORT:8080}
+
+# LangChain4j Configuration
+# LangChain4j is the industry standard for Java LLM applications
+langchain4j:
+  # Ollama Configuration (FREE - 100% open-source!)
+  # Local development: http://localhost:11434 (run: ollama serve)
+  # Production: Deploy Ollama on Railway and set base-url to that service URL
+  # Example: https://your-ollama-service.railway.app
+  ollama:
+    base-url: ${LANGCHAIN4J_OLLAMA_BASE_URL:http://localhost:11434}
+    model: ${LANGCHAIN4J_OLLAMA_MODEL:llama3.1}
+    temperature: ${LANGCHAIN4J_OLLAMA_TEMPERATURE:0.7}
+
+# External API Configuration
+market-data:
+  alpha-vantage:
+    api-key: ${ALPHA_VANTAGE_API_KEY:demo}
+    base-url: https://www.alphavantage.co/query
+    rate-limit:
+      calls-per-minute: 5
+      calls-per-day: 500
+  
+  yahoo-finance:
+    base-url: https://query1.finance.yahoo.com/v8/finance/chart
+  
+  news-api:
+    api-key: ${NEWS_API_KEY:}
+    base-url: https://newsapi.org/v2
+
+logging:
+  level:
+    com.agent.financialadvisor: DEBUG
+    dev.langchain4j: INFO
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: INFO
+

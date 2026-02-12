@@ -1,0 +1,12 @@
+# Dockerfile for Ollama service on Railway
+FROM ollama/ollama:latest
+
+# Expose Ollama port
+EXPOSE 11434
+
+# Set Ollama to listen on all interfaces
+ENV OLLAMA_HOST=0.0.0.0:11434
+
+# Start Ollama server
+CMD ["ollama", "serve"]
+

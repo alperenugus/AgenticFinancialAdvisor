@@ -1,0 +1,218 @@
+package com.agent.financialadvisor.controller;
+
+import com.agent.financialadvisor.model.Portfolio;
+import com.agent.financialadvisor.model.StockHolding;
+import com.agent.financialadvisor.repository.PortfolioRepository;
+import com.agent.financialadvisor.service.MarketDataService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/portfolio")
+@CrossOrigin(origins = "*")
+public class PortfolioController {
+
+    private static final Logger log = LoggerFactory.getLogger(PortfolioController.class);
+    private final PortfolioRepository portfolioRepository;
+    private final MarketDataService marketDataService;
+
+    public PortfolioController(
+            PortfolioRepository portfolioRepository,
+            MarketDataService marketDataService
+    ) {
+        this.portfolioRepository = portfolioRepository;
+        this.marketDataService = marketDataService;
+    }
+
+    /**
+     * Get user portfolio
+     * GET /api/portfolio/{userId}
+     */
+    @GetMapping("/{userId}")
+    public ResponseEntity<Portfolio> getPortfolio(@PathVariable String userId) {
+        try {
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            if (portfolioOpt.isEmpty()) {
+                // Create empty portfolio if doesn't exist
+                Portfolio portfolio = new Portfolio();
+                portfolio.setUserId(userId);
+                portfolio = portfolioRepository.save(portfolio);
+                return ResponseEntity.ok(portfolio);
+            }
+
+            Portfolio portfolio = portfolioOpt.get();
+            // Update current prices
+            updatePortfolioPrices(portfolio);
+            portfolio = portfolioRepository.save(portfolio);
+            
+            return ResponseEntity.ok(portfolio);
+        } catch (Exception e) {
+            log.error("Error getting portfolio: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Add holding to portfolio
+     * POST /api/portfolio/{userId}/holdings
+     */
+    @PostMapping("/{userId}/holdings")
+    public ResponseEntity<Map<String, Object>> addHolding(
+            @PathVariable String userId,
+            @RequestBody Map<String, Object> request
+    ) {
+        try {
+            Portfolio portfolio = portfolioRepository.findByUserId(userId)
+                    .orElseGet(() -> {
+                        Portfolio p = new Portfolio();
+                        p.setUserId(userId);
+                        return portfolioRepository.save(p);
+                    });
+
+            String symbol = ((String) request.get("symbol")).toUpperCase();
+            Integer quantity = ((Number) request.get("quantity")).intValue();
+            BigDecimal averagePrice = new BigDecimal(request.get("averagePrice").toString());
+
+            // Check if holding already exists
+            Optional<StockHolding> existingHolding = portfolio.getHoldings().stream()
+                    .filter(h -> h.getSymbol().equals(symbol))
+                    .findFirst();
+
+            StockHolding holding;
+            if (existingHolding.isPresent()) {
+                // Update existing holding (average the prices)
+                holding = existingHolding.get();
+                int oldQuantity = holding.getQuantity();
+                BigDecimal oldAvgPrice = holding.getAveragePrice();
+                
+                // Calculate new average price
+                BigDecimal totalCost = oldAvgPrice.multiply(BigDecimal.valueOf(oldQuantity))
+                        .add(averagePrice.multiply(BigDecimal.valueOf(quantity)));
+                BigDecimal newQuantity = BigDecimal.valueOf(oldQuantity + quantity);
+                BigDecimal newAvgPrice = totalCost.divide(newQuantity, 2, java.math.RoundingMode.HALF_UP);
+                
+                holding.setQuantity(oldQuantity + quantity);
+                holding.setAveragePrice(newAvgPrice);
+            } else {
+                // Create new holding
+                holding = new StockHolding();
+                holding.setPortfolioId(portfolio.getId());
+                holding.setSymbol(symbol);
+                holding.setQuantity(quantity);
+                holding.setAveragePrice(averagePrice);
+                portfolio.getHoldings().add(holding);
+            }
+
+            // Update current price
+            BigDecimal currentPrice = marketDataService.getStockPrice(symbol);
+            if (currentPrice != null) {
+                holding.setCurrentPrice(currentPrice);
+            }
+
+            portfolio = portfolioRepository.save(portfolio);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Holding added successfully");
+            response.put("holding", holding);
+            response.put("portfolio", portfolio);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error adding holding: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(createErrorResponse("Error adding holding: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Remove holding from portfolio
+     * DELETE /api/portfolio/{userId}/holdings/{holdingId}
+     */
+    @DeleteMapping("/{userId}/holdings/{holdingId}")
+    public ResponseEntity<Map<String, Object>> removeHolding(
+            @PathVariable String userId,
+            @PathVariable Long holdingId
+    ) {
+        try {
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            if (portfolioOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Portfolio portfolio = portfolioOpt.get();
+            boolean removed = portfolio.getHoldings().removeIf(h -> h.getId().equals(holdingId));
+            
+            if (!removed) {
+                return ResponseEntity.notFound().build();
+            }
+
+            portfolio = portfolioRepository.save(portfolio);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Holding removed successfully");
+            response.put("portfolio", portfolio);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error removing holding: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(createErrorResponse("Error removing holding: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Update portfolio prices (refresh current prices for all holdings)
+     * POST /api/portfolio/{userId}/refresh
+     */
+    @PostMapping("/{userId}/refresh")
+    public ResponseEntity<Portfolio> refreshPortfolio(@PathVariable String userId) {
+        try {
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            if (portfolioOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Portfolio portfolio = portfolioOpt.get();
+            updatePortfolioPrices(portfolio);
+            portfolio = portfolioRepository.save(portfolio);
+
+            return ResponseEntity.ok(portfolio);
+        } catch (Exception e) {
+            log.error("Error refreshing portfolio: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Update current prices for all holdings in portfolio
+     */
+    private void updatePortfolioPrices(Portfolio portfolio) {
+        if (portfolio.getHoldings() != null) {
+            for (StockHolding holding : portfolio.getHoldings()) {
+                try {
+                    BigDecimal currentPrice = marketDataService.getStockPrice(holding.getSymbol());
+                    if (currentPrice != null) {
+                        holding.setCurrentPrice(currentPrice);
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not update price for {}: {}", holding.getSymbol(), e.getMessage());
+                }
+            }
+        }
+    }
+
+    private Map<String, Object> createErrorResponse(String message) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("status", "error");
+        error.put("message", message);
+        return error;
+    }
+}
+
