@@ -1,0 +1,10 @@
+# Force Railway to use Dockerfile instead of Nixpacks
+[phases.setup]
+nixPkgs = []
+
+[phases.build]
+cmds = ["echo 'Using Dockerfile for build'"]
+
+[phases.start]
+cmd = "echo 'Using Dockerfile for start'"
+
