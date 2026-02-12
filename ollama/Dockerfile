@@ -2,7 +2,11 @@
 FROM ollama/ollama:latest
 
 # Install curl for health checks and model checking
-RUN apk add --no-cache curl
+# Ollama base image is Debian-based, so use apt-get
+RUN apt-get update && \
+    apt-get install -y curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Expose Ollama port
 EXPOSE 11434
