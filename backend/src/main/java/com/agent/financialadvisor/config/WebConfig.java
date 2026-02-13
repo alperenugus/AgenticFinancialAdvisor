@@ -33,10 +33,18 @@ public class WebConfig implements WebMvcConfigurer {
                     .maxAge(3600);
         }
         
-        // Also configure WebSocket CORS
+        // Also configure WebSocket CORS (SockJS uses /ws/info endpoint)
         registry.addMapping("/ws/**")
                 .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "OPTIONS")
+                .allowedMethods("GET", "POST", "OPTIONS", "HEAD")
+                .allowedHeaders("*")
+                .allowCredentials(false)
+                .maxAge(3600);
+        
+        // SockJS info endpoint specifically
+        registry.addMapping("/ws/info/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "OPTIONS", "HEAD")
                 .allowedHeaders("*")
                 .allowCredentials(false)
                 .maxAge(3600);

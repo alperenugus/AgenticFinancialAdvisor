@@ -170,7 +170,25 @@ WebSocket has separate CORS configuration. The fix also updates WebSocket CORS t
 CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173
 ```
 
-**Then redeploy backend service.**
+**Also verify Frontend variables:**
+```bash
+# In Frontend Railway Variables:
+VITE_API_BASE_URL=https://your-backend.railway.app/api  # ⚠️ Must include /api
+VITE_WS_URL=https://your-backend.railway.app/ws         # ⚠️ Must include /ws
+```
+
+**Then redeploy both services.**
 
 The CORS error should be resolved! ✅
+
+---
+
+## Additional Fix: CORS Filter
+
+A `CorsFilter` has been added to handle CORS headers for:
+- All REST API endpoints (`/api/**`)
+- WebSocket/SockJS endpoints (`/ws/**`, `/ws/info/**`)
+- Preflight OPTIONS requests
+
+This ensures CORS headers are sent even if Spring's CORS configuration doesn't catch all cases.
 
