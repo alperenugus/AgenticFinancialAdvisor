@@ -18,8 +18,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Allow all origins for WebSocket (needed for Railway deployment)
+        // In production, you might want to restrict this to specific domains
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
+                .setAllowedOrigins("*") // Also set for compatibility
                 .withSockJS();
     }
 }
