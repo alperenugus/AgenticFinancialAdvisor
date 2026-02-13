@@ -154,37 +154,15 @@ npm run dev
 
 The frontend will start on `http://localhost:5173`
 
-## 📚 API Documentation
+## 📚 Documentation
 
-### User Profile Endpoints
-
-- `GET /api/profile/{userId}` - Get user profile
-- `POST /api/profile` - Create user profile
-- `PUT /api/profile/{userId}` - Update user profile
-
-### Portfolio Endpoints
-
-- `GET /api/portfolio/{userId}` - Get user portfolio
-- `POST /api/portfolio/{userId}/holdings` - Add stock holding
-- `DELETE /api/portfolio/{userId}/holdings/{holdingId}` - Remove holding
-- `POST /api/portfolio/{userId}/refresh` - Refresh portfolio prices
-
-### Advisor Endpoints
-
-- `POST /api/advisor/analyze` - Request investment analysis
-- `GET /api/advisor/recommendations/{userId}` - Get all recommendations
-- `GET /api/advisor/recommendations/{userId}/{symbol}` - Get specific recommendation
-- `GET /api/advisor/status` - Check agent status
-
-### WebSocket
-
-- Endpoint: `/ws`
-- Topics:
-  - `/topic/thinking/{sessionId}` - Real-time agent thinking updates
-  - `/topic/response/{sessionId}` - Final responses
-  - `/topic/error/{sessionId}` - Error messages
-
-For detailed API documentation, see [API.md](./API.md).
+- **[API Documentation](./API.md)** - Complete API reference
+- **[Architecture](./ARCHITECTURE.md)** - System architecture and design
+- **[Deployment Guide](./DEPLOYMENT.md)** - General deployment instructions
+- **[Railway Deployment](./docs/railway/RAILWAY_GUIDE.md)** - Complete Railway deployment guide
+- **[Environment Variables](./docs/ENVIRONMENT_VARIABLES.md)** - All required environment variables
+- **[Troubleshooting](./docs/troubleshooting/)** - Common issues and solutions
+- **[Local Development](./docs/RUN_LOCALLY.md)** - Running the app locally
 
 ## 🤖 Agents
 
