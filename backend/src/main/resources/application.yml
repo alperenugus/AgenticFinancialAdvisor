@@ -32,9 +32,9 @@ langchain4j:
   # Example: https://your-ollama-service.railway.app
   ollama:
     base-url: ${LANGCHAIN4J_OLLAMA_BASE_URL:http://localhost:11434}
-    model: ${LANGCHAIN4J_OLLAMA_MODEL:llama3.1}
+    model: ${LANGCHAIN4J_OLLAMA_MODEL:llama3.2:1b}
     temperature: ${LANGCHAIN4J_OLLAMA_TEMPERATURE:0.7}
-    timeout-seconds: ${LANGCHAIN4J_OLLAMA_TIMEOUT_SECONDS:300}
+    timeout-seconds: ${LANGCHAIN4J_OLLAMA_TIMEOUT_SECONDS:30}
 
 # External API Configuration
 market-data:

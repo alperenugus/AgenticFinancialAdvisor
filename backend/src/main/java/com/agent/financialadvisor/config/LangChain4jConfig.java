@@ -17,7 +17,7 @@ public class LangChain4jConfig {
     @Value("${langchain4j.ollama.base-url:http://localhost:11434}")
     private String ollamaBaseUrl;
 
-    @Value("${langchain4j.ollama.model:llama3.1}")
+    @Value("${langchain4j.ollama.model:llama3.2:1b}")
     private String ollamaModel;
 
     @Value("${langchain4j.ollama.temperature:0.7}")

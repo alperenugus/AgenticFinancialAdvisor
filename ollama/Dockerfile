@@ -18,7 +18,7 @@ EXPOSE 11434
 # Railway uses $PORT env var, but Ollama needs explicit host:port
 # We'll handle this in entrypoint.sh
 ENV OLLAMA_KEEP_ALIVE=24h
-ENV OLLAMA_MODEL=llama3.1
+ENV OLLAMA_MODEL=llama3.2:1b
 
 # Note: Use Railway volumes instead of VOLUME keyword
 # Configure volume in Railway dashboard: Settings → Volumes

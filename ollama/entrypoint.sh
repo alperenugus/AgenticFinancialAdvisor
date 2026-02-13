@@ -3,7 +3,7 @@
 # Startup script for Ollama on Railway
 # Automatically pulls the model if it doesn't exist
 
-MODEL_NAME="${OLLAMA_MODEL:-llama3.1}"
+MODEL_NAME="${OLLAMA_MODEL:-llama3.2:1b}"
 
 # Railway uses $PORT env var for external routing
 # CRITICAL: Railway routes external traffic to $PORT, so Ollama MUST listen on $PORT
