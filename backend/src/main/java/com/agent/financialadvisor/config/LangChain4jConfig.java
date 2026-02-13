@@ -23,6 +23,9 @@ public class LangChain4jConfig {
     @Value("${langchain4j.ollama.temperature:0.7}")
     private Double ollamaTemperature;
 
+    @Value("${langchain4j.ollama.timeout-seconds:300}")
+    private Integer timeoutSeconds;
+
     @Bean
     public ChatLanguageModel chatLanguageModel() {
         // Use Ollama - can be local or deployed on Railway/cloud
@@ -36,6 +39,7 @@ public class LangChain4jConfig {
                 .baseUrl(baseUrl)
                 .modelName(ollamaModel)
                 .temperature(ollamaTemperature)
+                .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
                 .build();
     }
     
