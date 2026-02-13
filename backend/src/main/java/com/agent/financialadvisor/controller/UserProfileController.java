@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/profile")
-@CrossOrigin(origins = "*")
+// CORS handled by WebConfig - no need for @CrossOrigin here
 public class UserProfileController {
 
     private static final Logger log = LoggerFactory.getLogger(UserProfileController.class);

@@ -16,7 +16,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/portfolio")
-@CrossOrigin(origins = "*")
+// CORS handled by WebConfig - no need for @CrossOrigin here
 public class PortfolioController {
 
     private static final Logger log = LoggerFactory.getLogger(PortfolioController.class);

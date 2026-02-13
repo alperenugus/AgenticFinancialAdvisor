@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/advisor")
-@CrossOrigin(origins = "*")
+// CORS handled by WebConfig - no need for @CrossOrigin here
 public class AdvisorController {
 
     private static final Logger log = LoggerFactory.getLogger(AdvisorController.class);
