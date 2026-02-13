@@ -2,6 +2,7 @@ package com.agent.financialadvisor.service.orchestrator;
 
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
@@ -89,9 +90,13 @@ public class OrchestratorService {
     private FinancialAdvisorAgent getOrCreateAgent(String sessionId) {
         return agentCache.computeIfAbsent(sessionId, sid -> {
             log.info("Creating new AI agent for session: {}", sid);
+            
+            // Create a ChatMemoryProvider that provides MessageWindowChatMemory for each memory ID
+            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(20);
+            
             return AiServices.builder(FinancialAdvisorAgent.class)
                     .chatLanguageModel(chatLanguageModel)
-                    .chatMemory(MessageWindowChatMemory.withMaxMessages(20))
+                    .chatMemoryProvider(memoryProvider)
                     .tools(
                             userProfileAgent,
                             marketAnalysisAgent,
