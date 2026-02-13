@@ -115,15 +115,21 @@ public class MarketDataService {
                 result.put("data", timeSeries);
                 
                 // Calculate basic statistics
+                // timeSeries is an object with date keys, each containing price data
                 BigDecimal high = BigDecimal.ZERO;
                 BigDecimal low = new BigDecimal("999999");
                 BigDecimal total = BigDecimal.ZERO;
                 int count = 0;
                 
-                for (JsonNode day : timeSeries) {
-                    if (day.has("2. high")) {
-                        BigDecimal dayHigh = new BigDecimal(day.get("2. high").asText());
-                        BigDecimal dayLow = new BigDecimal(day.get("3. low").asText());
+                // Iterate over date keys in the time series object
+                var dateFields = timeSeries.fields();
+                while (dateFields.hasNext()) {
+                    var entry = dateFields.next();
+                    JsonNode dayData = entry.getValue();
+                    
+                    if (dayData.has("2. high") && dayData.has("3. low")) {
+                        BigDecimal dayHigh = new BigDecimal(dayData.get("2. high").asText());
+                        BigDecimal dayLow = new BigDecimal(dayData.get("3. low").asText());
                         high = high.max(dayHigh);
                         low = low.min(dayLow);
                         total = total.add(dayHigh).add(dayLow);
