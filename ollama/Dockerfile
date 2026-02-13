@@ -8,11 +8,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Expose Ollama port
+# Expose Ollama port (Railway will set $PORT, default to 11434)
 EXPOSE 11434
 
 # Set Ollama to listen on all interfaces
-ENV OLLAMA_HOST=0.0.0.0:11434
+# Railway uses $PORT env var, but Ollama needs explicit host:port
+# We'll handle this in entrypoint.sh
 ENV OLLAMA_KEEP_ALIVE=24h
 ENV OLLAMA_MODEL=llama3.1
 
@@ -24,9 +25,9 @@ ENV OLLAMA_MODEL=llama3.1
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Health check
+# Health check (use PORT env var if available, default to 11434)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=180s --retries=5 \
-  CMD curl -f http://localhost:11434/api/tags || exit 1
+  CMD sh -c 'PORT=${PORT:-11434} && curl -f http://localhost:${PORT}/api/tags || exit 1'
 
 # Use entrypoint script to auto-pull model
 # Use shell form to ensure proper signal handling

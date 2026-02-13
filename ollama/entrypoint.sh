@@ -5,8 +5,14 @@
 
 MODEL_NAME="${OLLAMA_MODEL:-llama3.1}"
 
+# Railway uses $PORT env var, but Ollama needs explicit host:port
+# Use Railway's PORT if set, otherwise default to 11434
+OLLAMA_PORT="${PORT:-11434}"
+export OLLAMA_HOST="0.0.0.0:${OLLAMA_PORT}"
+
 echo "Starting Ollama service..."
 echo "Model to ensure: $MODEL_NAME"
+echo "Ollama will listen on: $OLLAMA_HOST"
 
 # Start Ollama in the background
 ollama serve &
@@ -15,7 +21,7 @@ OLLAMA_PID=$!
 # Wait for Ollama to be ready
 echo "Waiting for Ollama to be ready..."
 for i in $(seq 1 60); do
-    if curl -f http://localhost:11434/api/tags > /dev/null 2>&1; then
+    if curl -f http://localhost:${OLLAMA_PORT}/api/tags > /dev/null 2>&1; then
         echo "Ollama is ready!"
         break
     fi
