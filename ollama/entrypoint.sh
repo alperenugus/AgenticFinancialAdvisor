@@ -15,6 +15,10 @@ OLLAMA_PORT="${PORT:-11434}"
 # This MUST be set before starting ollama serve
 export OLLAMA_HOST="0.0.0.0:${OLLAMA_PORT}"
 
+# Set OLLAMA_KEEP_ALIVE to keep model in memory (24 hours)
+# This prevents reloading the model on every request
+export OLLAMA_KEEP_ALIVE="${OLLAMA_KEEP_ALIVE:-24h}"
+
 # Log the configuration for debugging
 echo "=========================================="
 echo "Ollama Configuration:"
@@ -74,9 +78,19 @@ fi
 echo "Available models:"
 ollama list
 
+# Pre-load the model into memory to avoid reloading on each request
+echo "Pre-loading model $MODEL_NAME into memory..."
+ollama run "$MODEL_NAME" "Hello" > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "Model $MODEL_NAME pre-loaded successfully!"
+else
+    echo "Warning: Failed to pre-load model, but service will continue."
+fi
+
 # Keep the container running
-echo "Ollama service is running. Models are ready."
+echo "Ollama service is running. Models are ready and loaded in memory."
 echo "Ollama PID: $OLLAMA_PID"
+echo "Model $MODEL_NAME is kept in memory (OLLAMA_KEEP_ALIVE=24h)"
 
 # Wait for Ollama process to keep container alive
 # If Ollama crashes, container will exit (Railway will restart it)
