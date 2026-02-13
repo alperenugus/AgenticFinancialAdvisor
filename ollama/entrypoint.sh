@@ -8,7 +8,7 @@ MODEL_NAME="${OLLAMA_MODEL:-llama3.1}"
 echo "Starting Ollama service..."
 echo "Model to ensure: $MODEL_NAME"
 
-# Start Ollama in the background and capture PID
+# Start Ollama in the background
 ollama serve &
 OLLAMA_PID=$!
 
@@ -38,6 +38,7 @@ else
         echo "Successfully pulled $MODEL_NAME"
     else
         echo "Warning: Failed to pull $MODEL_NAME. Service will continue without it."
+        echo "Note: If this fails due to disk space, increase Railway volume size or clean up space."
     fi
 fi
 
@@ -45,23 +46,11 @@ fi
 echo "Available models:"
 ollama list
 
-# Keep the container running - monitor Ollama process
+# Keep the container running
 echo "Ollama service is running. Models are ready."
 echo "Ollama PID: $OLLAMA_PID"
 
-# Keep container alive and monitor Ollama process
-while true; do
-    # Check if Ollama process is still running
-    if ! kill -0 $OLLAMA_PID 2>/dev/null; then
-        echo "ERROR: Ollama process died! Restarting..."
-        ollama serve &
-        OLLAMA_PID=$!
-        sleep 5
-    fi
-    # Health check
-    if ! curl -f http://localhost:11434/api/tags > /dev/null 2>&1; then
-        echo "WARNING: Ollama health check failed, but continuing..."
-    fi
-    sleep 30
-done
+# Wait for Ollama process to keep container alive
+# If Ollama crashes, container will exit (Railway will restart it)
+wait $OLLAMA_PID
 
