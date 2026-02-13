@@ -8,6 +8,7 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 
 ## ✨ Features
 
+- **Google Sign-In Authentication**: Secure OAuth2 authentication with JWT tokens
 - **Multi-Agent Architecture**: 6 specialized AI agents working in coordination
 - **Real-time Market Data**: Integration with Alpha Vantage API for live stock data
 - **Risk Assessment**: Automated risk evaluation based on user preferences
@@ -21,18 +22,25 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Frontend (React)                        │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
-│  │   Chat UI    │  │  Portfolio   │  │ User Profile │        │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘        │
-│         │                  │                  │                │
-│         └──────────────────┼──────────────────┘                │
-│                            │                                    │
-│                    WebSocket / REST API                         │
+│  │  Login Page  │  │   Chat UI    │  │  Portfolio   │        │
+│  │ (Google OAuth)│  └──────┬───────┘  └──────┬───────┘        │
+│  └──────┬───────┘           │                  │                │
+│         │                   │                  │                │
+│         └───────────────────┼──────────────────┘                │
+│                             │                                    │
+│                    WebSocket / REST API (JWT Auth)              │
 └────────────────────────────┼────────────────────────────────────┘
                              │
 ┌────────────────────────────┼────────────────────────────────────┐
 │                    Backend (Spring Boot)                        │
 │                            │                                    │
 │         ┌──────────────────┴──────────────────┐               │
+│         │   Security Layer (OAuth2 + JWT)      │               │
+│         │  - Google OAuth2 Authentication     │               │
+│         │  - JWT Token Validation            │               │
+│         └───────┬──────────────────────────────┘               │
+│                 │                                               │
+│         ┌───────▼──────────────────────────────┐               │
 │         │     Orchestrator Service             │               │
 │         │  (Coordinates all agents via LLM)    │               │
 │         └───────┬──────────────────────────────┘               │
@@ -54,6 +62,7 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
 │         │      PostgreSQL Database                  │        │
+│         │  - Users (Google OAuth)                  │        │
 │         │  - User Profiles                          │        │
 │         │  - Portfolios                            │        │
 │         │  - Recommendations                       │        │
@@ -77,6 +86,7 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
 - PostgreSQL 14+ (or use H2 for testing)
 - Node.js 18+ and npm (for frontend)
 - Groq API Key - [Get one here](https://console.groq.com/)
+- Google OAuth2 Credentials - [Setup Guide](./docs/GOOGLE_AUTH_SETUP.md)
 
 ### Backend Setup
 
@@ -96,30 +106,36 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
      postgres:14
    ```
 
-3. **Get Groq API Key**
-   - Sign up at [Groq Console](https://console.groq.com/)
-   - Create an API key
-   - Copy the key for use in environment variables
+3. **Get API Keys**
+   - **Groq API Key**: Sign up at [Groq Console](https://console.groq.com/) and create an API key
+   - **Alpha Vantage API Key**: Get free key from [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+   - **Google OAuth2 Credentials**: Follow [Google Auth Setup Guide](./docs/GOOGLE_AUTH_SETUP.md)
 
 4. **Configure environment variables**
-   ```bash
-   cd backend
-   cp src/main/resources/application.yml.example src/main/resources/application.yml
-   ```
    
-   Set environment variables or edit `application.yml`:
+   Set environment variables:
    ```bash
    export GROQ_API_KEY=your_groq_api_key_here
    export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
+   export GOOGLE_CLIENT_ID=your_google_client_id
+   export GOOGLE_CLIENT_SECRET=your_google_client_secret
+   export JWT_SECRET=your-secure-random-secret-key-minimum-32-characters
    ```
    
-   Or in `application.yml`:
+   Or edit `application.yml`:
    ```yaml
    spring:
      datasource:
        url: jdbc:postgresql://localhost:5432/financialadvisor
        username: postgres
        password: postgres
+     security:
+       oauth2:
+         client:
+           registration:
+             google:
+               client-id: ${GOOGLE_CLIENT_ID:}
+               client-secret: ${GOOGLE_CLIENT_SECRET:}
    
    langchain4j:
      groq:
@@ -129,6 +145,10 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
        tool-agent:
          api-key: ${GROQ_API_KEY:}
          model: llama-3.1-8b-instant
+   
+   jwt:
+     secret: ${JWT_SECRET:your-secure-secret-key}
+     expiration: 86400000
    
    market-data:
      alpha-vantage:
@@ -157,6 +177,7 @@ The frontend will start on `http://localhost:5173`
 
 - **[API Documentation](./API.md)** - Complete API reference
 - **[Architecture](./ARCHITECTURE.md)** - System architecture and design
+- **[Google Auth Setup](./docs/GOOGLE_AUTH_SETUP.md)** - Google Sign-In configuration guide
 - **[Deployment Guide](./DEPLOYMENT.md)** - General deployment instructions
 - **[Railway Deployment](./docs/railway/RAILWAY_GUIDE.md)** - Complete Railway deployment guide
 - **[Environment Variables](./docs/ENVIRONMENT_VARIABLES.md)** - All required environment variables
@@ -230,6 +251,8 @@ mvn test jacoco:report
 
 ### Backend
 - **Spring Boot 3.4** - Application framework
+- **Spring Security OAuth2** - Google Sign-In authentication
+- **JWT** - Token-based authentication
 - **LangChain4j 0.34.0** - LLM integration
 - **Groq API** - Fast LLM inference (llama-3.3-70b for orchestrator, llama-3.1-8b for tool agents)
 - **PostgreSQL** - Database
@@ -291,11 +314,13 @@ AgenticFinancialAdvisor/
 
 ### Security Measures
 
-- Input validation on all endpoints
-- SQL injection prevention (JPA)
-- CORS configuration
-- Session management
-- Rate limiting (recommended for production)
+- **Google OAuth2 Authentication** - Secure passwordless authentication
+- **JWT Tokens** - Stateless, secure session management
+- **Input validation** on all endpoints
+- **SQL injection prevention** (JPA)
+- **CORS configuration** with credentials support
+- **Token-based authorization** - All endpoints protected
+- **Rate limiting** (recommended for production)
 
 ## 🚢 Deployment
 
@@ -307,6 +332,10 @@ AgenticFinancialAdvisor/
      - `DATABASE_URL` (auto-set by Railway PostgreSQL)
      - `GROQ_API_KEY` (required - get from https://console.groq.com/)
      - `ALPHA_VANTAGE_API_KEY` (required)
+     - `GOOGLE_CLIENT_ID` (required - see [Google Auth Setup](./docs/GOOGLE_AUTH_SETUP.md))
+     - `GOOGLE_CLIENT_SECRET` (required)
+     - `JWT_SECRET` (required - generate secure random 32+ character string)
+     - `CORS_ORIGINS` (include your frontend URL)
      - Optional: `GROQ_ORCHESTRATOR_MODEL`, `GROQ_TOOL_AGENT_MODEL` (defaults provided)
 
 2. **Frontend Deployment**
@@ -320,13 +349,33 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
 
 ## 📊 Example Usage
 
+### Authentication
+
+1. **Sign in with Google** (via frontend)
+   - Navigate to the application
+   - Click "Sign in with Google"
+   - Complete OAuth2 flow
+   - JWT token is automatically stored
+
+2. **Using API with JWT Token**
+   ```bash
+   # Get your token from browser localStorage after login
+   # Or use /api/auth/me endpoint
+   
+   TOKEN="your_jwt_token_here"
+   
+   # Get current user
+   curl -X GET http://localhost:8080/api/auth/me \
+     -H "Authorization: Bearer $TOKEN"
+   ```
+
 ### Creating a User Profile
 
 ```bash
 curl -X POST http://localhost:8080/api/profile \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "userId": "user123",
     "riskTolerance": "MODERATE",
     "horizon": "MEDIUM",
     "goals": ["GROWTH", "RETIREMENT"],
@@ -339,12 +388,14 @@ curl -X POST http://localhost:8080/api/profile \
 ```bash
 curl -X POST http://localhost:8080/api/advisor/analyze \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "userId": "user123",
     "query": "Should I buy Apple stock?",
     "sessionId": "session-123"
   }'
 ```
+
+**Note**: All API endpoints now require authentication. The `userId` is automatically extracted from the JWT token.
 
 ## 🤝 Contributing
 

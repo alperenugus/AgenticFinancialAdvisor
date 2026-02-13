@@ -16,6 +16,18 @@ SPRING_DATASOURCE_URL=jdbc:postgresql://host:5432/dbname
 SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=your_password
 
+# Google OAuth2 Configuration (REQUIRED)
+# See: docs/GOOGLE_AUTH_SETUP.md for setup instructions
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google
+
+# JWT Configuration (REQUIRED)
+# Generate a secure random string (minimum 32 characters)
+# Example: openssl rand -base64 32
+JWT_SECRET=your-secure-random-secret-key-minimum-32-characters-long
+JWT_EXPIRATION=86400000  # 24 hours in milliseconds
+
 # Groq API Configuration (REQUIRED)
 # Get your API key from: https://console.groq.com/
 GROQ_API_KEY=your_groq_api_key_here
@@ -41,8 +53,13 @@ PORT=8080
 ### Optional Variables
 
 ```bash
-# CORS Origins (if frontend on different domain)
+# CORS Origins (REQUIRED if frontend on different domain)
+# Must include your frontend URL for OAuth2 redirects
 CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173
+
+# Frontend Redirect URL (for OAuth2 callback)
+# Default: http://localhost:5173 (local) or your frontend URL (production)
+FRONTEND_REDIRECT_URL=https://your-frontend.railway.app
 
 # News API (optional - get free key from https://newsapi.org/)
 NEWS_API_KEY=your_news_api_key_here
@@ -98,24 +115,25 @@ PORT=3000
 ### Backend Service Variables
 
 - [ ] `DATABASE_URL` - Auto-set by PostgreSQL (verify it's there)
+- [ ] `GOOGLE_CLIENT_ID` - **REQUIRED** - Get from Google Cloud Console
+- [ ] `GOOGLE_CLIENT_SECRET` - **REQUIRED** - Get from Google Cloud Console
+- [ ] `GOOGLE_REDIRECT_URI` - **REQUIRED** - `https://your-backend.railway.app/login/oauth2/code/google`
+- [ ] `JWT_SECRET` - **REQUIRED** - Generate secure random 32+ character string
+- [ ] `JWT_EXPIRATION` - Optional - Default: 86400000 (24 hours)
 - [ ] `GROQ_API_KEY` - **REQUIRED** - Get from https://console.groq.com/
-- [ ] `ALPHA_VANTAGE_API_KEY` - Get from https://www.alphavantage.co/support/#api-key
+- [ ] `ALPHA_VANTAGE_API_KEY` - **REQUIRED** - Get from https://www.alphavantage.co/support/#api-key
+- [ ] `CORS_ORIGINS` - **REQUIRED** - Include frontend URL for OAuth2
+- [ ] `FRONTEND_REDIRECT_URL` - Optional - Frontend URL for OAuth2 callback
 - [ ] `PORT=8080` - Usually auto-set
 - [ ] (Optional) `GROQ_ORCHESTRATOR_MODEL` - Default: llama-3.3-70b-versatile
 - [ ] (Optional) `GROQ_TOOL_AGENT_MODEL` - Default: llama-3.1-8b-instant
-- [ ] (Optional) `CORS_ORIGINS` - If frontend on different domain
 - [ ] (Optional) `NEWS_API_KEY` - If using NewsAPI
 
 ### Frontend Service Variables
 
-- [ ] `VITE_API_BASE_URL` - Backend URL + `/api`
-- [ ] `VITE_WS_URL` - Backend URL + `/ws`
+- [ ] `VITE_API_BASE_URL` - Backend URL + `/api` (e.g., `https://your-backend.railway.app/api`)
+- [ ] `VITE_WS_URL` - Backend URL + `/ws` (e.g., `https://your-backend.railway.app/ws`)
 - [ ] `PORT=3000` - Usually auto-set
-
-### Ollama Service Variables
-
-- [ ] Usually none needed
-- [ ] (Optional) `OLLAMA_HOST=0.0.0.0:11434`
 
 ---
 
@@ -146,9 +164,13 @@ railway login
 railway link
 
 # Set variables for backend
-railway variables set LANGCHAIN4J_OLLAMA_BASE_URL=https://your-ollama.railway.app --service backend
-railway variables set LANGCHAIN4J_OLLAMA_MODEL=llama3.1 --service backend
+railway variables set GOOGLE_CLIENT_ID=your_client_id --service backend
+railway variables set GOOGLE_CLIENT_SECRET=your_client_secret --service backend
+railway variables set GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google --service backend
+railway variables set JWT_SECRET=$(openssl rand -base64 32) --service backend
+railway variables set GROQ_API_KEY=your_key --service backend
 railway variables set ALPHA_VANTAGE_API_KEY=your_key --service backend
+railway variables set CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173 --service backend
 
 # Set variables for frontend
 railway variables set VITE_API_BASE_URL=https://your-backend.railway.app/api --service frontend
@@ -165,12 +187,15 @@ railway variables set VITE_WS_URL=https://your-backend.railway.app/ws --service 
 # Replace these with your actual URLs and keys:
 
 DATABASE_URL=postgresql://postgres:password@containers-us-west-xxx.railway.app:5432/railway
-LANGCHAIN4J_OLLAMA_BASE_URL=https://ollama-production-xxxx.up.railway.app
-LANGCHAIN4J_OLLAMA_MODEL=llama3.1
-LANGCHAIN4J_OLLAMA_TEMPERATURE=0.7
+GOOGLE_CLIENT_ID=123456789-abcdefghijklmnop.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-abcdefghijklmnopqrstuvwxyz
+GOOGLE_REDIRECT_URI=https://backend-production-xxxx.up.railway.app/login/oauth2/code/google
+JWT_SECRET=your-secure-random-32-character-secret-key-here
+GROQ_API_KEY=gsk_abc123xyz789
 ALPHA_VANTAGE_API_KEY=ABC123XYZ789
+CORS_ORIGINS=https://frontend-production-xxxx.up.railway.app,http://localhost:5173
+FRONTEND_REDIRECT_URL=https://frontend-production-xxxx.up.railway.app
 PORT=8080
-CORS_ORIGINS=https://frontend-production-xxxx.up.railway.app
 ```
 
 ### Frontend Service
@@ -187,6 +212,27 @@ PORT=3000
 
 ## Getting API Keys
 
+### Google OAuth2 Credentials (Required)
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project or select existing one
+3. Enable Google+ API
+4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+5. Configure:
+   - Application type: Web application
+   - Authorized redirect URIs: `https://your-backend.railway.app/login/oauth2/code/google`
+6. Copy Client ID and Client Secret
+7. Set as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+
+See [Google Auth Setup Guide](../GOOGLE_AUTH_SETUP.md) for detailed instructions.
+
+### Groq API Key (Required)
+
+1. Go to https://console.groq.com/
+2. Sign up or log in
+3. Create an API key
+4. Set as `GROQ_API_KEY`
+
 ### Alpha Vantage API Key (Required)
 
 1. Go to https://www.alphavantage.co/support/#api-key
@@ -200,6 +246,23 @@ PORT=3000
 2. Sign up for free account
 3. Get your API key (100 requests/day free)
 4. Set as `NEWS_API_KEY`
+
+### JWT Secret (Required)
+
+Generate a secure random secret:
+
+```bash
+# Using OpenSSL
+openssl rand -base64 32
+
+# Or using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Or using Python
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Set as `JWT_SECRET` (minimum 32 characters).
 
 ---
 
@@ -283,9 +346,12 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 
 ### ❌ Missing Variables
 
-- Forgetting to set `LANGCHAIN4J_OLLAMA_BASE_URL` → Backend can't connect to Ollama
+- Forgetting to set `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` → Authentication won't work
+- Forgetting to set `JWT_SECRET` → Authentication will fail
+- Forgetting to set `GROQ_API_KEY` → LLM agents won't work
 - Forgetting to set `ALPHA_VANTAGE_API_KEY` → Market data won't work
 - Forgetting to set `VITE_API_BASE_URL` → Frontend can't connect to backend
+- Forgetting to set `CORS_ORIGINS` → OAuth2 redirects will fail
 - Using internal URL for frontend → `ERR_NAME_NOT_RESOLVED` error
 
 ---
@@ -295,9 +361,13 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 ### Minimum Required (Backend)
 
 1. `DATABASE_URL` - Auto-set by PostgreSQL
-2. `LANGCHAIN4J_OLLAMA_BASE_URL` - Your Ollama service URL
-3. `LANGCHAIN4J_OLLAMA_MODEL=llama3.1`
-4. `ALPHA_VANTAGE_API_KEY` - Get free key
+2. `GOOGLE_CLIENT_ID` - From Google Cloud Console
+3. `GOOGLE_CLIENT_SECRET` - From Google Cloud Console
+4. `GOOGLE_REDIRECT_URI` - `https://your-backend.railway.app/login/oauth2/code/google`
+5. `JWT_SECRET` - Generate secure random 32+ character string
+6. `GROQ_API_KEY` - Get from https://console.groq.com/
+7. `ALPHA_VANTAGE_API_KEY` - Get free key
+8. `CORS_ORIGINS` - Include frontend URL
 
 ### Minimum Required (Frontend)
 
@@ -306,5 +376,5 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 
 ---
 
-**Quick Reference**: Set these 4-6 variables and you're good to go!
+**Quick Reference**: Set these 8 backend + 2 frontend variables and you're good to go!
 

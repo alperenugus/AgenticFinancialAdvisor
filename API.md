@@ -2,27 +2,97 @@
 
 ## Base URL
 
-- **Local Development**: `http://localhost:8080`
-- **Production**: (Configure based on deployment)
+- **Local Development**: `http://localhost:8080/api`
+- **Production**: `https://your-backend.railway.app/api`
 
 ## Authentication
 
-Currently, the API uses session-based user IDs. Future versions will implement JWT/OAuth2 authentication.
+The API uses **JWT (JSON Web Tokens)** for authentication. All endpoints (except `/api/auth/**` and `/oauth2/**`) require a valid JWT token in the `Authorization` header.
 
-## Endpoints
+### Getting a Token
 
-### User Profile
+1. **Via Frontend**: Sign in with Google through the frontend - token is automatically stored
+2. **Via OAuth2 Flow**: Redirect to `/oauth2/authorization/google` - completes Google OAuth2 and redirects with token
+3. **Validate Token**: Use `/api/auth/validate` to check token validity
 
-#### Get User Profile
+### Using Tokens
+
+Include the token in the `Authorization` header:
+
 ```http
-GET /api/profile/{userId}
+Authorization: Bearer <your_jwt_token>
+```
+
+### Token Expiration
+
+- Default: 24 hours (configurable via `JWT_EXPIRATION`)
+- Expired tokens return `401 Unauthorized`
+- Frontend automatically redirects to login on 401
+
+---
+
+## Authentication Endpoints
+
+### Get Current User
+
+```http
+GET /api/auth/me
+Authorization: Bearer <token>
 ```
 
 **Response:**
 ```json
 {
   "id": 1,
-  "userId": "user123",
+  "email": "user@example.com",
+  "name": "John Doe",
+  "pictureUrl": "https://lh3.googleusercontent.com/..."
+}
+```
+
+### Validate Token
+
+```http
+POST /api/auth/validate
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "valid": true,
+  "email": "user@example.com",
+  "userId": 1,
+  "name": "John Doe"
+}
+```
+
+**Error Response (401):**
+```json
+{
+  "status": "error",
+  "message": "Invalid or expired token"
+}
+```
+
+---
+
+## User Profile Endpoints
+
+All profile endpoints use the authenticated user's email (from JWT token) - no `userId` parameter needed.
+
+### Get User Profile
+
+```http
+GET /api/profile
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "userId": "user@example.com",
   "riskTolerance": "MODERATE",
   "horizon": "MEDIUM",
   "goals": ["GROWTH", "RETIREMENT"],
@@ -35,13 +105,14 @@ GET /api/profile/{userId}
 }
 ```
 
-#### Create User Profile
+### Create User Profile
+
 ```http
 POST /api/profile
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "userId": "user123",
   "riskTolerance": "MODERATE",
   "horizon": "MEDIUM",
   "goals": ["GROWTH", "RETIREMENT"],
@@ -54,9 +125,13 @@ Content-Type: application/json
 
 **Response:** Created user profile (same structure as GET)
 
-#### Update User Profile
+**Note:** `userId` is automatically set from the authenticated user's email.
+
+### Update User Profile
+
 ```http
-PUT /api/profile/{userId}
+PUT /api/profile
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
@@ -69,18 +144,22 @@ Content-Type: application/json
 
 ---
 
-### Portfolio Management
+## Portfolio Management
 
-#### Get Portfolio
+All portfolio endpoints use the authenticated user - no `userId` parameter needed.
+
+### Get Portfolio
+
 ```http
-GET /api/portfolio/{userId}
+GET /api/portfolio
+Authorization: Bearer <token>
 ```
 
 **Response:**
 ```json
 {
   "id": 1,
-  "userId": "user123",
+  "userId": "user@example.com",
   "holdings": [
     {
       "id": 1,
@@ -100,9 +179,11 @@ GET /api/portfolio/{userId}
 }
 ```
 
-#### Add Holding
+### Add Holding
+
 ```http
-POST /api/portfolio/{userId}/holdings
+POST /api/portfolio/holdings
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
@@ -127,9 +208,11 @@ Content-Type: application/json
 }
 ```
 
-#### Remove Holding
+### Remove Holding
+
 ```http
-DELETE /api/portfolio/{userId}/holdings/{holdingId}
+DELETE /api/portfolio/holdings/{holdingId}
+Authorization: Bearer <token>
 ```
 
 **Response:**
@@ -140,24 +223,27 @@ DELETE /api/portfolio/{userId}/holdings/{holdingId}
 }
 ```
 
-#### Refresh Portfolio Prices
+### Refresh Portfolio Prices
+
 ```http
-POST /api/portfolio/{userId}/refresh
+POST /api/portfolio/refresh
+Authorization: Bearer <token>
 ```
 
 **Response:** Updated portfolio with current prices
 
 ---
 
-### Advisor & Recommendations
+## Advisor & Recommendations
 
-#### Request Analysis
+### Request Analysis
+
 ```http
 POST /api/advisor/analyze
+Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "userId": "user123",
   "query": "Should I buy Apple stock?",
   "sessionId": "session-123"
 }
@@ -167,17 +253,22 @@ Content-Type: application/json
 ```json
 {
   "sessionId": "session-123",
-  "userId": "user123",
+  "userId": "user@example.com",
   "response": "Based on my analysis...",
   "status": "success"
 }
 ```
 
-**Note:** This endpoint triggers the orchestrator to coordinate all agents. Real-time updates are sent via WebSocket.
+**Note:** 
+- `userId` is automatically extracted from JWT token
+- This endpoint triggers the orchestrator to coordinate all agents
+- Real-time updates are sent via WebSocket
 
-#### Get All Recommendations
+### Get All Recommendations
+
 ```http
-GET /api/advisor/recommendations/{userId}
+GET /api/advisor/recommendations
+Authorization: Bearer <token>
 ```
 
 **Response:**
@@ -185,7 +276,7 @@ GET /api/advisor/recommendations/{userId}
 [
   {
     "id": 1,
-    "userId": "user123",
+    "userId": "user@example.com",
     "symbol": "AAPL",
     "action": "BUY",
     "confidence": 0.85,
@@ -201,14 +292,17 @@ GET /api/advisor/recommendations/{userId}
 ]
 ```
 
-#### Get Specific Recommendation
+### Get Specific Recommendation
+
 ```http
-GET /api/advisor/recommendations/{userId}/{symbol}
+GET /api/advisor/recommendations/{symbol}
+Authorization: Bearer <token>
 ```
 
 **Response:** Single recommendation object
 
-#### Check Agent Status
+### Check Agent Status
+
 ```http
 GET /api/advisor/status
 ```
@@ -228,19 +322,28 @@ GET /api/advisor/status
 }
 ```
 
+**Note:** This endpoint is public (no authentication required) for health checks.
+
 ---
 
 ## WebSocket API
 
 ### Connection
 
+WebSocket connections require authentication. Include the JWT token in the connection headers:
+
 ```javascript
 const socket = new SockJS('http://localhost:8080/ws');
 const stompClient = Stomp.over(socket);
 
-stompClient.connect({}, function(frame) {
-  console.log('Connected');
-});
+stompClient.connect(
+  {
+    Authorization: 'Bearer ' + token
+  },
+  function(frame) {
+    console.log('Connected');
+  }
+);
 ```
 
 ### Topics
@@ -285,21 +388,35 @@ stompClient.subscribe('/topic/error/{sessionId}', function(message) {
 
 ## Data Models
 
+### User (OAuth2)
+
+```typescript
+interface User {
+  id: number;
+  email: string;        // Unique identifier
+  name: string;
+  googleId: string;      // Google OAuth2 user ID
+  pictureUrl: string;   // Profile picture URL
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
 ### UserProfile
 
 ```typescript
 interface UserProfile {
   id: number;
-  userId: string;
+  userId: string;       // User's email (from authentication)
   riskTolerance: "CONSERVATIVE" | "MODERATE" | "AGGRESSIVE";
   horizon: "SHORT" | "MEDIUM" | "LONG";
-  goals: string[]; // ["GROWTH", "RETIREMENT", "INCOME"]
+  goals: string[];      // ["GROWTH", "RETIREMENT", "INCOME"]
   budget: number;
   preferredSectors: string[];
   excludedSectors: string[];
   ethicalInvesting: boolean;
-  createdAt: string; // ISO 8601
-  updatedAt: string; // ISO 8601
+  createdAt: string;    // ISO 8601
+  updatedAt: string;    // ISO 8601
 }
 ```
 
@@ -308,7 +425,7 @@ interface UserProfile {
 ```typescript
 interface Portfolio {
   id: number;
-  userId: string;
+  userId: string;       // User's email
   holdings: StockHolding[];
   totalValue: number;
   totalGainLoss: number;
@@ -334,10 +451,10 @@ interface StockHolding {
 ```typescript
 interface Recommendation {
   id: number;
-  userId: string;
+  userId: string;       // User's email
   symbol: string;
   action: "BUY" | "SELL" | "HOLD";
-  confidence: number; // 0.0 - 1.0
+  confidence: number;  // 0.0 - 1.0
   reasoning: string;
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
   targetPrice: number;
@@ -367,10 +484,28 @@ interface Recommendation {
 - `200 OK` - Success
 - `201 Created` - Resource created
 - `400 Bad Request` - Invalid request
+- `401 Unauthorized` - Authentication required or token invalid
+- `403 Forbidden` - Insufficient permissions
 - `404 Not Found` - Resource not found
 - `500 Internal Server Error` - Server error
 
 ### Example Error Responses
+
+**401 Unauthorized (No Token):**
+```json
+{
+  "status": "error",
+  "message": "Authentication required"
+}
+```
+
+**401 Unauthorized (Invalid Token):**
+```json
+{
+  "status": "error",
+  "message": "Invalid or expired token"
+}
+```
 
 **400 Bad Request:**
 ```json
@@ -415,12 +550,27 @@ interface Recommendation {
 ### Complete Flow Example
 
 ```javascript
-// 1. Create user profile
+// 1. Authenticate (via frontend OAuth2 flow)
+// Token is stored in localStorage after Google Sign-In
+
+const token = localStorage.getItem('token');
+
+// 2. Get current user
+const userResponse = await fetch('/api/auth/me', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+const user = await userResponse.json();
+
+// 3. Create user profile
 const profile = await fetch('/api/profile', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
   body: JSON.stringify({
-    userId: 'user123',
     riskTolerance: 'MODERATE',
     horizon: 'MEDIUM',
     goals: ['GROWTH'],
@@ -428,10 +578,13 @@ const profile = await fetch('/api/profile', {
   })
 });
 
-// 2. Add stock to portfolio
-await fetch('/api/portfolio/user123/holdings', {
+// 4. Add stock to portfolio
+await fetch('/api/portfolio/holdings', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
   body: JSON.stringify({
     symbol: 'AAPL',
     quantity: 10,
@@ -439,45 +592,54 @@ await fetch('/api/portfolio/user123/holdings', {
   })
 });
 
-// 3. Request analysis
+// 5. Request analysis
 const analysis = await fetch('/api/advisor/analyze', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
   body: JSON.stringify({
-    userId: 'user123',
     query: 'Should I buy more Apple stock?',
     sessionId: 'session-123'
   })
 });
 
-// 4. Connect to WebSocket for real-time updates
+// 6. Connect to WebSocket for real-time updates
 const socket = new SockJS('http://localhost:8080/ws');
 const stompClient = Stomp.over(socket);
 
-stompClient.connect({}, () => {
-  stompClient.subscribe('/topic/thinking/session-123', (message) => {
-    const data = JSON.parse(message.body);
-    console.log('Thinking:', data.content);
-  });
-  
-  stompClient.subscribe('/topic/response/session-123', (message) => {
-    const data = JSON.parse(message.body);
-    console.log('Response:', data.content);
-  });
-});
+stompClient.connect(
+  { Authorization: `Bearer ${token}` },
+  () => {
+    stompClient.subscribe('/topic/thinking/session-123', (message) => {
+      const data = JSON.parse(message.body);
+      console.log('Thinking:', data.content);
+    });
+    
+    stompClient.subscribe('/topic/response/session-123', (message) => {
+      const data = JSON.parse(message.body);
+      console.log('Response:', data.content);
+    });
+  }
+);
 
-// 5. Get recommendations
-const recommendations = await fetch('/api/advisor/recommendations/user123');
+// 7. Get recommendations
+const recommendations = await fetch('/api/advisor/recommendations', {
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
 ```
 
 ---
 
 ## Agent Tools (Internal)
 
-These are the tools available to the LLM orchestrator. They're called automatically based on the user query.
+These are the tools available to the LLM orchestrator. They're called automatically based on the user query. The `userId` parameter is automatically extracted from the authenticated user's email.
 
 ### UserProfileAgent Tools
-- `getUserProfile(userId: string): string`
+- `getUserProfile(userId: string): string` - Gets profile for authenticated user
 - `updateRiskTolerance(userId: string, riskTolerance: string): string`
 - `getInvestmentGoals(userId: string): string`
 
@@ -510,8 +672,19 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 ## Changelog
 
-### v1.0.0 (Current)
+### v2.0.0 (Current)
+- **Google OAuth2 Authentication** - Secure passwordless authentication
+- **JWT Token-based API** - All endpoints require authentication
+- **User Management** - User entity with Google OAuth integration
+- **Updated API Endpoints** - Removed `userId` from paths (uses authenticated user)
+- All 6 agents implemented
+- WebSocket support for real-time updates
+- Portfolio management
+- User profile management
+
+### v1.0.0
 - Initial API release
+- Session-based user IDs
 - All 6 agents implemented
 - WebSocket support for real-time updates
 - Portfolio management
@@ -521,4 +694,4 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 For architecture details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 For setup instructions, see [README.md](./README.md).
-
+For Google Auth setup, see [docs/GOOGLE_AUTH_SETUP.md](./docs/GOOGLE_AUTH_SETUP.md).

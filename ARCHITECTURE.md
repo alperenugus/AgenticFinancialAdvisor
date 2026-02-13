@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Agentic Financial Advisor uses a **multi-agent architecture** where specialized AI agents collaborate to provide investment recommendations. The system is built on Spring Boot with LangChain4j for LLM integration, using Ollama (deployed on Railway) - completely free and open-source!
+The Agentic Financial Advisor uses a **multi-agent architecture** where specialized AI agents collaborate to provide investment recommendations. The system is built on Spring Boot with LangChain4j for LLM integration, powered by Groq API for fast LLM inference. The application uses Google OAuth2 for secure authentication with JWT tokens.
 
 ## Architecture Diagram
 
@@ -13,21 +13,33 @@ The Agentic Financial Advisor uses a **multi-agent architecture** where speciali
 │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐        │
 │  │   React Frontend │  │  Mobile App      │  │  API Clients     │        │
 │  │   (Vite + React) │  │  (Future)        │  │  (Third-party)    │        │
+│  │  + Auth Context  │  │                  │  │                  │        │
 │  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘        │
 │           │                      │                      │                   │
 │           └──────────────────────┼──────────────────────┘                   │
 │                                  │                                            │
-│                          HTTP/REST + WebSocket                                │
+│                    HTTP/REST + WebSocket (JWT Authenticated)                 │
 └──────────────────────────────────┼────────────────────────────────────────────┘
                                    │
 ┌──────────────────────────────────┼────────────────────────────────────────────┐
 │                         APPLICATION LAYER                                      │
 │                                   │                                            │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │                    SECURITY LAYER                                      │   │
+│  │  ┌──────────────────────────────────────────────────────────────┐   │   │
+│  │  │  Spring Security + OAuth2                                    │   │   │
+│  │  │  - Google OAuth2 Authentication                              │   │   │
+│  │  │  - JWT Token Validation                                      │   │   │
+│  │  │  - User Authentication                                       │   │   │
+│  │  └──────────────────────────────────────────────────────────────┘   │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                   │                                            │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                        REST Controllers                              │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │   │
 │  │  │   Advisor    │  │   Portfolio  │  │ User Profile │             │   │
 │  │  │  Controller  │  │  Controller │  │  Controller  │             │   │
+│  │  │  (Auth'd)    │  │  (Auth'd)   │  │  (Auth'd)    │             │   │
 │  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘             │   │
 │  └─────────┼─────────────────┼─────────────────┼───────────────────────┘   │
 │            │                 │                 │                            │
@@ -83,31 +95,31 @@ The Agentic Financial Advisor uses a **multi-agent architecture** where speciali
 │                                    │                                            │
 │  ┌─────────────────────────────────▼──────────────────────────────────────┐  │
 │  │                    Repository Layer                                      │  │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                 │  │
-│  │  │   User       │  │  Portfolio   │  │Recommendation│                 │  │
-│  │  │  Profile     │  │  Repository  │  │  Repository  │                 │  │
-│  │  │  Repository  │  │              │  │              │                 │  │
-│  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                 │  │
-│  └─────────┼─────────────────┼─────────────────┼──────────────────────────┘  │
-│            │                 │                 │                               │
-│  ┌─────────▼─────────────────▼─────────────────▼──────────────────────────┐ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │  │
+│  │  │     User     │  │   User       │  │  Portfolio   │  │Recommendation│ │
+│  │  │  Repository  │  │  Profile     │  │  Repository  │  │  Repository  │ │
+│  │  │  (OAuth)     │  │  Repository  │  │              │  │              │ │
+│  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │
+│  └─────────┼─────────────────┼─────────────────┼─────────────────┼──────────┘  │
+│            │                 │                 │                 │              │
+│  ┌─────────▼─────────────────▼─────────────────▼─────────────────▼──────────┐ │
 │  │                    PostgreSQL Database                                   │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                │ │
-│  │  │   user_      │  │  portfolios  │  │recommendations│                │ │
-│  │  │   profiles   │  │              │  │               │                │ │
-│  │  └──────────────┘  └──────────────┘  └───────────────┘                │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │ │
+│  │  │    users     │  │   user_      │  │  portfolios  │  │recommendations│ │
+│  │  │ (Google OAuth)│  │   profiles   │  │              │  │               │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘  └─────────────┘ │ │
 │  └─────────────────────────────────────────────────────────────────────────┘ │
 └───────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         EXTERNAL SERVICES                                    │
 │                                                                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                      │
-│  │   Ollama     │  │   Alpha      │  │   NewsAPI    │                      │
-│  │  (Local LLM) │  │ (Production) │  │  Vantage     │                      │
-│  │              │  │              │  │  (Market     │                      │
-│  │  llama3.1    │  │  llama-3.1   │  │   Data)      │                      │
-│  └──────────────┘  └──────────────┘  └──────────────┘                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │    Google    │  │    Groq      │  │   Alpha     │  │   NewsAPI   │     │
+│  │   OAuth2     │  │     API      │  │  Vantage    │  │  (Optional) │     │
+│  │              │  │              │  │  (Market     │  │             │     │
+│  │ Authentication│  │  LLM Inference│  │   Data)     │  │             │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘     │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -286,8 +298,12 @@ Final Response (via WebSocket + REST)
 
 ### LLM Integration
 - **LangChain4j 0.34.0**: Java LLM framework
-- **Ollama**: Local open-source LLM (development)
-- **Ollama**: Free open-source LLM (deployed on Railway)
+- **Groq API**: Fast LLM inference (llama-3.3-70b for orchestrator, llama-3.1-8b for tool agents)
+
+### Authentication & Security
+- **Spring Security OAuth2**: Google Sign-In integration
+- **JWT (JSON Web Tokens)**: Stateless authentication
+- **OAuth2 Client**: Google OAuth2 flow
 
 ### Database
 - **PostgreSQL**: Primary database
@@ -304,12 +320,56 @@ Final Response (via WebSocket + REST)
 ┌─────────────────────────────────────────────────────┐
 │                  Security Layers                     │
 │                                                       │
-│  1. Input Validation (Spring Validation)            │
-│  2. SQL Injection Prevention (JPA)                  │
-│  3. CORS Configuration                              │
-│  4. Rate Limiting (Recommended)                     │
-│  5. Authentication (Future: OAuth2/JWT)             │
+│  1. Google OAuth2 Authentication                    │
+│     - Secure passwordless authentication            │
+│     - User identity verification                    │
+│                                                       │
+│  2. JWT Token Validation                            │
+│     - Stateless authentication                      │
+│     - Token expiration (24 hours)                    │
+│     - Automatic token refresh                        │
+│                                                       │
+│  3. Spring Security Filter Chain                    │
+│     - Protected endpoints                            │
+│     - CORS with credentials                         │
+│     - Request authentication                        │
+│                                                       │
+│  4. Input Validation (Spring Validation)            │
+│  5. SQL Injection Prevention (JPA)                  │
+│  6. Rate Limiting (Recommended)                     │
 └─────────────────────────────────────────────────────┘
+```
+
+### Authentication Flow
+
+```
+User → Frontend Login Page
+  │
+  ├─► Click "Sign in with Google"
+  │
+  ▼
+Backend OAuth2 Endpoint (/oauth2/authorization/google)
+  │
+  ├─► Redirect to Google
+  │
+  ├─► User authenticates with Google
+  │
+  ├─► Google redirects back with code
+  │
+  ├─► Backend exchanges code for user info
+  │
+  ├─► Create/Update User in database
+  │
+  ├─► Generate JWT token
+  │
+  └─► Redirect to frontend with token
+      │
+      ▼
+Frontend stores token in localStorage
+  │
+  ├─► Token included in all API requests
+  │
+  └─► Backend validates token on each request
 ```
 
 ## Scalability Considerations
@@ -342,7 +402,8 @@ Final Response (via WebSocket + REST)
 │                                                       │
 │  ┌──────────────┐         ┌──────────────┐        │
 │  │   Frontend   │         │   Backend    │        │
-│  │  (Static)    │◄───────►│  (Spring)    │        │
+│  │  (React)     │◄───────►│  (Spring)    │        │
+│  │  + Auth      │  JWT    │  + OAuth2    │        │
 │  └──────────────┘         └──────┬───────┘        │
 │                                   │                 │
 │                          ┌────────▼────────┐       │
@@ -350,10 +411,11 @@ Final Response (via WebSocket + REST)
 │                          │   (Managed)     │       │
 │                          └──────────────────┘       │
 │                                                       │
-│                          ┌──────────────┐           │
-│                          │   Ollama     │           │
-│                          │  (LLM API)   │           │
-│                          └──────────────┘           │
+│  ┌──────────────┐         ┌──────────────┐         │
+│  │    Google    │         │    Groq      │         │
+│  │   OAuth2     │         │     API      │         │
+│  │              │         │  (LLM)       │         │
+│  └──────────────┘         └──────────────┘         │
 └─────────────────────────────────────────────────────┘
 ```
 
