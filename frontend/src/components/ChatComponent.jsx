@@ -148,14 +148,14 @@ const ChatComponent = ({ userId }) => {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t border-gray-200 dark:border-gray-700 p-4">
+      <form onSubmit={handleSubmit} className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
         <div className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about stocks, portfolio, or investment advice..."
-            className="flex-1 input-field"
+            className="flex-1 input-field bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-600"
             disabled={isLoading}
           />
           <button

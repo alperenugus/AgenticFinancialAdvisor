@@ -135,12 +135,12 @@ const UserProfileForm = ({ userId, onSave }) => {
         <div className="p-2 bg-primary-100 dark:bg-primary-900 rounded-lg">
           <User className="w-6 h-6 text-primary-600 dark:text-primary-400" />
         </div>
-        <h2 className="text-2xl font-bold">User Profile</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">User Profile</h2>
       </div>
 
       {/* Risk Tolerance */}
       <div>
-        <label className="block text-sm font-medium mb-2">Risk Tolerance</label>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Risk Tolerance</label>
         <div className="grid grid-cols-3 gap-3">
           {['CONSERVATIVE', 'MODERATE', 'AGGRESSIVE'].map((risk) => (
             <button
@@ -161,7 +161,7 @@ const UserProfileForm = ({ userId, onSave }) => {
 
       {/* Investment Horizon */}
       <div>
-        <label className="block text-sm font-medium mb-2">Investment Horizon</label>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Investment Horizon</label>
         <div className="grid grid-cols-3 gap-3">
           {['SHORT', 'MEDIUM', 'LONG'].map((horizon) => (
             <button
@@ -182,7 +182,7 @@ const UserProfileForm = ({ userId, onSave }) => {
 
       {/* Investment Goals */}
       <div>
-        <label className="block text-sm font-medium mb-2">Investment Goals</label>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Investment Goals</label>
         <div className="flex flex-wrap gap-2">
           {availableGoals.map((goal) => (
             <button
@@ -203,7 +203,7 @@ const UserProfileForm = ({ userId, onSave }) => {
 
       {/* Budget */}
       <div>
-        <label className="block text-sm font-medium mb-2">Investment Budget ($)</label>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Investment Budget ($)</label>
         <input
           type="number"
           step="0.01"
@@ -217,7 +217,7 @@ const UserProfileForm = ({ userId, onSave }) => {
 
       {/* Preferred Sectors */}
       <div>
-        <label className="block text-sm font-medium mb-2">Preferred Sectors</label>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Preferred Sectors</label>
         <div className="flex flex-wrap gap-2">
           {availableSectors.map((sector) => (
             <button
@@ -238,7 +238,7 @@ const UserProfileForm = ({ userId, onSave }) => {
 
       {/* Excluded Sectors */}
       <div>
-        <label className="block text-sm font-medium mb-2">Excluded Sectors</label>
+        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Excluded Sectors</label>
         <div className="flex flex-wrap gap-2">
           {availableSectors.map((sector) => (
             <button
@@ -266,7 +266,7 @@ const UserProfileForm = ({ userId, onSave }) => {
           onChange={(e) => setFormData({ ...formData, ethicalInvesting: e.target.checked })}
           className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
         />
-        <label htmlFor="ethicalInvesting" className="text-sm font-medium">
+        <label htmlFor="ethicalInvesting" className="text-sm font-medium text-gray-700 dark:text-gray-300">
           Ethical/ESG Investing Preferences
         </label>
       </div>

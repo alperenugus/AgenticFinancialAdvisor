@@ -110,7 +110,7 @@ const PortfolioView = ({ userId }) => {
         {showAddForm && (
           <form onSubmit={handleAddHolding} className="mt-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Stock Symbol</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Stock Symbol</label>
               <input
                 type="text"
                 value={formData.symbol}
@@ -121,7 +121,7 @@ const PortfolioView = ({ userId }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Quantity</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Quantity</label>
               <input
                 type="number"
                 value={formData.quantity}
@@ -133,7 +133,7 @@ const PortfolioView = ({ userId }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Average Price</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Average Price</label>
               <input
                 type="number"
                 step="0.01"
@@ -184,12 +184,12 @@ const PortfolioView = ({ userId }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Value</div>
-          <div className="text-2xl font-bold">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         </div>
         <div className="card">
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Gain/Loss</div>
           <div className={`text-2xl font-bold flex items-center gap-2 ${
-            totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'
+            totalGainLoss >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
           }`}>
             {totalGainLoss >= 0 ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
             ${Math.abs(totalGainLoss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -198,7 +198,7 @@ const PortfolioView = ({ userId }) => {
         <div className="card">
           <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Gain/Loss %</div>
           <div className={`text-2xl font-bold ${
-            totalGainLossPercent >= 0 ? 'text-green-600' : 'text-red-600'
+            totalGainLossPercent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
           }`}>
             {totalGainLossPercent >= 0 ? '+' : ''}{totalGainLossPercent.toFixed(2)}%
           </div>
@@ -208,7 +208,7 @@ const PortfolioView = ({ userId }) => {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Portfolio Allocation</h3>
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Portfolio Allocation</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -231,7 +231,7 @@ const PortfolioView = ({ userId }) => {
         </div>
 
         <div className="card">
-          <h3 className="text-lg font-semibold mb-4">Gain/Loss by Stock</h3>
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Gain/Loss by Stock</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={barData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -248,7 +248,7 @@ const PortfolioView = ({ userId }) => {
       {/* Holdings Table */}
       <div className="card">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Holdings</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Holdings</h3>
           <div className="flex gap-2">
             <button
               onClick={handleRefresh}
@@ -272,7 +272,7 @@ const PortfolioView = ({ userId }) => {
           <form onSubmit={handleAddHolding} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Stock Symbol</label>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Stock Symbol</label>
                 <input
                   type="text"
                   value={formData.symbol}
@@ -283,7 +283,7 @@ const PortfolioView = ({ userId }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Quantity</label>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Quantity</label>
                 <input
                   type="number"
                   value={formData.quantity}
@@ -295,7 +295,7 @@ const PortfolioView = ({ userId }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Average Price</label>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Average Price</label>
                 <input
                   type="number"
                   step="0.01"
@@ -325,16 +325,16 @@ const PortfolioView = ({ userId }) => {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
+              <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-3 px-4 font-semibold">Symbol</th>
-                <th className="text-right py-3 px-4 font-semibold">Quantity</th>
-                <th className="text-right py-3 px-4 font-semibold">Avg Price</th>
-                <th className="text-right py-3 px-4 font-semibold">Current Price</th>
-                <th className="text-right py-3 px-4 font-semibold">Value</th>
-                <th className="text-right py-3 px-4 font-semibold">Gain/Loss</th>
-                <th className="text-right py-3 px-4 font-semibold">Gain/Loss %</th>
-                <th className="text-right py-3 px-4 font-semibold">Actions</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Symbol</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Quantity</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Avg Price</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Current Price</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Value</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Gain/Loss</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Gain/Loss %</th>
+                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -346,24 +346,24 @@ const PortfolioView = ({ userId }) => {
                     key={holding.id}
                     className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    <td className="py-3 px-4 font-medium">{holding.symbol}</td>
-                    <td className="py-3 px-4 text-right">{holding.quantity}</td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{holding.symbol}</td>
+                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">{holding.quantity}</td>
+                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">
                       ${parseFloat(holding.averagePrice || 0).toFixed(2)}
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">
                       ${parseFloat(holding.currentPrice || 0).toFixed(2)}
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">
                       ${parseFloat(holding.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className={`py-3 px-4 text-right font-medium ${
-                      gainLoss >= 0 ? 'text-green-600' : 'text-red-600'
+                      gainLoss >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
                       {gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className={`py-3 px-4 text-right font-medium ${
-                      gainLossPercent >= 0 ? 'text-green-600' : 'text-red-600'
+                      gainLossPercent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
                       {gainLossPercent >= 0 ? '+' : ''}{gainLossPercent.toFixed(2)}%
                     </td>

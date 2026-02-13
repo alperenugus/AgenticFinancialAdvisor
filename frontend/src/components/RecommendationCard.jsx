@@ -32,13 +32,13 @@ const RecommendationCard = ({ recommendation }) => {
   const getRiskColor = () => {
     switch (recommendation.riskLevel) {
       case 'LOW':
-        return 'text-green-600';
+        return 'text-green-600 dark:text-green-400';
       case 'MEDIUM':
-        return 'text-yellow-600';
+        return 'text-yellow-600 dark:text-yellow-400';
       case 'HIGH':
-        return 'text-red-600';
+        return 'text-red-600 dark:text-red-400';
       default:
-        return 'text-gray-600';
+        return 'text-gray-600 dark:text-gray-400';
     }
   };
 
@@ -53,7 +53,7 @@ const RecommendationCard = ({ recommendation }) => {
             {getActionIcon()}
           </div>
           <div>
-            <h3 className="text-xl font-bold">{recommendation.symbol}</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">{recommendation.symbol}</h3>
             <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getActionColor()}`}>
               {recommendation.action}
             </span>
@@ -61,7 +61,7 @@ const RecommendationCard = ({ recommendation }) => {
         </div>
         <div className="text-right">
           <div className="text-sm text-gray-500 dark:text-gray-400">Confidence</div>
-          <div className="text-lg font-semibold">{confidence.toFixed(0)}%</div>
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">{confidence.toFixed(0)}%</div>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ const RecommendationCard = ({ recommendation }) => {
               <AlertCircle className="w-4 h-4" />
               Risk Level
             </div>
-            <div className={`font-semibold ${getRiskColor()}`}>
+            <div className={`font-semibold ${getRiskColor()} dark:text-${getRiskColor().replace('text-', '')}`}>
               {recommendation.riskLevel}
             </div>
           </div>
@@ -92,7 +92,7 @@ const RecommendationCard = ({ recommendation }) => {
               <Calendar className="w-4 h-4" />
               Time Horizon
             </div>
-            <div className="font-semibold">{recommendation.timeHorizon}</div>
+            <div className="font-semibold text-gray-900 dark:text-white">{recommendation.timeHorizon}</div>
           </div>
         )}
 
@@ -102,7 +102,7 @@ const RecommendationCard = ({ recommendation }) => {
               <Target className="w-4 h-4" />
               Target Price
             </div>
-            <div className="font-semibold text-lg">${targetPrice.toFixed(2)}</div>
+            <div className="font-semibold text-lg text-gray-900 dark:text-white">${targetPrice.toFixed(2)}</div>
           </div>
         )}
       </div>
