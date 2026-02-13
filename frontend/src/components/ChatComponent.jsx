@@ -3,7 +3,7 @@ import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { advisorAPI } from '../services/api';
 import websocketService from '../services/websocket';
 
-const ChatComponent = ({ userId }) => {
+const ChatComponent = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +60,7 @@ const ChatComponent = ({ userId }) => {
     setThinkingMessages([]);
 
     try {
-      const response = await advisorAPI.analyze(userId, userMessage, sessionId);
+      const response = await advisorAPI.analyze(userMessage, sessionId);
       
       if (response.data.status === 'success') {
         // Response will come through WebSocket

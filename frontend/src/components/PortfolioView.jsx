@@ -17,7 +17,7 @@ import {
 
 const COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
 
-const PortfolioView = ({ userId }) => {
+const PortfolioView = () => {
   const [portfolio, setPortfolio] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,7 +30,7 @@ const PortfolioView = ({ userId }) => {
 
   useEffect(() => {
     loadPortfolio();
-  }, [userId]);
+  }, []);
 
   const loadPortfolio = async () => {
     try {
@@ -47,7 +47,7 @@ const PortfolioView = ({ userId }) => {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
-      await portfolioAPI.refresh(userId);
+      await portfolioAPI.refresh();
       await loadPortfolio();
     } catch (error) {
       console.error('Error refreshing portfolio:', error);
@@ -59,7 +59,7 @@ const PortfolioView = ({ userId }) => {
   const handleAddHolding = async (e) => {
     e.preventDefault();
     try {
-      await portfolioAPI.addHolding(userId, {
+      await portfolioAPI.addHolding({
         symbol: formData.symbol.toUpperCase(),
         quantity: parseInt(formData.quantity),
         averagePrice: parseFloat(formData.averagePrice),
@@ -77,7 +77,7 @@ const PortfolioView = ({ userId }) => {
     if (!window.confirm('Are you sure you want to remove this holding?')) return;
     
     try {
-      await portfolioAPI.removeHolding(userId, holdingId);
+      await portfolioAPI.removeHolding(holdingId);
       await loadPortfolio();
     } catch (error) {
       console.error('Error removing holding:', error);

@@ -3,6 +3,7 @@ package com.agent.financialadvisor.controller;
 import com.agent.financialadvisor.model.Recommendation;
 import com.agent.financialadvisor.repository.RecommendationRepository;
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
+import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -39,7 +40,10 @@ public class AdvisorController {
             @RequestBody Map<String, String> request
     ) {
         try {
-            String userId = request.getOrDefault("userId", "anonymous");
+            // Get authenticated user ID
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             String query = request.get("query");
             String sessionId = request.getOrDefault("sessionId", UUID.randomUUID().toString());
 
@@ -68,12 +72,15 @@ public class AdvisorController {
     }
 
     /**
-     * Get all recommendations for a user
-     * GET /api/advisor/recommendations/{userId}
+     * Get all recommendations for authenticated user
+     * GET /api/advisor/recommendations
      */
-    @GetMapping("/recommendations/{userId}")
-    public ResponseEntity<List<Recommendation>> getRecommendations(@PathVariable String userId) {
+    @GetMapping("/recommendations")
+    public ResponseEntity<List<Recommendation>> getRecommendations() {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             List<Recommendation> recommendations = recommendationRepository
                     .findByUserIdOrderByCreatedAtDesc(userId);
             return ResponseEntity.ok(recommendations);
@@ -85,14 +92,14 @@ public class AdvisorController {
 
     /**
      * Get specific recommendation
-     * GET /api/advisor/recommendations/{userId}/{symbol}
+     * GET /api/advisor/recommendations/{symbol}
      */
-    @GetMapping("/recommendations/{userId}/{symbol}")
-    public ResponseEntity<Recommendation> getRecommendation(
-            @PathVariable String userId,
-            @PathVariable String symbol
-    ) {
+    @GetMapping("/recommendations/{symbol}")
+    public ResponseEntity<Recommendation> getRecommendation(@PathVariable String symbol) {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             return recommendationRepository.findByUserIdAndSymbol(userId, symbol)
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());

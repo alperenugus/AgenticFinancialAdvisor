@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Save, User, Shield, Target, DollarSign, Building2, X, Check } from 'lucide-react';
 import { userProfileAPI } from '../services/api';
 
-const UserProfileForm = ({ userId, onSave }) => {
+const UserProfileForm = ({ onSave }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -31,12 +31,12 @@ const UserProfileForm = ({ userId, onSave }) => {
 
   useEffect(() => {
     loadProfile();
-  }, [userId]);
+  }, []);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const response = await userProfileAPI.get(userId);
+      const response = await userProfileAPI.get();
       if (response.data) {
         const profile = response.data;
         setFormData({
@@ -61,7 +61,6 @@ const UserProfileForm = ({ userId, onSave }) => {
     try {
       setSaving(true);
       const payload = {
-        userId,
         riskTolerance: formData.riskTolerance,
         horizon: formData.horizon,
         goals: formData.goals,
@@ -72,7 +71,7 @@ const UserProfileForm = ({ userId, onSave }) => {
       };
 
       try {
-        await userProfileAPI.update(userId, payload);
+        await userProfileAPI.update(payload);
       } catch (updateError) {
         await userProfileAPI.create(payload);
       }

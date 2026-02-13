@@ -70,11 +70,38 @@ market-data:
     api-key: ${NEWS_API_KEY:}
     base-url: https://newsapi.org/v2
 
+# OAuth2 / Google Sign-In Configuration
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope:
+              - openid
+              - profile
+              - email
+            redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v2/userinfo
+            user-name-attribute: email
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-minimum-32-characters}
+  expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+
 logging:
   level:
     com.agent.financialadvisor: DEBUG
     dev.langchain4j: INFO
     org.hibernate.SQL: DEBUG
     org.springframework.web: INFO
+    org.springframework.security: DEBUG
 
 

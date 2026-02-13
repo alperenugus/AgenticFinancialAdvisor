@@ -2,6 +2,7 @@ package com.agent.financialadvisor.controller;
 
 import com.agent.financialadvisor.model.UserProfile;
 import com.agent.financialadvisor.repository.UserProfileRepository;
+import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -25,12 +26,15 @@ public class UserProfileController {
     }
 
     /**
-     * Get user profile
-     * GET /api/profile/{userId}
+     * Get user profile for authenticated user
+     * GET /api/profile
      */
-    @GetMapping("/{userId}")
-    public ResponseEntity<UserProfile> getUserProfile(@PathVariable String userId) {
+    @GetMapping
+    public ResponseEntity<UserProfile> getUserProfile() {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             return userProfileRepository.findByUserId(userId)
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.notFound().build());
@@ -41,16 +45,14 @@ public class UserProfileController {
     }
 
     /**
-     * Create user profile
+     * Create user profile for authenticated user
      * POST /api/profile
      */
     @PostMapping
     public ResponseEntity<UserProfile> createUserProfile(@RequestBody Map<String, Object> request) {
         try {
-            String userId = (String) request.get("userId");
-            if (userId == null || userId.trim().isEmpty()) {
-                return ResponseEntity.badRequest().build();
-            }
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
 
             // Check if profile already exists
             if (userProfileRepository.findByUserId(userId).isPresent()) {
@@ -126,15 +128,15 @@ public class UserProfileController {
     }
 
     /**
-     * Update user profile
-     * PUT /api/profile/{userId}
+     * Update user profile for authenticated user
+     * PUT /api/profile
      */
-    @PutMapping("/{userId}")
-    public ResponseEntity<UserProfile> updateUserProfile(
-            @PathVariable String userId,
-            @RequestBody Map<String, Object> request
-    ) {
+    @PutMapping
+    public ResponseEntity<UserProfile> updateUserProfile(@RequestBody Map<String, Object> request) {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             Optional<UserProfile> profileOpt = userProfileRepository.findByUserId(userId);
             if (profileOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();

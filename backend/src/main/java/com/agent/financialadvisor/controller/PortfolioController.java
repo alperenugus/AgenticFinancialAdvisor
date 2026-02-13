@@ -4,6 +4,7 @@ import com.agent.financialadvisor.model.Portfolio;
 import com.agent.financialadvisor.model.StockHolding;
 import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.service.MarketDataService;
+import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -32,12 +33,15 @@ public class PortfolioController {
     }
 
     /**
-     * Get user portfolio
-     * GET /api/portfolio/{userId}
+     * Get user portfolio for authenticated user
+     * GET /api/portfolio
      */
-    @GetMapping("/{userId}")
-    public ResponseEntity<Portfolio> getPortfolio(@PathVariable String userId) {
+    @GetMapping
+    public ResponseEntity<Portfolio> getPortfolio() {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
             if (portfolioOpt.isEmpty()) {
                 // Create empty portfolio if doesn't exist
@@ -60,15 +64,15 @@ public class PortfolioController {
     }
 
     /**
-     * Add holding to portfolio
-     * POST /api/portfolio/{userId}/holdings
+     * Add holding to portfolio for authenticated user
+     * POST /api/portfolio/holdings
      */
-    @PostMapping("/{userId}/holdings")
-    public ResponseEntity<Map<String, Object>> addHolding(
-            @PathVariable String userId,
-            @RequestBody Map<String, Object> request
-    ) {
+    @PostMapping("/holdings")
+    public ResponseEntity<Map<String, Object>> addHolding(@RequestBody Map<String, Object> request) {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             Portfolio portfolio = portfolioRepository.findByUserId(userId)
                     .orElseGet(() -> {
                         Portfolio p = new Portfolio();
@@ -132,15 +136,15 @@ public class PortfolioController {
     }
 
     /**
-     * Remove holding from portfolio
-     * DELETE /api/portfolio/{userId}/holdings/{holdingId}
+     * Remove holding from portfolio for authenticated user
+     * DELETE /api/portfolio/holdings/{holdingId}
      */
-    @DeleteMapping("/{userId}/holdings/{holdingId}")
-    public ResponseEntity<Map<String, Object>> removeHolding(
-            @PathVariable String userId,
-            @PathVariable Long holdingId
-    ) {
+    @DeleteMapping("/holdings/{holdingId}")
+    public ResponseEntity<Map<String, Object>> removeHolding(@PathVariable Long holdingId) {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
             if (portfolioOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
@@ -168,12 +172,15 @@ public class PortfolioController {
     }
 
     /**
-     * Update portfolio prices (refresh current prices for all holdings)
-     * POST /api/portfolio/{userId}/refresh
+     * Update portfolio prices (refresh current prices for all holdings) for authenticated user
+     * POST /api/portfolio/refresh
      */
-    @PostMapping("/{userId}/refresh")
-    public ResponseEntity<Portfolio> refreshPortfolio(@PathVariable String userId) {
+    @PostMapping("/refresh")
+    public ResponseEntity<Portfolio> refreshPortfolio() {
         try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
             Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
             if (portfolioOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();

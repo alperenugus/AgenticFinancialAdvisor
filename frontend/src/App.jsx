@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Briefcase, User, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
+import { MessageSquare, Briefcase, User, TrendingUp, AlertTriangle, Sparkles, LogOut } from 'lucide-react';
+import { useAuth } from './contexts/AuthContext';
+import LoginPage from './components/LoginPage';
 import ChatComponent from './components/ChatComponent';
 import PortfolioView from './components/PortfolioView';
 import UserProfileForm from './components/UserProfileForm';
@@ -7,27 +9,21 @@ import RecommendationCard from './components/RecommendationCard';
 import { advisorAPI } from './services/api';
 
 function App() {
+  const { user, loading, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('chat');
-  const [userId] = useState(() => {
-    // Get or create user ID from localStorage
-    let id = localStorage.getItem('userId');
-    if (!id) {
-      id = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('userId', id);
-    }
-    return id;
-  });
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   useEffect(() => {
-    loadRecommendations();
-  }, [userId]);
+    if (isAuthenticated) {
+      loadRecommendations();
+    }
+  }, [isAuthenticated]);
 
   const loadRecommendations = async () => {
     try {
       setLoadingRecommendations(true);
-      const response = await advisorAPI.getRecommendations(userId);
+      const response = await advisorAPI.getRecommendations();
       setRecommendations(response.data || []);
     } catch (error) {
       console.error('Error loading recommendations:', error);
@@ -35,6 +31,22 @@ function App() {
       setLoadingRecommendations(false);
     }
   };
+
+  // Show login page if not authenticated
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   const tabs = [
     { id: 'chat', label: 'AI Advisor', icon: MessageSquare, description: 'Get personalized advice' },
@@ -63,11 +75,28 @@ function App() {
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Powered by Groq</p>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl">
-              <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {userId.substring(0, 12)}...
-              </span>
+            <div className="flex items-center gap-3">
+              {user?.pictureUrl && (
+                <img 
+                  src={user.pictureUrl} 
+                  alt={user.name}
+                  className="w-10 h-10 rounded-full border-2 border-primary-200 dark:border-primary-800"
+                />
+              )}
+              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl">
+                <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {user?.name || user?.email}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                className="btn-ghost flex items-center gap-2 text-sm"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden md:inline">Sign Out</span>
+              </button>
             </div>
           </div>
         </div>
@@ -121,12 +150,12 @@ function App() {
         <div className="min-h-[calc(100vh-280px)]">
           {activeTab === 'chat' && (
             <div className="card-elevated h-[calc(100vh-300px)] min-h-[600px] p-0 overflow-hidden">
-              <ChatComponent userId={userId} />
+              <ChatComponent />
             </div>
           )}
 
           {activeTab === 'portfolio' && (
-            <PortfolioView userId={userId} />
+            <PortfolioView />
           )}
 
           {activeTab === 'recommendations' && (
@@ -191,7 +220,6 @@ function App() {
 
           {activeTab === 'profile' && (
             <UserProfileForm
-              userId={userId}
               onSave={() => {
                 loadRecommendations();
               }}
