@@ -28,11 +28,39 @@ public class LangChain4jConfig {
         // Use Ollama - can be local or deployed on Railway/cloud
         // Local: http://localhost:11434 (run: ollama serve)
         // Railway: https://your-ollama-service.railway.app
+        
+        // Validate and fix URL if needed
+        String baseUrl = normalizeOllamaUrl(ollamaBaseUrl);
+        
         return OllamaChatModel.builder()
-                .baseUrl(ollamaBaseUrl)
+                .baseUrl(baseUrl)
                 .modelName(ollamaModel)
                 .temperature(ollamaTemperature)
                 .build();
+    }
+    
+    /**
+     * Normalize Ollama URL - ensure it has http:// or https:// scheme
+     */
+    private String normalizeOllamaUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return "http://localhost:11434";
+        }
+        
+        url = url.trim();
+        
+        // If URL doesn't start with http:// or https://, add https://
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            // If it looks like a domain (contains .), use https://
+            if (url.contains(".")) {
+                url = "https://" + url;
+            } else {
+                // Otherwise assume localhost, use http://
+                url = "http://" + url;
+            }
+        }
+        
+        return url;
     }
 }
 
