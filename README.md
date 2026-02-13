@@ -1,6 +1,6 @@
 # Agentic Financial Advisor
 
-A multi-agent financial advisory system built with 100% open-source LLMs (Ollama) that provides stock market investment recommendations through coordinated specialized AI agents.
+A multi-agent financial advisory system powered by Groq API that provides stock market investment recommendations through coordinated specialized AI agents.
 
 ## 🎯 Overview
 
@@ -13,7 +13,7 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios
 - **WebSocket Support**: Real-time updates on agent thinking and recommendations
-- **100% Open-Source LLM**: Uses Ollama Cloud API (free!)
+- **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b (orchestrator) and llama-3.1-8b (tool agents)
 
 ## 🏗️ System Architecture
 
@@ -60,7 +60,7 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 │         └───────────────────────────────────────────┘        │
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
-│         │      LangChain4j + Ollama                  │        │
+│         │      LangChain4j + Groq API                │        │
 │         │  (LLM for Agent Coordination)            │        │
 │         └───────────────────────────────────────────┘        │
 └───────────────────────────────────────────────────────────────┘
@@ -76,7 +76,7 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
 - Maven 3.8+
 - PostgreSQL 14+ (or use H2 for testing)
 - Node.js 18+ and npm (for frontend)
-- Ollama (for local LLM) - [Installation Guide](https://ollama.ai)
+- Groq API Key - [Get one here](https://console.groq.com/)
 
 ### Backend Setup
 
@@ -96,20 +96,10 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
      postgres:14
    ```
 
-3. **Set up Ollama (Local Development)**
-   ```bash
-   # Install Ollama (macOS/Linux)
-   curl -fsSL https://ollama.ai/install.sh | sh
-   
-   # Pull the model
-   ollama pull llama3.1
-   
-   # Start Ollama server
-   ollama serve
-   ```
-   
-   **For Production**: Deploy Ollama on Railway - it's completely free!
-   See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
+3. **Get Groq API Key**
+   - Sign up at [Groq Console](https://console.groq.com/)
+   - Create an API key
+   - Copy the key for use in environment variables
 
 4. **Configure environment variables**
    ```bash
@@ -117,7 +107,13 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
    cp src/main/resources/application.yml.example src/main/resources/application.yml
    ```
    
-   Edit `application.yml` with your settings:
+   Set environment variables or edit `application.yml`:
+   ```bash
+   export GROQ_API_KEY=your_groq_api_key_here
+   export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
+   ```
+   
+   Or in `application.yml`:
    ```yaml
    spring:
      datasource:
@@ -126,14 +122,17 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
        password: postgres
    
    langchain4j:
-     ollama:
-       base-url: http://localhost:11434  # Local: http://localhost:11434
-                                         # Railway: https://your-ollama.railway.app
-       model: llama3.1
+     groq:
+       orchestrator:
+         api-key: ${GROQ_API_KEY:}
+         model: llama-3.3-70b-versatile
+       tool-agent:
+         api-key: ${GROQ_API_KEY:}
+         model: llama-3.1-8b-instant
    
    market-data:
      alpha-vantage:
-       api-key: YOUR_API_KEY  # Get from https://www.alphavantage.co/support/#api-key
+       api-key: ${ALPHA_VANTAGE_API_KEY:demo}
    ```
 
 5. **Build and run**
@@ -232,8 +231,7 @@ mvn test jacoco:report
 ### Backend
 - **Spring Boot 3.4** - Application framework
 - **LangChain4j 0.34.0** - LLM integration
-- **Ollama** - Open-source LLM (local development)
-- **Ollama** - Free open-source LLM (deploy on Railway)
+- **Groq API** - Fast LLM inference (llama-3.3-70b for orchestrator, llama-3.1-8b for tool agents)
 - **PostgreSQL** - Database
 - **WebSocket** - Real-time communication
 
@@ -306,10 +304,10 @@ AgenticFinancialAdvisor/
 1. **Backend Deployment**
    - Connect GitHub repository
    - Set environment variables:
-     - `DATABASE_URL`
-     - `LANGCHAIN4J_OLLAMA_BASE_URL=https://your-ollama-service.railway.app`
-     - `LANGCHAIN4J_OLLAMA_MODEL=llama3.1`
-     - `ALPHA_VANTAGE_API_KEY`
+     - `DATABASE_URL` (auto-set by Railway PostgreSQL)
+     - `GROQ_API_KEY` (required - get from https://console.groq.com/)
+     - `ALPHA_VANTAGE_API_KEY` (required)
+     - Optional: `GROQ_ORCHESTRATOR_MODEL`, `GROQ_TOOL_AGENT_MODEL` (defaults provided)
 
 2. **Frontend Deployment**
    - Build: `npm run build`
@@ -363,7 +361,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - LangChain4j for excellent LLM integration
-- Ollama for open-source LLM hosting
+- Groq for fast, cost-effective LLM inference
 - Alpha Vantage for market data API
 - Spring Boot community
 
@@ -376,5 +374,5 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ using 100% open-source LLMs**
+**Built with ❤️ using Groq API for fast LLM inference**
 

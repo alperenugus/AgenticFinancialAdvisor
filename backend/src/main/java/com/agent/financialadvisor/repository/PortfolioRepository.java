@@ -12,3 +12,4 @@ public interface PortfolioRepository extends JpaRepository<Portfolio, Long> {
     boolean existsByUserId(String userId);
 }
 
+

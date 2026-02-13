@@ -26,21 +26,39 @@ server:
 # LangChain4j Configuration
 # LangChain4j is the industry standard for Java LLM applications
 langchain4j:
-  # Ollama Configuration (FREE - 100% open-source!)
-  # Local development: http://localhost:11434 (run: ollama serve)
-  # Production: Deploy Ollama on Railway and set base-url to that service URL
-  # Example: https://your-ollama-service.railway.app
-  ollama:
-    base-url: ${LANGCHAIN4J_OLLAMA_BASE_URL:http://localhost:11434}
-    model: ${LANGCHAIN4J_OLLAMA_MODEL:llama3.2:1b}
-    temperature: ${LANGCHAIN4J_OLLAMA_TEMPERATURE:0.7}
-    timeout-seconds: ${LANGCHAIN4J_OLLAMA_TIMEOUT_SECONDS:60}
+  # Groq API Configuration
+  # Groq provides fast, cost-effective LLM inference via OpenAI-compatible API
+  # Get API key from: https://console.groq.com/
+  groq:
+    # Orchestrator Model: High-level thinking and planning (llama-3.3-70b)
+    orchestrator:
+      api-key: ${GROQ_API_KEY:}
+      base-url: https://api.groq.com/openai/v1
+      model: ${GROQ_ORCHESTRATOR_MODEL:llama-3.3-70b-versatile}
+      temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.7}
+      timeout-seconds: ${GROQ_ORCHESTRATOR_TIMEOUT_SECONDS:60}
+    # Tool Agent Model: Fast, cheap function calling (llama-3.1-8b)
+    tool-agent:
+      api-key: ${GROQ_API_KEY:}
+      base-url: https://api.groq.com/openai/v1
+      model: ${GROQ_TOOL_AGENT_MODEL:llama-3.1-8b-instant}
+      temperature: ${GROQ_TOOL_AGENT_TEMPERATURE:0.3}
+      timeout-seconds: ${GROQ_TOOL_AGENT_TIMEOUT_SECONDS:30}
+
+# Agent Timeout Configuration
+agent:
+  timeout:
+    # Timeout for individual agent tool calls (in seconds)
+    tool-call-seconds: ${AGENT_TOOL_TIMEOUT_SECONDS:10}
+    # Timeout for orchestrator's main chat call (in seconds)
+    orchestrator-seconds: ${AGENT_ORCHESTRATOR_TIMEOUT_SECONDS:60}
 
 # External API Configuration
 market-data:
   alpha-vantage:
     api-key: ${ALPHA_VANTAGE_API_KEY:demo}
     base-url: https://www.alphavantage.co/query
+    timeout-seconds: ${MARKET_DATA_TIMEOUT_SECONDS:8}
     rate-limit:
       calls-per-minute: 5
       calls-per-day: 500
@@ -58,4 +76,5 @@ logging:
     dev.langchain4j: INFO
     org.hibernate.SQL: DEBUG
     org.springframework.web: INFO
+
 

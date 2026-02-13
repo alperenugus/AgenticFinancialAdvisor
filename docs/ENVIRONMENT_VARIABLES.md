@@ -16,15 +16,20 @@ SPRING_DATASOURCE_URL=jdbc:postgresql://host:5432/dbname
 SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=your_password
 
-# Ollama Configuration (REQUIRED)
-# You can use EITHER internal or external URL:
-# ✅ Internal URL (recommended - faster, more reliable):
-#    http://ollama.railway.internal:11434
-# ✅ External URL (works but may have 502 errors):
-#    https://your-ollama-service.railway.app
-LANGCHAIN4J_OLLAMA_BASE_URL=http://ollama.railway.internal:11434
-LANGCHAIN4J_OLLAMA_MODEL=llama3.1
-LANGCHAIN4J_OLLAMA_TEMPERATURE=0.7
+# Groq API Configuration (REQUIRED)
+# Get your API key from: https://console.groq.com/
+GROQ_API_KEY=your_groq_api_key_here
+
+# Optional: Override default models
+# Orchestrator model (high-level thinking) - default: llama-3.3-70b-versatile
+GROQ_ORCHESTRATOR_MODEL=llama-3.3-70b-versatile
+GROQ_ORCHESTRATOR_TEMPERATURE=0.7
+GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=60
+
+# Tool Agent model (fast function calling) - default: llama-3.1-8b-instant
+GROQ_TOOL_AGENT_MODEL=llama-3.1-8b-instant
+GROQ_TOOL_AGENT_TEMPERATURE=0.3
+GROQ_TOOL_AGENT_TIMEOUT_SECONDS=30
 
 # Market Data API (REQUIRED - get free key from https://www.alphavantage.co/support/#api-key)
 ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here
@@ -76,20 +81,6 @@ PORT=3000
 
 ---
 
-## Ollama Service
-
-### Optional Variables
-
-```bash
-# Usually no environment variables needed
-# But you can set these if needed:
-
-OLLAMA_HOST=0.0.0.0:11434
-OLLAMA_KEEP_ALIVE=24h
-```
-
----
-
 ## PostgreSQL Database
 
 ### Auto-Configured by Railway
@@ -107,11 +98,11 @@ OLLAMA_KEEP_ALIVE=24h
 ### Backend Service Variables
 
 - [ ] `DATABASE_URL` - Auto-set by PostgreSQL (verify it's there)
-- [ ] `LANGCHAIN4J_OLLAMA_BASE_URL` - Your Ollama service URL
-- [ ] `LANGCHAIN4J_OLLAMA_MODEL=llama3.1`
-- [ ] `LANGCHAIN4J_OLLAMA_TEMPERATURE=0.7`
+- [ ] `GROQ_API_KEY` - **REQUIRED** - Get from https://console.groq.com/
 - [ ] `ALPHA_VANTAGE_API_KEY` - Get from https://www.alphavantage.co/support/#api-key
 - [ ] `PORT=8080` - Usually auto-set
+- [ ] (Optional) `GROQ_ORCHESTRATOR_MODEL` - Default: llama-3.3-70b-versatile
+- [ ] (Optional) `GROQ_TOOL_AGENT_MODEL` - Default: llama-3.1-8b-instant
 - [ ] (Optional) `CORS_ORIGINS` - If frontend on different domain
 - [ ] (Optional) `NEWS_API_KEY` - If using NewsAPI
 

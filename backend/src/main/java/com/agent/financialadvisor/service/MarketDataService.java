@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,18 +21,21 @@ public class MarketDataService {
     private final ObjectMapper objectMapper;
     private final String alphaVantageApiKey;
     private final String alphaVantageBaseUrl;
+    private final Duration timeoutDuration;
 
     public MarketDataService(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
             @Value("${market-data.alpha-vantage.api-key:demo}") String alphaVantageApiKey,
-            @Value("${market-data.alpha-vantage.base-url:https://www.alphavantage.co/query}") String alphaVantageBaseUrl
+            @Value("${market-data.alpha-vantage.base-url:https://www.alphavantage.co/query}") String alphaVantageBaseUrl,
+            @Value("${market-data.alpha-vantage.timeout-seconds:8}") int timeoutSeconds
     ) {
         // Build WebClient with increased buffer size for large Alpha Vantage responses
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
         this.alphaVantageApiKey = alphaVantageApiKey;
         this.alphaVantageBaseUrl = alphaVantageBaseUrl;
+        this.timeoutDuration = Duration.ofSeconds(timeoutSeconds);
     }
 
     /**
@@ -46,6 +50,7 @@ public class MarketDataService {
                     .uri(url)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(timeoutDuration)
                     .block();
             
             JsonNode json = objectMapper.readTree(response);
@@ -54,7 +59,11 @@ public class MarketDataService {
                 return new BigDecimal(quote.get("05. price").asText());
             }
         } catch (Exception e) {
-            log.error("Error fetching stock price for {}: {}", symbol, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                log.warn("Timeout fetching stock price for {}: {}", symbol, e.getMessage());
+            } else {
+                log.error("Error fetching stock price for {}: {}", symbol, e.getMessage());
+            }
         }
         return null;
     }
@@ -79,6 +88,7 @@ public class MarketDataService {
                     .uri(url)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(timeoutDuration)
                     .block();
             
             JsonNode json = objectMapper.readTree(response);
@@ -142,7 +152,11 @@ public class MarketDataService {
                 result.put("average", count > 0 ? total.divide(BigDecimal.valueOf(count), 2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO);
             }
         } catch (Exception e) {
-            log.error("Error fetching stock data for {}: {}", symbol, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                log.warn("Timeout fetching stock data for {}: {}", symbol, e.getMessage());
+            } else {
+                log.error("Error fetching stock data for {}: {}", symbol, e.getMessage());
+            }
         }
         return result;
     }
@@ -160,6 +174,7 @@ public class MarketDataService {
                     .uri(url)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(timeoutDuration)
                     .block();
             
             JsonNode json = objectMapper.readTree(response);
@@ -174,7 +189,11 @@ public class MarketDataService {
                 result.put("profitMargin", json.has("ProfitMargin") ? json.get("ProfitMargin").asText() : "");
             }
         } catch (Exception e) {
-            log.error("Error fetching company overview for {}: {}", symbol, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                log.warn("Timeout fetching company overview for {}: {}", symbol, e.getMessage());
+            } else {
+                log.error("Error fetching company overview for {}: {}", symbol, e.getMessage());
+            }
         }
         return result;
     }
@@ -191,6 +210,7 @@ public class MarketDataService {
                     .uri(url)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(timeoutDuration)
                     .block();
             
             // Parse and return summary
@@ -205,9 +225,15 @@ public class MarketDataService {
                 return news.toString();
             }
         } catch (Exception e) {
-            log.error("Error fetching news for {}: {}", symbol, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                log.warn("Timeout fetching news for {}: {}", symbol, e.getMessage());
+                return "News data request timed out. Please try again.";
+            } else {
+                log.error("Error fetching news for {}: {}", symbol, e.getMessage());
+            }
         }
         return "No recent news available.";
     }
 }
+
 

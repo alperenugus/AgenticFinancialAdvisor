@@ -11,10 +11,14 @@ import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 public class OrchestratorService {
@@ -28,6 +32,7 @@ public class OrchestratorService {
     private final ResearchAgent researchAgent;
     private final RecommendationAgent recommendationAgent;
     private final WebSocketService webSocketService;
+    private final int orchestratorTimeoutSeconds;
     
     // Cache for AI service instances per session
     private final Map<String, FinancialAdvisorAgent> agentCache = new HashMap<>();
@@ -39,7 +44,8 @@ public class OrchestratorService {
             RiskAssessmentAgent riskAssessmentAgent,
             ResearchAgent researchAgent,
             RecommendationAgent recommendationAgent,
-            WebSocketService webSocketService
+            WebSocketService webSocketService,
+            @Value("${agent.timeout.orchestrator-seconds:60}") int orchestratorTimeoutSeconds
     ) {
         this.chatLanguageModel = chatLanguageModel;
         this.userProfileAgent = userProfileAgent;
@@ -48,10 +54,12 @@ public class OrchestratorService {
         this.researchAgent = researchAgent;
         this.recommendationAgent = recommendationAgent;
         this.webSocketService = webSocketService;
+        this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
     }
 
     /**
      * Main orchestration method - coordinates all agents to provide financial advice
+     * Implements timeout handling to prevent hanging requests
      */
     public String coordinateAnalysis(String userId, String userQuery, String sessionId) {
         log.info("🎯 Orchestrator coordinating analysis for userId={}, query={}", userId, userQuery);
@@ -69,13 +77,41 @@ public class OrchestratorService {
             // Send thinking update
             webSocketService.sendThinking(sessionId, "Processing your request with AI agents...");
 
-            // Execute the agent with the query
-            String response = agent.chat(sessionId, contextualQuery);
+            // Execute the agent with timeout protection
+            // Use CompletableFuture to enforce timeout limit
+            CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return agent.chat(sessionId, contextualQuery);
+                } catch (Exception e) {
+                    log.error("Error in agent chat execution: {}", e.getMessage(), e);
+                    throw new RuntimeException("Agent execution failed: " + e.getMessage(), e);
+                }
+            });
 
-            // Send final response
-            webSocketService.sendFinalResponse(sessionId, response);
-
-            return response;
+            String response;
+            try {
+                // Wait for response with timeout
+                response = futureResponse.get(orchestratorTimeoutSeconds, TimeUnit.SECONDS);
+                
+                // Send final response
+                webSocketService.sendFinalResponse(sessionId, response);
+                return response;
+            } catch (TimeoutException e) {
+                log.warn("Orchestrator timeout after {} seconds for sessionId={}, userId={}", 
+                        orchestratorTimeoutSeconds, sessionId, userId);
+                
+                // Cancel the future to stop the agent execution
+                futureResponse.cancel(true);
+                
+                String timeoutMsg = String.format(
+                    "I apologize, but the analysis took longer than expected (exceeded %d seconds). " +
+                    "This may be due to slow external API responses or high system load. " +
+                    "Please try again with a simpler query, or try again later.",
+                    orchestratorTimeoutSeconds
+                );
+                webSocketService.sendError(sessionId, timeoutMsg);
+                return timeoutMsg;
+            }
         } catch (Exception e) {
             log.error("Error in orchestration: {}", e.getMessage(), e);
             String errorMsg = "I apologize, but I encountered an error while processing your request. Please try again.";

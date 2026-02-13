@@ -14,3 +14,4 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
     List<Recommendation> findByUserIdAndActionOrderByCreatedAtDesc(String userId, Recommendation.RecommendationAction action);
 }
 
+
