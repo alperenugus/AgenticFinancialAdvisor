@@ -5,19 +5,25 @@
 
 MODEL_NAME="${OLLAMA_MODEL:-llama3.1}"
 
-# Railway uses $PORT env var, but Ollama needs explicit host:port
-# For Railway: Use PORT if set, otherwise default to 11434
-# Note: Railway may not set PORT for all services, so we default to 11434
+# Railway uses $PORT env var for external routing
+# CRITICAL: Railway routes external traffic to $PORT, so Ollama MUST listen on $PORT
+# If PORT is not set, Railway might not route traffic correctly
+# Default to 11434 only if PORT is truly not set by Railway
 OLLAMA_PORT="${PORT:-11434}"
+
+# Set OLLAMA_HOST to listen on all interfaces with the correct port
 export OLLAMA_HOST="0.0.0.0:${OLLAMA_PORT}"
 
-# Log the configuration
-echo "PORT env var: ${PORT:-not set}"
-echo "Ollama will listen on: $OLLAMA_HOST"
+# Log the configuration for debugging
+echo "=========================================="
+echo "Ollama Configuration:"
+echo "  PORT env var: ${PORT:-not set (using default 11434)}"
+echo "  OLLAMA_PORT: $OLLAMA_PORT"
+echo "  OLLAMA_HOST: $OLLAMA_HOST"
+echo "=========================================="
 
 echo "Starting Ollama service..."
 echo "Model to ensure: $MODEL_NAME"
-echo "Ollama will listen on: $OLLAMA_HOST"
 
 # Start Ollama in the background
 ollama serve &

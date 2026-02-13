@@ -8,8 +8,11 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Expose Ollama port (Railway will set $PORT, default to 11434)
+# Expose Ollama port
+# Railway will set $PORT env var - Ollama will listen on that port
+# We expose both 11434 (default) and use $PORT dynamically
 EXPOSE 11434
+# Note: Railway may set PORT to a different value, which is handled in entrypoint.sh
 
 # Set Ollama to listen on all interfaces
 # Railway uses $PORT env var, but Ollama needs explicit host:port
