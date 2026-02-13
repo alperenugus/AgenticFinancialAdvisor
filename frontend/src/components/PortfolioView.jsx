@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Plus, Trash2, Briefcase, DollarSign, Percent, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { portfolioAPI } from '../services/api';
 import {
   PieChart,
@@ -15,7 +15,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'];
+const COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
 
 const PortfolioView = ({ userId }) => {
   const [portfolio, setPortfolio] = useState(null);
@@ -88,76 +88,90 @@ const PortfolioView = ({ userId }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading portfolio...</p>
+        </div>
       </div>
     );
   }
 
   if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
     return (
-      <div className="card">
-        <div className="text-center py-12">
-          <p className="text-gray-500 dark:text-gray-400 mb-4">No holdings in your portfolio</p>
+      <div className="card-elevated">
+        <div className="text-center py-16">
+          <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Briefcase className="w-10 h-10 text-primary-600 dark:text-primary-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Your Portfolio is Empty</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+            Start building your investment portfolio by adding your first holding.
+          </p>
           <button
             onClick={() => setShowAddForm(true)}
             className="btn-primary inline-flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-5 h-5" />
             Add Your First Holding
           </button>
         </div>
 
         {showAddForm && (
-          <form onSubmit={handleAddHolding} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Stock Symbol</label>
-              <input
-                type="text"
-                value={formData.symbol}
-                onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
-                className="input-field"
-                placeholder="e.g., AAPL"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Quantity</label>
-              <input
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="input-field"
-                placeholder="e.g., 10"
-                required
-                min="1"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Average Price</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.averagePrice}
-                onChange={(e) => setFormData({ ...formData, averagePrice: e.target.value })}
-                className="input-field"
-                placeholder="e.g., 150.00"
-                required
-                min="0"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" className="btn-primary flex-1">
-                Add Holding
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          <div className="mt-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-600">
+            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Holding</h4>
+            <form onSubmit={handleAddHolding} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Stock Symbol</label>
+                  <input
+                    type="text"
+                    value={formData.symbol}
+                    onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., AAPL"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Quantity</label>
+                  <input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., 10"
+                    required
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Average Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.averagePrice}
+                    onChange={(e) => setFormData({ ...formData, averagePrice: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., 150.00"
+                    required
+                    min="0"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button type="submit" className="btn-primary flex-1">
+                  Add Holding
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
     );
@@ -180,36 +194,70 @@ const PortfolioView = ({ userId }) => {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card">
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Value</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-        </div>
-        <div className="card">
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Gain/Loss</div>
-          <div className={`text-2xl font-bold flex items-center gap-2 ${
-            totalGainLoss >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-          }`}>
-            {totalGainLoss >= 0 ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
-            ${Math.abs(totalGainLoss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {/* Professional Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-xl">
+              <DollarSign className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+            </div>
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Value</span>
+          </div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+            ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
-        <div className="card">
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Gain/Loss %</div>
-          <div className={`text-2xl font-bold ${
-            totalGainLossPercent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-4">
+            <div className={`p-3 rounded-xl ${
+              totalGainLoss >= 0 
+                ? 'bg-gradient-to-br from-success-100 to-success-200 dark:from-success-900 dark:to-success-800' 
+                : 'bg-gradient-to-br from-danger-100 to-danger-200 dark:from-danger-900 dark:to-danger-800'
+            }`}>
+              {totalGainLoss >= 0 ? (
+                <ArrowUpRight className="w-6 h-6 text-success-600 dark:text-success-400" />
+              ) : (
+                <ArrowDownRight className="w-6 h-6 text-danger-600 dark:text-danger-400" />
+              )}
+            </div>
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Gain/Loss</span>
+          </div>
+          <div className={`text-3xl font-bold flex items-center gap-2 ${
+            totalGainLoss >= 0 ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'
+          }`}>
+            {totalGainLoss >= 0 ? '+' : ''}${Math.abs(totalGainLoss).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-4">
+            <div className={`p-3 rounded-xl ${
+              totalGainLossPercent >= 0 
+                ? 'bg-gradient-to-br from-success-100 to-success-200 dark:from-success-900 dark:to-success-800' 
+                : 'bg-gradient-to-br from-danger-100 to-danger-200 dark:from-danger-900 dark:to-danger-800'
+            }`}>
+              <Percent className={`w-6 h-6 ${
+                totalGainLossPercent >= 0 ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'
+              }`} />
+            </div>
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Gain/Loss %</span>
+          </div>
+          <div className={`text-3xl font-bold ${
+            totalGainLossPercent >= 0 ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'
           }`}>
             {totalGainLossPercent >= 0 ? '+' : ''}{totalGainLossPercent.toFixed(2)}%
           </div>
         </div>
       </div>
 
-      {/* Charts */}
+      {/* Professional Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Portfolio Allocation</h3>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="card-elevated">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Portfolio Allocation</h3>
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
                 data={pieData}
@@ -217,7 +265,7 @@ const PortfolioView = ({ userId }) => {
                 cy="50%"
                 labelLine={false}
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -225,38 +273,67 @@ const PortfolioView = ({ userId }) => {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+              <Tooltip 
+                formatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                contentStyle={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  padding: '12px'
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Gain/Loss by Stock</h3>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="card-elevated">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Performance by Stock</h3>
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
             <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="symbol" />
-              <YAxis />
-              <Tooltip formatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
-              <Legend />
-              <Bar dataKey="gainLoss" fill="#0ea5e9" name="Gain/Loss ($)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis 
+                dataKey="symbol" 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                stroke="#9ca3af"
+              />
+              <YAxis 
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                stroke="#9ca3af"
+              />
+              <Tooltip 
+                formatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                contentStyle={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  padding: '12px'
+                }}
+              />
+              <Bar 
+                dataKey="gainLoss" 
+                fill="#6366f1" 
+                radius={[8, 8, 0, 0]}
+                name="Gain/Loss ($)"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Holdings Table */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Holdings</h3>
-          <div className="flex gap-2">
+      {/* Professional Holdings Table */}
+      <div className="card-elevated">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Holdings</h3>
+          <div className="flex gap-3">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
               className="btn-secondary flex items-center gap-2"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh Prices
+              Refresh
             </button>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
@@ -269,72 +346,75 @@ const PortfolioView = ({ userId }) => {
         </div>
 
         {showAddForm && (
-          <form onSubmit={handleAddHolding} className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Stock Symbol</label>
-                <input
-                  type="text"
-                  value={formData.symbol}
-                  onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
-                  className="input-field"
-                  placeholder="e.g., AAPL"
-                  required
-                />
+          <div className="mb-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-600">
+            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Holding</h4>
+            <form onSubmit={handleAddHolding} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Stock Symbol</label>
+                  <input
+                    type="text"
+                    value={formData.symbol}
+                    onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., AAPL"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Quantity</label>
+                  <input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., 10"
+                    required
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Average Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.averagePrice}
+                    onChange={(e) => setFormData({ ...formData, averagePrice: e.target.value })}
+                    className="input-field"
+                    placeholder="e.g., 150.00"
+                    required
+                    min="0"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Quantity</label>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  className="input-field"
-                  placeholder="e.g., 10"
-                  required
-                  min="1"
-                />
+              <div className="flex gap-3">
+                <button type="submit" className="btn-primary">
+                  Add Holding
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(false)}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Average Price</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.averagePrice}
-                  onChange={(e) => setFormData({ ...formData, averagePrice: e.target.value })}
-                  className="input-field"
-                  placeholder="e.g., 150.00"
-                  required
-                  min="0"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" className="btn-primary">
-                Add Holding
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
-              <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Symbol</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Quantity</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Avg Price</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Current Price</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Value</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Gain/Loss</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Gain/Loss %</th>
-                <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+            <thead>
+              <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+                <th className="text-left py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">Symbol</th>
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">Quantity</th>
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">Avg Price</th>
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">Current</th>
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">Value</th>
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gain/Loss</th>
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">%</th>
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -344,33 +424,42 @@ const PortfolioView = ({ userId }) => {
                 return (
                   <tr
                     key={holding.id}
-                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
-                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{holding.symbol}</td>
-                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">{holding.quantity}</td>
-                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">
+                    <td className="py-4 px-4">
+                      <span className="font-bold text-lg text-gray-900 dark:text-white">{holding.symbol}</span>
+                    </td>
+                    <td className="py-4 px-4 text-right font-semibold text-gray-900 dark:text-white">{holding.quantity}</td>
+                    <td className="py-4 px-4 text-right font-medium text-gray-700 dark:text-gray-300">
                       ${parseFloat(holding.averagePrice || 0).toFixed(2)}
                     </td>
-                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">
+                    <td className="py-4 px-4 text-right font-medium text-gray-700 dark:text-gray-300">
                       ${parseFloat(holding.currentPrice || 0).toFixed(2)}
                     </td>
-                    <td className="py-3 px-4 text-right text-gray-900 dark:text-gray-100">
+                    <td className="py-4 px-4 text-right font-semibold text-gray-900 dark:text-white">
                       ${parseFloat(holding.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td className={`py-3 px-4 text-right font-medium ${
-                      gainLoss >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    <td className={`py-4 px-4 text-right font-bold ${
+                      gainLoss >= 0 ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'
                     }`}>
-                      {gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <div className="flex items-center justify-end gap-1">
+                        {gainLoss >= 0 ? (
+                          <ArrowUpRight className="w-4 h-4" />
+                        ) : (
+                          <ArrowDownRight className="w-4 h-4" />
+                        )}
+                        <span>{gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
                     </td>
-                    <td className={`py-3 px-4 text-right font-medium ${
-                      gainLossPercent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    <td className={`py-4 px-4 text-right font-bold ${
+                      gainLossPercent >= 0 ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'
                     }`}>
                       {gainLossPercent >= 0 ? '+' : ''}{gainLossPercent.toFixed(2)}%
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-4 px-4 text-right">
                       <button
                         onClick={() => handleRemoveHolding(holding.id)}
-                        className="text-red-600 hover:text-red-800 p-1"
+                        className="text-danger-600 hover:text-danger-800 dark:text-danger-400 dark:hover:text-danger-300 p-2 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded-lg transition-colors"
                         title="Remove holding"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -388,4 +477,3 @@ const PortfolioView = ({ userId }) => {
 };
 
 export default PortfolioView;
-

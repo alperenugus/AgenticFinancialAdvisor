@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { advisorAPI } from '../services/api';
 import websocketService from '../services/websocket';
 
@@ -29,8 +29,8 @@ const ChatComponent = ({ userId }) => {
       },
     });
 
-    // Initial greeting
-    addMessage('assistant', "Hello! I'm your AI financial advisor. How can I help you today?");
+    // Professional initial greeting
+    addMessage('assistant', "Hello! I'm your AI financial advisor, powered by advanced language models. I can help you with:\n\n• Stock analysis and recommendations\n• Portfolio management advice\n• Risk assessment\n• Investment strategy planning\n• Market insights\n\nHow can I assist you with your financial goals today?");
 
     return () => {
       websocketService.disconnect();
@@ -81,51 +81,88 @@ const ChatComponent = ({ userId }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex flex-col h-full bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800">
+      {/* Chat Header */}
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl blur opacity-50"></div>
+            <div className="relative p-2 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-white">AI Financial Advisor</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Always here to help</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-transparent to-gray-50/30 dark:to-gray-800/30">
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`flex items-start gap-3 ${
+            className={`flex items-start gap-4 ${
               msg.role === 'user' ? 'justify-end' : 'justify-start'
             }`}
           >
             {msg.role !== 'user' && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
+              <div className="flex-shrink-0 relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl blur opacity-30"></div>
+                <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
+                  {msg.role === 'error' ? (
+                    <AlertCircle className="w-5 h-5 text-white" />
+                  ) : (
+                    <Bot className="w-5 h-5 text-white" />
+                  )}
+                </div>
               </div>
             )}
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
+              className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-soft ${
                 msg.role === 'user'
-                  ? 'bg-primary-600 text-white'
+                  ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white'
                   : msg.role === 'error'
-                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
+                  ? 'bg-gradient-to-br from-danger-50 to-danger-100 dark:from-danger-900/50 dark:to-danger-800/50 text-danger-800 dark:text-danger-200 border border-danger-200 dark:border-danger-800'
+                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">{msg.content}</p>
+              <p className={`text-xs mt-2 ${
+                msg.role === 'user' ? 'text-primary-100' : 'text-gray-400 dark:text-gray-500'
+              }`}>
+                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
             </div>
             {msg.role === 'user' && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center">
-                <User className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-lg">
+                <User className="w-5 h-5 text-white" />
               </div>
             )}
           </div>
         ))}
 
-        {/* Thinking messages */}
+        {/* Thinking messages with professional styling */}
         {thinkingMessages.length > 0 && (
-          <div className="flex items-start gap-3 justify-start">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 text-white animate-spin" />
+          <div className="flex items-start gap-4 justify-start">
+            <div className="flex-shrink-0 relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl blur opacity-30 animate-pulse"></div>
+              <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              </div>
             </div>
-            <div className="max-w-[80%] rounded-lg px-4 py-2 bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-200 shadow-sm">
-              <p className="text-sm font-medium">Thinking...</p>
-              <ul className="text-xs mt-1 space-y-1">
+            <div className="max-w-[75%] rounded-2xl px-5 py-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-800 shadow-soft">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-primary-600 dark:text-primary-400 animate-pulse" />
+                <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">Analyzing...</p>
+              </div>
+              <ul className="text-xs space-y-1.5 text-primary-600 dark:text-primary-400">
                 {thinkingMessages.map((msg, idx) => (
-                  <li key={idx}>• {msg}</li>
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-primary-500 mt-1">•</span>
+                    <span>{msg}</span>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -134,12 +171,15 @@ const ChatComponent = ({ userId }) => {
 
         {/* Loading indicator */}
         {isLoading && thinkingMessages.length === 0 && (
-          <div className="flex items-start gap-3 justify-start">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 text-white animate-spin" />
+          <div className="flex items-start gap-4 justify-start">
+            <div className="flex-shrink-0 relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl blur opacity-30 animate-pulse"></div>
+              <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              </div>
             </div>
-            <div className="max-w-[80%] rounded-lg px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm">
-              <p className="text-sm">Processing your request...</p>
+            <div className="max-w-[75%] rounded-2xl px-5 py-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-soft">
+              <p className="text-sm font-medium">Processing your request...</p>
             </div>
           </div>
         )}
@@ -147,30 +187,46 @@ const ChatComponent = ({ userId }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about stocks, portfolio, or investment advice..."
-            className="flex-1 input-field bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-600"
-            disabled={isLoading}
-          />
+      {/* Professional Input Area */}
+      <form onSubmit={handleSubmit} className="border-t border-gray-200 dark:border-gray-700 p-5 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+        <div className="flex gap-3">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about stocks, portfolio analysis, investment strategies..."
+              className="input-field pr-12"
+              disabled={isLoading}
+            />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <Sparkles className="w-5 h-5 text-gray-400" />
+            </div>
+          </div>
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[100px] justify-center"
           >
-            <Send className="w-4 h-4" />
-            Send
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Sending</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Send</span>
+              </>
+            )}
           </button>
         </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-1">
+          Press Enter to send • AI responses may take a few moments
+        </p>
       </form>
     </div>
   );
 };
 
 export default ChatComponent;
-
