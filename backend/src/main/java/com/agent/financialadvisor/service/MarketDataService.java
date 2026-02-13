@@ -27,6 +27,7 @@ public class MarketDataService {
             @Value("${market-data.alpha-vantage.api-key:demo}") String alphaVantageApiKey,
             @Value("${market-data.alpha-vantage.base-url:https://www.alphavantage.co/query}") String alphaVantageBaseUrl
     ) {
+        // Build WebClient with increased buffer size for large Alpha Vantage responses
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
         this.alphaVantageApiKey = alphaVantageApiKey;
@@ -81,10 +82,35 @@ public class MarketDataService {
                     .block();
             
             JsonNode json = objectMapper.readTree(response);
-            String timeSeriesKey = json.fieldNames().next(); // Get first key (usually "Time Series (Daily)")
+            
+            // Check for API errors first
+            if (json.has("Error Message") || json.has("Note")) {
+                String errorMsg = json.has("Error Message") 
+                    ? json.get("Error Message").asText() 
+                    : json.get("Note").asText();
+                log.warn("Alpha Vantage API error for {}: {}", symbol, errorMsg);
+                return result; // Return empty result
+            }
+            
+            // Find the time series key (could be "Time Series (Daily)", "Weekly Time Series", etc.)
+            String timeSeriesKey = null;
+            var fieldNames = json.fieldNames();
+            while (fieldNames.hasNext()) {
+                String key = fieldNames.next();
+                if (key.contains("Time Series") || key.contains("Weekly") || key.contains("Monthly")) {
+                    timeSeriesKey = key;
+                    break;
+                }
+            }
+            
+            if (timeSeriesKey == null) {
+                log.warn("No time series data found in response for {}", symbol);
+                return result; // Return empty result
+            }
+            
             JsonNode timeSeries = json.get(timeSeriesKey);
             
-            if (timeSeries != null) {
+            if (timeSeries != null && timeSeries.isObject()) {
                 result.put("symbol", symbol);
                 result.put("data", timeSeries);
                 
