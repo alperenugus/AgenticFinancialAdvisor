@@ -29,5 +29,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=180s --retries=5 \
   CMD curl -f http://localhost:11434/api/tags || exit 1
 
 # Use entrypoint script to auto-pull model
-ENTRYPOINT ["/entrypoint.sh"]
+# Use shell form to ensure proper signal handling
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
 
