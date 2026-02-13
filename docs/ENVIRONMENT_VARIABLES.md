@@ -17,7 +17,12 @@ SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=your_password
 
 # Ollama Configuration (REQUIRED)
-LANGCHAIN4J_OLLAMA_BASE_URL=https://your-ollama-service.railway.app
+# You can use EITHER internal or external URL:
+# ✅ Internal URL (recommended - faster, more reliable):
+#    http://ollama.railway.internal:11434
+# ✅ External URL (works but may have 502 errors):
+#    https://your-ollama-service.railway.app
+LANGCHAIN4J_OLLAMA_BASE_URL=http://ollama.railway.internal:11434
 LANGCHAIN4J_OLLAMA_MODEL=llama3.1
 LANGCHAIN4J_OLLAMA_TEMPERATURE=0.7
 
@@ -45,15 +50,29 @@ NEWS_API_KEY=your_news_api_key_here
 ### Required Variables
 
 ```bash
-# Backend API URL (REQUIRED)
+# Backend API URL (REQUIRED - MUST be external/public URL!)
+# ⚠️ IMPORTANT: Frontend runs in browser, so it CANNOT use internal URLs
+# ❌ WRONG: http://backend.railway.internal:8080/api
+# ✅ CORRECT: https://your-backend.railway.app/api
 VITE_API_BASE_URL=https://your-backend.railway.app/api
 
-# WebSocket URL (REQUIRED)
+# WebSocket URL (REQUIRED - MUST be external/public URL!)
+# ⚠️ IMPORTANT: Frontend runs in browser, so it CANNOT use internal URLs
+# ❌ WRONG: http://backend.railway.internal:8080/ws
+# ✅ CORRECT: https://your-backend.railway.app/ws
 VITE_WS_URL=https://your-backend.railway.app/ws
 
 # Port (Auto-set by Railway - usually don't need to set)
 PORT=3000
 ```
+
+### ⚠️ Critical: Frontend Must Use External URLs
+
+**The frontend runs in the user's browser**, which means:
+- ✅ **MUST use external/public URLs** (e.g., `https://backend.railway.app`)
+- ❌ **CANNOT use internal URLs** (e.g., `http://backend.railway.internal:8080`)
+
+**Why?** The browser doesn't have access to Railway's internal network. Internal URLs only work for service-to-service communication within Railway.
 
 ---
 
@@ -247,6 +266,20 @@ LANGCHAIN4J_OLLAMA_BASE_URL=ollama-production-xxxx.up.railway.app
 LANGCHAIN4J_OLLAMA_BASE_URL=https://ollama-production-xxxx.up.railway.app
 ```
 
+### ❌ Frontend Using Internal URLs (CRITICAL ERROR!)
+
+```bash
+# ❌ WRONG - Frontend CANNOT use internal URLs!
+VITE_API_BASE_URL=http://backend.railway.internal:8080/api
+
+# ✅ CORRECT - Frontend MUST use external URLs
+VITE_API_BASE_URL=https://backend.railway.app/api
+```
+
+**Error you'll see:** `net::ERR_NAME_NOT_RESOLVED` or `Network Error`
+
+**Why?** The browser doesn't have access to Railway's internal network. Only services within Railway can use `.railway.internal` URLs.
+
 ### ❌ Wrong Paths
 
 ```bash
@@ -262,6 +295,7 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 - Forgetting to set `LANGCHAIN4J_OLLAMA_BASE_URL` → Backend can't connect to Ollama
 - Forgetting to set `ALPHA_VANTAGE_API_KEY` → Market data won't work
 - Forgetting to set `VITE_API_BASE_URL` → Frontend can't connect to backend
+- Using internal URL for frontend → `ERR_NAME_NOT_RESOLVED` error
 
 ---
 
