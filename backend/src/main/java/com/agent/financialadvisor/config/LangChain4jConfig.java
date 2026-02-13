@@ -5,7 +5,9 @@ import dev.langchain4j.model.ollama.OllamaChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
+@Lazy  // Delay Ollama connection until first use (prevents blocking startup)
 @Configuration
 public class LangChain4jConfig {
 
