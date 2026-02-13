@@ -13,27 +13,31 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        String[] allowedOrigins = corsOrigins.split(",");
+        // Always use allowedOriginPatterns to avoid conflicts with allowCredentials
+        // This works for both wildcard and specific origins
         
-        // If wildcard is used, don't allow credentials (browser security restriction)
         if (corsOrigins.equals("*") || corsOrigins.contains("*")) {
+            // Wildcard - don't allow credentials (browser security restriction)
             registry.addMapping("/api/**")
                     .allowedOriginPatterns("*")
                     .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                     .allowedHeaders("*")
-                    .allowCredentials(false) // Can't use credentials with wildcard
+                    .allowCredentials(false)
                     .maxAge(3600);
         } else {
-            // Specific origins - can use credentials
-            registry.addMapping("/api/**")
-                    .allowedOrigins(allowedOrigins)
-                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                    .allowedHeaders("*")
-                    .allowCredentials(true)
-                    .maxAge(3600);
+            // Specific origins - use allowedOriginPatterns (not allowedOrigins) to avoid conflicts
+            String[] origins = corsOrigins.split(",");
+            for (String origin : origins) {
+                registry.addMapping("/api/**")
+                        .allowedOriginPatterns(origin.trim())
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(true)
+                        .maxAge(3600);
+            }
         }
         
-        // Also configure WebSocket CORS (SockJS uses /ws/info endpoint)
+        // WebSocket CORS - always use wildcard patterns (no credentials needed)
         registry.addMapping("/ws/**")
                 .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "OPTIONS", "HEAD")
@@ -41,7 +45,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(false)
                 .maxAge(3600);
         
-        // SockJS info endpoint specifically
+        // SockJS info endpoint
         registry.addMapping("/ws/info/**")
                 .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "OPTIONS", "HEAD")

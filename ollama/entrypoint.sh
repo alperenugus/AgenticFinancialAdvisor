@@ -12,6 +12,7 @@ MODEL_NAME="${OLLAMA_MODEL:-llama3.1}"
 OLLAMA_PORT="${PORT:-11434}"
 
 # Set OLLAMA_HOST to listen on all interfaces with the correct port
+# This MUST be set before starting ollama serve
 export OLLAMA_HOST="0.0.0.0:${OLLAMA_PORT}"
 
 # Log the configuration for debugging
@@ -25,9 +26,19 @@ echo "=========================================="
 echo "Starting Ollama service..."
 echo "Model to ensure: $MODEL_NAME"
 
+# Verify OLLAMA_HOST is set correctly
+if [ -z "$OLLAMA_HOST" ]; then
+    echo "ERROR: OLLAMA_HOST is not set!"
+    exit 1
+fi
+
 # Start Ollama in the background
+# OLLAMA_HOST must be exported before this
 ollama serve &
 OLLAMA_PID=$!
+
+# Give Ollama a moment to start
+sleep 2
 
 # Wait for Ollama to be ready
 echo "Waiting for Ollama to be ready..."
