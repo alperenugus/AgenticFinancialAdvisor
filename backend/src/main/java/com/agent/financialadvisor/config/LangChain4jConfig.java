@@ -49,15 +49,29 @@ public class LangChain4jConfig {
         
         url = url.trim();
         
-        // If URL doesn't start with http:// or https://, add https://
+        // If URL doesn't start with http:// or https://, add appropriate scheme
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            // If it looks like a domain (contains .), use https://
-            if (url.contains(".")) {
-                url = "https://" + url;
-            } else {
-                // Otherwise assume localhost, use http://
+            // Internal Railway URLs should use http:// (not https://)
+            if (url.contains(".railway.internal")) {
+                url = "http://" + url;
+            } 
+            // If it contains a port number, likely internal or local - use http://
+            else if (url.contains(":11434") || url.contains(":8080") || url.contains("localhost")) {
                 url = "http://" + url;
             }
+            // External domains without port - use https://
+            else if (url.contains(".")) {
+                url = "https://" + url;
+            } 
+            // Otherwise assume localhost, use http://
+            else {
+                url = "http://" + url;
+            }
+        }
+        
+        // Ensure internal Railway URLs use http:// (not https://)
+        if (url.contains(".railway.internal") && url.startsWith("https://")) {
+            url = url.replace("https://", "http://");
         }
         
         return url;
