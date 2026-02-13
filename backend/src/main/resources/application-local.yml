@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: financial-advisor
+  
+  datasource:
+    # Use H2 in-memory database for local testing (no PostgreSQL needed)
+    url: jdbc:h2:mem:financialadvisor
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  websocket:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+
+server:
+  port: 8080
+
+# LangChain4j Configuration
+langchain4j:
+  ollama:
+    base-url: ${LANGCHAIN4J_OLLAMA_BASE_URL:http://localhost:11434}
+    model: ${LANGCHAIN4J_OLLAMA_MODEL:llama3.1}
+    temperature: ${LANGCHAIN4J_OLLAMA_TEMPERATURE:0.7}
+
+# External API Configuration
+market-data:
+  alpha-vantage:
+    api-key: ${ALPHA_VANTAGE_API_KEY:demo}
+    base-url: https://www.alphavantage.co/query
+    rate-limit:
+      calls-per-minute: 5
+      calls-per-day: 500
+  
+  yahoo-finance:
+    base-url: https://query1.finance.yahoo.com/v8/finance/chart
+  
+  news-api:
+    api-key: ${NEWS_API_KEY:}
+    base-url: https://newsapi.org/v2
+
+logging:
+  level:
+    com.agent.financialadvisor: DEBUG
+    dev.langchain4j: INFO
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: INFO
+
