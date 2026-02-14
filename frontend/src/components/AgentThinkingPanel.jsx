@@ -19,8 +19,11 @@ const AgentThinkingPanel = ({ sessionId }) => {
     }, 100);
 
     const setupSubscriptions = () => {
+      console.log('🔌 Setting up WebSocket subscriptions for session:', sessionId);
+      
       // Subscribe to reasoning updates
-      websocketService.subscribe(`/topic/reasoning/${sessionId}`, (message) => {
+      const reasoningSub = websocketService.subscribe(`/topic/reasoning/${sessionId}`, (message) => {
+        console.log('📨 Received reasoning message:', message.body);
         const data = JSON.parse(message.body);
         setReasoningSteps((prev) => [...prev, {
           type: 'reasoning',
@@ -28,9 +31,11 @@ const AgentThinkingPanel = ({ sessionId }) => {
           timestamp: new Date(data.timestamp || Date.now()),
         }]);
       });
+      console.log('✅ Subscribed to reasoning:', reasoningSub ? 'success' : 'failed');
 
       // Subscribe to tool calls
-      websocketService.subscribe(`/topic/tool-call/${sessionId}`, (message) => {
+      const toolCallSub = websocketService.subscribe(`/topic/tool-call/${sessionId}`, (message) => {
+        console.log('🔧 Received tool call message:', message.body);
         const data = JSON.parse(message.body);
         setToolCalls((prev) => [...prev, {
           id: `tool-${data.timestamp}`,
@@ -40,9 +45,11 @@ const AgentThinkingPanel = ({ sessionId }) => {
           timestamp: new Date(data.timestamp),
         }]);
       });
+      console.log('✅ Subscribed to tool-call:', toolCallSub ? 'success' : 'failed');
 
       // Subscribe to tool results
-      websocketService.subscribe(`/topic/tool-result/${sessionId}`, (message) => {
+      const toolResultSub = websocketService.subscribe(`/topic/tool-result/${sessionId}`, (message) => {
+        console.log('✅ Received tool result message:', message.body);
         const data = JSON.parse(message.body);
         setToolCalls((prev) => prev.map((call) => 
           call.toolName === data.toolName && call.status === 'calling'
@@ -50,6 +57,7 @@ const AgentThinkingPanel = ({ sessionId }) => {
             : call
         ));
       });
+      console.log('✅ Subscribed to tool-result:', toolResultSub ? 'success' : 'failed');
     };
 
     // If already connected, set up subscriptions immediately

@@ -214,30 +214,16 @@ public class OrchestratorService {
                        "You have access to tools from: User Profile Agent (portfolio & profile access), Market Analysis Agent (real-time market data), " +
                        "Risk Assessment Agent, Research Agent (fundamentals), Stock Discovery Agent, Recommendation Agent, " +
                        "Web Search Agent (latest financial news & analysis), and Fintwit Analysis Agent (social sentiment). " +
-                       "ABSOLUTELY CRITICAL - FUNCTION CALLING RULES: " +
-                       "1. DO NOT write function calls in ANY format - NO XML tags, NO JSON, NO text descriptions of function calls " +
-                       "2. DO NOT use formats like: <function=...>, <tool>...</tool>, function_name(...), or any other format " +
-                       "3. DO NOT show your thinking process as function calls - just think naturally about what information you need " +
-                       "4. The system uses LangChain4j which AUTOMATICALLY handles all function calling - you don't need to format anything " +
-                       "5. Simply describe what information you need in natural language, and the system will automatically call the right tools " +
-                       "6. For example, if you need portfolio data, just think 'I need to see the user's portfolio' - the system handles the rest " +
-                       "7. NEVER write out function names, parameters, or any function call syntax - just think about what data you need " +
-                       "When you need information, simply think about what you need in natural language. " +
-                       "The system will automatically: " +
-                       "- Retrieve portfolio holdings and current prices when you think about needing portfolio data " +
-                       "- Get risk tolerance and investment goals when you think about user preferences " +
-                       "- Search for latest news when you think about needing current market information " +
-                       "- Get fintwit sentiment when you think about social market perspective " +
-                       "- Analyze technical indicators when you think about price trends " +
-                       "- Assess risk levels when you think about risk evaluation " +
-                       "You will receive all this data automatically - just think naturally about what you need for your analysis. " +
-                       "For comprehensive portfolio analysis, think about: " +
-                       "1. What stocks does the user own? (system automatically retrieves portfolio) " +
-                       "2. What are the current prices and trends? (system automatically gets market data) " +
-                       "3. What's the latest news and analysis? (system automatically searches web) " +
-                       "4. What's the social sentiment? (system automatically gets fintwit data) " +
-                       "5. What are the fundamentals? (system automatically gets company data) " +
-                       "Then synthesize all the automatically retrieved information into professional analysis. " +
+                       "CRITICAL - TOOL CALLING IS MANDATORY: " +
+                       "You MUST explicitly think about calling tools when you need data. LangChain4j will detect your intent and call the tools. " +
+                       "When you need stock prices, you MUST think: 'I need to call getStockPrice for each symbol' " +
+                       "When you need portfolio data, you MUST think: 'I need to call getPortfolio' " +
+                       "When you need technical analysis, you MUST think: 'I need to call analyzeTrends and getTechnicalIndicators' " +
+                       "The tools are NOT called automatically - you must think about needing them explicitly. " +
+                       "DO NOT use placeholders like $X, $Y, [Current Price], etc. - these are FORBIDDEN. " +
+                       "DO NOT say 'I see that the current prices are...' without actually calling getStockPrice first. " +
+                       "DO NOT make up prices or use training data. " +
+                       "If you mention a price, you MUST have called getStockPrice(symbol) first and use the EXACT price returned. " +
                 "CRITICAL COMMUNICATION STYLE: When responding to the user, ALWAYS address them DIRECTLY using 'you', 'your', 'yours'. " +
                 "NEVER refer to 'the user', 'user's', 'the user's portfolio', etc. " +
                 "Examples: " +
@@ -274,13 +260,16 @@ public class OrchestratorService {
                 "5. Target price with reasoning " +
                 "6. Professional analysis of chart patterns, trends, and technical indicators " +
                 "7. Portfolio management advice considering current holdings " +
-                "MANDATORY WORKFLOW FOR ANY STOCK ANALYSIS: " +
-                "Step 1: ALWAYS call getStockPrice(symbol) FIRST to get current price " +
-                "Step 2: ALWAYS call getStockPriceData(symbol, 'daily') to get price history " +
-                "Step 3: ALWAYS call analyzeTrends(symbol, 'daily') for technical analysis " +
-                "Step 4: ALWAYS call getTechnicalIndicators(symbol) for indicators " +
-                "Step 5: THEN use the actual data from these tool calls in your analysis " +
-                "NEVER skip these steps. NEVER use training data. NEVER guess prices. " +
+                "MANDATORY WORKFLOW FOR ANY STOCK ANALYSIS - YOU MUST FOLLOW THIS EXACTLY: " +
+                "Step 1: Think 'I need to get the current price for [SYMBOL]' - this will trigger getStockPrice(symbol) " +
+                "Step 2: Wait for the tool result, then use the EXACT price returned (e.g., if tool returns $150.25, use $150.25, NOT $150 or $X) " +
+                "Step 3: Think 'I need price history for [SYMBOL]' - this will trigger getStockPriceData(symbol, 'daily') " +
+                "Step 4: Think 'I need technical analysis for [SYMBOL]' - this will trigger analyzeTrends(symbol, 'daily') " +
+                "Step 5: Think 'I need technical indicators for [SYMBOL]' - this will trigger getTechnicalIndicators(symbol) " +
+                "Step 6: Use the ACTUAL data from tool results in your response - quote the exact prices, exact numbers " +
+                "NEVER skip these steps. NEVER use placeholders. NEVER use training data. NEVER guess. " +
+                "If you write '$X' or '[Current Price]' or any placeholder, you have FAILED. " +
+                "You MUST use the exact values returned by the tools. " +
                 "Format your recommendations like a professional financial analyst would: " +
                 "- 'For [SYMBOL], the current price is $X (fresh data from getStockPrice, fetched just now). I identify a [PATTERN] pattern on [TIMEFRAME] chart...' " +
                 "- 'For [SYMBOL], you can have a stop loss at $Y (calculate Y as X * 0.95 or similar based on actual current price)...' " +

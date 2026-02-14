@@ -56,7 +56,7 @@ public class WebSocketService {
             toolCall.put("timestamp", System.currentTimeMillis());
             
             messagingTemplate.convertAndSend("/topic/tool-call/" + sessionId, toolCall);
-            log.debug("Sent tool call to session {}: {}", sessionId, toolName);
+            log.info("🔧 Sent tool call to session {}: {} with params: {}", sessionId, toolName, parameters);
         } catch (Exception e) {
             log.error("Error sending tool call via WebSocket", e);
         }
@@ -72,7 +72,7 @@ public class WebSocketService {
             toolResult.put("timestamp", System.currentTimeMillis());
             
             messagingTemplate.convertAndSend("/topic/tool-result/" + sessionId, toolResult);
-            log.debug("Sent tool result to session {}: {}", sessionId, toolName);
+            log.info("✅ Sent tool result to session {}: {} (duration: {}ms)", sessionId, toolName, duration);
         } catch (Exception e) {
             log.error("Error sending tool result via WebSocket", e);
         }
@@ -86,7 +86,7 @@ public class WebSocketService {
             reasoningMsg.put("timestamp", System.currentTimeMillis());
             
             messagingTemplate.convertAndSend("/topic/reasoning/" + sessionId, reasoningMsg);
-            log.debug("Sent reasoning to session {}", sessionId);
+            log.info("📢 Sent reasoning to session {}: {}", sessionId, reasoning);
         } catch (Exception e) {
             log.error("Error sending reasoning via WebSocket", e);
         }
