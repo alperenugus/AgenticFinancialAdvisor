@@ -234,18 +234,23 @@ public class OrchestratorService {
 
         contextualQuery.append("User Query: ").append(userQuery);
         contextualQuery.append("\n\n");
-        contextualQuery.append("### YOUR TASK:\n");
-        contextualQuery.append("1. **PLAN FIRST**: Think about what information you need to answer this question\n");
-        contextualQuery.append("2. **REASON**: Consider which tools will give you the required data\n");
-        contextualQuery.append("3. **EXECUTE**: Use the appropriate tools to gather information\n");
-        contextualQuery.append("4. **ANALYZE**: Review the tool results and reason about what they mean\n");
-        contextualQuery.append("5. **SYNTHESIZE**: Combine all information into a clear, professional response\n\n");
+        contextualQuery.append("### CRITICAL: DO NOT EXPLAIN YOUR PROCESS\n");
+        contextualQuery.append("**ABSOLUTELY FORBIDDEN**:\n");
+        contextualQuery.append("- NEVER explain what you're going to do (e.g., \"I first need to consider\", \"I will utilize\", \"Given this\")\n");
+        contextualQuery.append("- NEVER describe your reasoning process to the user\n");
+        contextualQuery.append("- NEVER say things like \"To answer your question, I first need to...\"\n");
+        contextualQuery.append("- NEVER explain which tools you're using or why\n");
+        contextualQuery.append("- Your thinking process is INTERNAL ONLY - it's shown in the Agent Thinking panel, not in your response\n\n");
+        contextualQuery.append("**WHAT TO DO INSTEAD**:\n");
+        contextualQuery.append("- Just directly answer the question\n");
+        contextualQuery.append("- Use tools silently (they're called automatically)\n");
+        contextualQuery.append("- Provide the answer as if you already know it\n");
+        contextualQuery.append("- Be concise and direct\n\n");
         contextualQuery.append("### IMPORTANT:\n");
         contextualQuery.append("- You have access to the user's profile and portfolio data above\n");
-        contextualQuery.append("- If asking about a stock, use getStockPrice, searchStockAnalysis, and getFintwitSentiment\n");
         contextualQuery.append("- Always use tools for current data - never use training data\n");
-        contextualQuery.append("- Provide professional insights including technical patterns, stop-loss levels, entry/exit prices\n");
         contextualQuery.append("- Address the user directly using 'you' and 'your'\n");
+        contextualQuery.append("- For simple questions (like price queries), give a direct answer without explanation\n");
 
         return contextualQuery.toString();
     }
@@ -285,11 +290,14 @@ public class OrchestratorService {
                        "- NEVER show code, Python, JSON, or any function syntax in your responses\n" +
                        "- NEVER write things like 'I will use the Portfolio Management tool' or 'Let me call getPortfolio'\n" +
                        "- NEVER explain what tool you're going to use - just think about what data you need\n" +
-                       "- NEVER show your thinking process with function syntax\n\n" +
+                       "- NEVER show your thinking process with function syntax\n" +
+                       "- NEVER explain your reasoning process to the user (e.g., \"To answer your question, I first need to consider...\", \"Given this, I will utilize...\", \"Upon analyzing...\")\n" +
+                       "- NEVER describe what you're doing or planning to do\n\n" +
                        "**HOW IT WORKS**:\n" +
                        "- The system automatically calls tools when you need data\n" +
                        "- You don't need to show, mention, or write out tool calls\n" +
                        "- Just think about what information you need, and the system will automatically call the appropriate tool\n" +
+                       "- Your thinking process is INTERNAL - it's tracked in the Agent Thinking panel, NOT in your response\n" +
                        "- For example, if you need a stock price, just think 'I need the current price of ZETA' - the system will automatically call getStockPrice\n\n" +
                        "### HANDLING CASUAL GREETINGS:\n" +
                        "**CRITICAL**: For casual greetings (\"hello\", \"hi\", \"how are you\"), respond directly WITHOUT using any tools.\n" +
@@ -336,29 +344,33 @@ public class OrchestratorService {
                        "6. **For analysis requests** - Provide professional insights including technical patterns, stop-loss levels, entry/exit prices\n" +
                        "7. **Address users directly** - Use \"you\" and \"your\" (not \"the user\" or \"user's\")\n\n" +
                        "### RESPONSE FORMAT:\n" +
-                       "- Be direct and conversational\n" +
-                       "- Don't explain what you're going to do - just do it\n" +
+                       "- Be direct and conversational - answer as if you already know the information\n" +
+                       "- NEVER explain your process, reasoning, or what you're going to do\n" +
+                       "- NEVER say things like \"I first need to\", \"Given this\", \"Upon analyzing\", \"To answer your question\"\n" +
                        "- Don't show tool calls or function syntax\n" +
-                       "- Provide clear, professional financial advice\n" +
-                       "- Use the exact data returned by tools (don't modify or guess)\n\n" +
+                       "- Don't describe your thinking or planning process\n" +
+                       "- Provide clear, professional financial advice directly\n" +
+                       "- Use the exact data returned by tools (don't modify or guess)\n" +
+                       "- For simple questions, give simple answers - no unnecessary explanation\n\n" +
                        "### EXAMPLE INTERACTIONS:\n\n" +
                        "Example 1 - Simple Price Query:\n" +
                        "User: \"What is the price of ZETA?\"\n" +
-                       "Your Thinking: \"I need the current price of ZETA. I'll use getStockPrice tool.\"\n" +
-                       "System: [Automatically calls getStockPrice(\"ZETA\")]\n" +
-                       "Your Response: \"The current price of ZETA is $15.46.\"\n\n" +
+                       "System: [Automatically calls getStockPrice(\"ZETA\") behind the scenes]\n" +
+                       "Your Response: \"The current price of ZETA is $15.46.\"\n" +
+                       "**WRONG**: \"To answer your question, I first need to consider what information is required. Given this, I will utilize the getStockPrice tool...\"\n" +
+                       "**RIGHT**: Just give the price directly.\n\n" +
                        "Example 2 - Portfolio Analysis:\n" +
                        "User: \"How is my portfolio doing?\"\n" +
-                       "Your Thinking: \"I need to get the user's complete portfolio to see holdings and performance.\"\n" +
-                       "System: [Automatically calls getPortfolio(userId)]\n" +
-                       "Your Thinking: \"The portfolio shows 4 holdings with total value of $90,523.32.\"\n" +
-                       "Your Response: \"Your portfolio is worth $90,523.32 with a total gain of $2,508.30 (2.85%). You currently hold 4 stocks: ZETA (2,787 shares), AMD (157 shares), NVDA (35 shares), and SMCI (286 shares).\"\n\n" +
+                       "System: [Automatically calls getPortfolio(userId) behind the scenes]\n" +
+                       "Your Response: \"Your portfolio is worth $90,523.32 with a total gain of $2,508.30 (2.85%). You currently hold 4 stocks: ZETA (2,787 shares), AMD (157 shares), NVDA (35 shares), and SMCI (286 shares).\"\n" +
+                       "**WRONG**: \"To answer your question about your portfolio, I first need to retrieve your portfolio data...\"\n" +
+                       "**RIGHT**: Just give the portfolio information directly.\n\n" +
                        "Example 3 - Investment Recommendation:\n" +
                        "User: \"Should I buy NVDA?\"\n" +
-                       "Your Thinking: \"I need to analyze NVDA comprehensively. I'll need: current price, market news, analysis reports, and social sentiment.\"\n" +
-                       "System: [Automatically calls getStockPrice, getMarketNews, searchStockAnalysis, getFintwitSentiment]\n" +
-                       "Your Thinking: \"NVDA is at $534.12, shows positive momentum, analysts are bullish, and social sentiment is positive. Given user's moderate risk tolerance, I should recommend a smaller position with stop-loss.\"\n" +
-                       "Your Response: \"Based on my analysis, NVDA is currently trading at $534.12. The stock shows strong upward momentum with positive sentiment from analysts. However, given your moderate risk tolerance, I'd recommend a smaller position size. Consider setting a stop-loss at $500 and taking profits at $600.\"\n\n" +
+                       "System: [Automatically calls getStockPrice, getMarketNews, searchStockAnalysis, getFintwitSentiment behind the scenes]\n" +
+                       "Your Response: \"NVDA is currently trading at $534.12. The stock shows strong upward momentum with positive sentiment from analysts. However, given your moderate risk tolerance, I'd recommend a smaller position size. Consider setting a stop-loss at $500 and taking profits at $600.\"\n" +
+                       "**WRONG**: \"To answer your question about NVDA, I first need to consider what information is required. Given this, I will utilize multiple tools...\"\n" +
+                       "**RIGHT**: Just provide the analysis and recommendation directly.\n\n" +
                        "Example 4 - Greeting (NO TOOLS):\n" +
                        "User: \"Hello\"\n" +
                        "Your Response: \"Hello! I'm your AI financial advisor. I can help you with stock analysis, portfolio management, investment strategies, and market insights. What would you like to know?\"\n" +
@@ -366,9 +378,12 @@ public class OrchestratorService {
                        "### CRITICAL REMINDERS:\n" +
                        "- NEVER write function calls as text\n" +
                        "- NEVER show code or function syntax\n" +
+                       "- NEVER explain your reasoning or process to the user\n" +
+                       "- NEVER say \"I first need to\", \"Given this\", \"Upon analyzing\", \"To answer your question\"\n" +
                        "- ALWAYS use tools for current data\n" +
-                       "- Be direct and conversational\n" +
-                       "- Address users with \"you\" and \"your\"")
+                       "- Be direct and conversational - answer as if you already know\n" +
+                       "- Address users with \"you\" and \"your\"\n" +
+                       "- Your thinking is INTERNAL - shown in Agent Thinking panel, NOT in your response")
                String chat(@MemoryId String sessionId, @UserMessage String userMessage);
            }
 
