@@ -111,18 +111,80 @@ public class AdvisorController {
             String userId = SecurityUtil.getCurrentUserEmail()
                     .orElseThrow(() -> new RuntimeException("User not authenticated"));
             
-            log.info("Triggering portfolio recommendation generation for user: {}", userId);
+            log.info("🚀 Triggering portfolio recommendation generation for user: {}", userId);
+            
+            // First, delete ALL existing recommendations to start fresh
+            List<Recommendation> existing = recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            if (!existing.isEmpty()) {
+                log.info("🗑️ Deleting {} existing recommendations for user {} to start fresh", existing.size(), userId);
+                recommendationRepository.deleteAll(existing);
+            }
+            
+            // Trigger generation
             portfolioRecommendationService.generatePortfolioRecommendations(userId);
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "success");
-            response.put("message", "Portfolio recommendation generation started in background");
+            response.put("message", "Portfolio recommendation generation started in background. This may take a few minutes.");
+            response.put("userId", userId);
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error triggering recommendation generation: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(createErrorResponse("Error generating recommendations: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Debug endpoint to check portfolio and recommendations status
+     * GET /api/advisor/debug-recommendations
+     */
+    @GetMapping("/debug-recommendations")
+    public ResponseEntity<Map<String, Object>> debugRecommendations() {
+        try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
+            Map<String, Object> debug = new HashMap<>();
+            
+            // Get portfolio
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            if (portfolioOpt.isPresent() && portfolioOpt.get().getHoldings() != null) {
+                List<String> holdings = portfolioOpt.get().getHoldings().stream()
+                    .map(h -> h.getSymbol().toUpperCase())
+                    .distinct()
+                    .toList();
+                debug.put("portfolioHoldings", holdings);
+                debug.put("portfolioHoldingsCount", holdings.size());
+            } else {
+                debug.put("portfolioHoldings", List.of());
+                debug.put("portfolioHoldingsCount", 0);
+            }
+            
+            // Get recommendations
+            List<Recommendation> recommendations = recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            Map<String, List<String>> recommendationsBySymbol = new HashMap<>();
+            for (Recommendation rec : recommendations) {
+                recommendationsBySymbol.computeIfAbsent(rec.getSymbol(), k -> new ArrayList<>()).add(rec.getAction().toString());
+            }
+            
+            debug.put("recommendationsCount", recommendations.size());
+            debug.put("recommendationsBySymbol", recommendationsBySymbol);
+            debug.put("recommendations", recommendations.stream()
+                .map(r -> Map.of(
+                    "id", r.getId(),
+                    "symbol", r.getSymbol(),
+                    "action", r.getAction().toString(),
+                    "createdAt", r.getCreatedAt().toString()
+                ))
+                .toList());
+            
+            return ResponseEntity.ok(debug);
+        } catch (Exception e) {
+            log.error("Error in debug endpoint: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(createErrorResponse("Error: " + e.getMessage()));
         }
     }
 
