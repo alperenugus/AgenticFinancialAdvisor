@@ -276,16 +276,22 @@ public class PortfolioRecommendationService {
         try {
             log.info("💾 Saving recommendation for {} (user: {})", symbol, userId);
             
-            // Double-check: Delete any remaining duplicates for this symbol
-            List<Recommendation> duplicates = recommendationRepository
-                .findByUserIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .filter(r -> r.getSymbol().equalsIgnoreCase(symbol))
-                .toList();
-            if (!duplicates.isEmpty()) {
-                log.warn("Found {} duplicate recommendation(s) for {} (user: {}), deleting them", 
-                    duplicates.size(), symbol, userId);
-                recommendationRepository.deleteAll(duplicates);
+            // Double-check: Delete any remaining duplicates for this symbol using repository method
+            try {
+                recommendationRepository.deleteByUserIdAndSymbolIgnoreCase(userId, symbol);
+                log.debug("Deleted any remaining duplicates for {} (user: {})", symbol, userId);
+            } catch (Exception e) {
+                log.warn("Could not delete duplicates using repository method for {}: {}", symbol, e.getMessage());
+                // Fallback: manual deletion
+                List<Recommendation> duplicates = recommendationRepository
+                    .findByUserIdOrderByCreatedAtDesc(userId)
+                    .stream()
+                    .filter(r -> r.getSymbol().equalsIgnoreCase(symbol))
+                    .toList();
+                if (!duplicates.isEmpty()) {
+                    recommendationRepository.deleteAll(duplicates);
+                    log.info("Manually deleted {} duplicate(s) for {} (user: {})", duplicates.size(), symbol, userId);
+                }
             }
             
             Recommendation recommendation = new Recommendation();
@@ -358,11 +364,20 @@ public class PortfolioRecommendationService {
                     ? Recommendation.InvestmentHorizon.LONG
                     : Recommendation.InvestmentHorizon.MEDIUM);
             
-            recommendationRepository.save(recommendation);
-            log.info("Saved professional recommendation for {} with stop loss: {}, entry: {}, exit: {}", 
-                symbol, stopLoss, entryPrice, exitPrice);
+            Recommendation saved = recommendationRepository.save(recommendation);
+            log.info("✅ Saved professional recommendation for {} (id: {}) with stop loss: {}, entry: {}, exit: {}", 
+                symbol, saved.getId(), stopLoss, entryPrice, exitPrice);
+            
+            // Verify it was saved
+            Optional<Recommendation> verify = recommendationRepository.findById(saved.getId());
+            if (verify.isPresent()) {
+                log.debug("✅ Verified recommendation saved successfully for {} (user: {})", symbol, userId);
+            } else {
+                log.error("❌ ERROR: Recommendation was not saved for {} (user: {})", symbol, userId);
+            }
         } catch (Exception e) {
-            log.error("Error saving recommendation for {}: {}", symbol, e.getMessage());
+            log.error("❌ Error saving recommendation for {} (user: {}): {}", symbol, userId, e.getMessage(), e);
+            throw e; // Re-throw to be caught by caller
         }
     }
 
