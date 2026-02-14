@@ -35,7 +35,7 @@ const PortfolioView = () => {
   const loadPortfolio = async () => {
     try {
       setLoading(true);
-      const response = await portfolioAPI.get(userId);
+      const response = await portfolioAPI.get();
       setPortfolio(response.data);
     } catch (error) {
       console.error('Error loading portfolio:', error);
