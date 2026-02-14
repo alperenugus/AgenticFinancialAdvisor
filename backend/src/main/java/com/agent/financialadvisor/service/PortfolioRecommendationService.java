@@ -6,7 +6,7 @@ import com.agent.financialadvisor.model.UserProfile;
 import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.repository.RecommendationRepository;
 import com.agent.financialadvisor.repository.UserProfileRepository;
-import com.agent.financialadvisor.service.agents.StockDiscoveryAgent;
+// import com.agent.financialadvisor.service.agents.StockDiscoveryAgent; // Removed - agent architecture simplified
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,7 +33,7 @@ public class PortfolioRecommendationService {
     private final UserProfileRepository userProfileRepository;
     private final PortfolioRepository portfolioRepository;
     private final RecommendationRepository recommendationRepository;
-    private final StockDiscoveryAgent stockDiscoveryAgent;
+    // private final StockDiscoveryAgent stockDiscoveryAgent; // Removed - agent architecture simplified
     private final OrchestratorService orchestratorService;
     private final ObjectMapper objectMapper;
 
@@ -41,14 +41,14 @@ public class PortfolioRecommendationService {
             UserProfileRepository userProfileRepository,
             PortfolioRepository portfolioRepository,
             RecommendationRepository recommendationRepository,
-            StockDiscoveryAgent stockDiscoveryAgent,
+            // StockDiscoveryAgent stockDiscoveryAgent, // Removed - agent architecture simplified
             OrchestratorService orchestratorService,
             ObjectMapper objectMapper
     ) {
         this.userProfileRepository = userProfileRepository;
         this.portfolioRepository = portfolioRepository;
         this.recommendationRepository = recommendationRepository;
-        this.stockDiscoveryAgent = stockDiscoveryAgent;
+        // this.stockDiscoveryAgent = stockDiscoveryAgent; // Removed - agent architecture simplified
         this.orchestratorService = orchestratorService;
         this.objectMapper = objectMapper;
     }
@@ -88,23 +88,9 @@ public class PortfolioRecommendationService {
             // PRIMARY: Generate recommendations for stocks the user already owns
             List<String> stocksToAnalyze = new ArrayList<>(ownedSymbols);
             
-            // SECONDARY: Also discover new stocks if user has less than 5 holdings
-            if (ownedSymbols.size() < 5) {
-                String excludeOwned = String.join(",", ownedSymbols);
-                String discoveryResult = stockDiscoveryAgent.discoverStocks(
-                    profile.getRiskTolerance().toString(),
-                    profile.getPreferredSectors() != null ? String.join(",", profile.getPreferredSectors()) : "",
-                    excludeOwned
-                );
-                List<String> discoveredStocks = parseDiscoveredStocks(discoveryResult);
-                // Add discovered stocks up to 5 total
-                for (String symbol : discoveredStocks) {
-                    if (stocksToAnalyze.size() >= 5) break;
-                    if (!stocksToAnalyze.contains(symbol)) {
-                        stocksToAnalyze.add(symbol);
-                    }
-                }
-            }
+            // SECONDARY: Stock discovery removed - agent architecture simplified
+            // Stock discovery functionality removed as StockDiscoveryAgent is no longer part of the core architecture
+            // Users can still get recommendations for their existing holdings
             
             if (stocksToAnalyze.isEmpty()) {
                 log.warn("No stocks to analyze for user {} (no holdings and no discoveries)", userId);

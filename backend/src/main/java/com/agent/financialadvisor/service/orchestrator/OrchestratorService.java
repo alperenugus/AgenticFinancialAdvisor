@@ -214,7 +214,7 @@ public class OrchestratorService {
                        "3. Web Search - Search for latest financial news, analysis, and market insights\n" +
                        "4. Fintwit Analysis - Analyze social sentiment from financial Twitter\n" +
                        "\n" +
-                       "REASONING PROCESS (like Gemini):\n" +
+                       "REASONING PROCESS:\n" +
                        "1. When a user asks a question, first think about what information you need\n" +
                        "2. Use the appropriate tools to gather that information (the system will show your tool usage)\n" +
                        "3. Analyze the results from the tools\n" +

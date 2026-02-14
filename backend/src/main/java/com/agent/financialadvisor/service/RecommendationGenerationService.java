@@ -5,9 +5,9 @@ import com.agent.financialadvisor.model.UserProfile;
 import com.agent.financialadvisor.repository.RecommendationRepository;
 import com.agent.financialadvisor.repository.UserProfileRepository;
 import com.agent.financialadvisor.service.agents.MarketAnalysisAgent;
-import com.agent.financialadvisor.service.agents.RecommendationAgent;
-import com.agent.financialadvisor.service.agents.ResearchAgent;
-import com.agent.financialadvisor.service.agents.RiskAssessmentAgent;
+// import com.agent.financialadvisor.service.agents.RecommendationAgent; // Removed - agent architecture simplified
+// import com.agent.financialadvisor.service.agents.ResearchAgent; // Removed - agent architecture simplified
+// import com.agent.financialadvisor.service.agents.RiskAssessmentAgent; // Removed - agent architecture simplified
 import com.agent.financialadvisor.service.agents.UserProfileAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,9 +32,9 @@ public class RecommendationGenerationService {
     private final RecommendationRepository recommendationRepository;
     private final UserProfileAgent userProfileAgent;
     private final MarketAnalysisAgent marketAnalysisAgent;
-    private final RiskAssessmentAgent riskAssessmentAgent;
-    private final ResearchAgent researchAgent;
-    private final RecommendationAgent recommendationAgent;
+    // private final RiskAssessmentAgent riskAssessmentAgent; // Removed - agent architecture simplified
+    // private final ResearchAgent researchAgent; // Removed - agent architecture simplified
+    // private final RecommendationAgent recommendationAgent; // Removed - agent architecture simplified
 
     // Popular stocks to recommend based on different risk profiles
     private static final String[] CONSERVATIVE_STOCKS = {"JNJ", "KO", "PG", "WMT", "MCD", "PEP"};
@@ -46,17 +46,17 @@ public class RecommendationGenerationService {
             RecommendationRepository recommendationRepository,
             UserProfileAgent userProfileAgent,
             MarketAnalysisAgent marketAnalysisAgent,
-            RiskAssessmentAgent riskAssessmentAgent,
-            ResearchAgent researchAgent,
-            RecommendationAgent recommendationAgent
+            // RiskAssessmentAgent riskAssessmentAgent, // Removed - agent architecture simplified
+            // ResearchAgent researchAgent, // Removed - agent architecture simplified
+            // RecommendationAgent recommendationAgent // Removed - agent architecture simplified
     ) {
         this.userProfileRepository = userProfileRepository;
         this.recommendationRepository = recommendationRepository;
         this.userProfileAgent = userProfileAgent;
         this.marketAnalysisAgent = marketAnalysisAgent;
-        this.riskAssessmentAgent = riskAssessmentAgent;
-        this.researchAgent = researchAgent;
-        this.recommendationAgent = recommendationAgent;
+        // this.riskAssessmentAgent = riskAssessmentAgent; // Removed - agent architecture simplified
+        // this.researchAgent = researchAgent; // Removed - agent architecture simplified
+        // this.recommendationAgent = recommendationAgent; // Removed - agent architecture simplified
     }
 
     /**
@@ -121,13 +121,15 @@ public class RecommendationGenerationService {
                 try {
                     // Generate recommendation using agents
                     String marketAnalysis = marketAnalysisAgent.analyzeTrends(symbol, "monthly");
-                    String riskAssessment = riskAssessmentAgent.assessStockRisk(symbol, "");
-                    String researchSummary = researchAgent.getCompanyFundamentals(symbol);
+                    // Removed agents - agent architecture simplified
+                    // String riskAssessment = riskAssessmentAgent.assessStockRisk(symbol, "");
+                    // String researchSummary = researchAgent.getCompanyFundamentals(symbol);
 
-                    // Generate recommendation
-                    String recommendationResult = recommendationAgent.generateRecommendation(
-                        userId, symbol, marketAnalysis, riskAssessment, researchSummary, profileJson
-                    );
+                    // Generate recommendation - using only market analysis now
+                    // String recommendationResult = recommendationAgent.generateRecommendation(
+                    //     userId, symbol, marketAnalysis, riskAssessment, researchSummary, profileJson
+                    // );
+                    String recommendationResult = "{\"error\": \"Recommendation generation disabled - agent architecture simplified\"}";
 
                     if (!recommendationResult.contains("\"error\"")) {
                         generated++;

@@ -68,7 +68,7 @@ public class ToolCallAspect {
         // Send tool call notification
         webSocketService.sendToolCall(sessionId, toolName, parameters);
         
-        // Send human-friendly thinking update (Gemini-style reasoning step)
+        // Send human-friendly thinking update
         String humanFriendly = formatToolCall(toolName, parameters);
         webSocketService.sendReasoning(sessionId, "🔧 Calling tool: " + humanFriendly);
         
