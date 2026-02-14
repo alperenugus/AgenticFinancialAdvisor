@@ -153,6 +153,9 @@ User Query
          │   ├─► UserProfileAgent.getUserProfile()
          │   │   └─► Get user risk tolerance, goals
          │   │
+         │   ├─► UserProfileAgent.getPortfolioSummary()
+         │   │   └─► Get user's current holdings
+         │   │
          │   ├─► MarketAnalysisAgent.getStockPrice()
          │   │   ├─► MarketAnalysisAgent.analyzeTrends()
          │   │   └─► MarketAnalysisAgent.getMarketNews()
@@ -210,6 +213,39 @@ User Query
 
 ## Component Details
 
+### 0. Recommendation Generation Service
+
+**Purpose**: Automatically generates personalized investment recommendations in the background.
+
+**Key Features**:
+- Pre-generates recommendations based on user risk tolerance
+- Skips stocks user already owns
+- Limits to 5 recommendations per user
+- Avoids duplicates (won't regenerate within 7 days)
+- Runs asynchronously to avoid blocking user requests
+
+**Stock Selection by Risk Tolerance**:
+- **Conservative**: JNJ, KO, PG, WMT, MCD, PEP (blue-chip, stable)
+- **Moderate**: AAPL, MSFT, GOOGL, AMZN, V, MA, NVDA, TSLA (growth stocks)
+- **Aggressive**: TSLA, NVDA, AMD, NFLX, META, PLTR (high-growth, volatile)
+
+**Triggers**:
+- User profile created/updated
+- Portfolio holdings added/removed
+- User requests recommendations and none exist
+- Manual trigger via API endpoint
+
+**Implementation**:
+```java
+@Async
+public CompletableFuture<Void> generateRecommendationsForUser(String userId) {
+    // Get user profile and portfolio
+    // Select stocks based on risk tolerance
+    // Generate recommendations using all agents
+    // Save to database
+}
+```
+
 ### 1. Orchestrator Service
 
 **Purpose**: Central coordinator that uses LangChain4j to create an AI agent with access to all specialized agent tools.
@@ -219,6 +255,9 @@ User Query
 - Automatically selects which tools to call based on user query
 - Synthesizes responses from multiple agents
 - Sends real-time updates via WebSocket
+- **Intelligent greeting handling** - Responds naturally to greetings and guides users to financial questions
+- **Portfolio-aware** - Always checks user portfolio and profile before making recommendations
+- **Contextual queries** - Automatically includes user profile and portfolio context in every query
 
 **Implementation**:
 ```java
@@ -254,6 +293,13 @@ The LLM automatically:
 - Passes correct parameters
 - Handles tool responses
 - Combines multiple tool results
+
+**Portfolio Access Tools** (UserProfileAgent):
+- `getPortfolio(userId)` - Full portfolio with holdings, values, gain/loss
+- `getPortfolioHoldings(userId)` - List of owned stocks
+- `getPortfolioSummary(userId)` - Quick portfolio overview
+
+These tools automatically refresh current stock prices when called, ensuring the AI always has up-to-date portfolio data.
 
 ### 3. Data Flow
 

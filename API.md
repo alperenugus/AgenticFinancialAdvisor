@@ -263,6 +263,8 @@ Content-Type: application/json
 - `userId` is automatically extracted from JWT token
 - This endpoint triggers the orchestrator to coordinate all agents
 - Real-time updates are sent via WebSocket
+- The orchestrator automatically checks user's portfolio and profile before making recommendations
+- For greetings (hello, hi, etc.), the agent responds naturally and guides users to financial questions
 
 ### Get All Recommendations
 
@@ -300,6 +302,32 @@ Authorization: Bearer <token>
 ```
 
 **Response:** Single recommendation object
+
+### Generate Recommendations
+
+```http
+POST /api/advisor/generate-recommendations
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Recommendation generation started in background"
+}
+```
+
+**Note:**
+- Triggers background generation of personalized recommendations
+- Recommendations are based on user's risk tolerance and portfolio
+- Skips stocks user already owns
+- Limits to 5 recommendations
+- Won't regenerate duplicates within 7 days
+- Recommendations are also automatically generated when:
+  - User profile is created/updated
+  - Portfolio holdings are added/removed
+  - User requests recommendations and none exist
 
 ### Check Agent Status
 
@@ -639,9 +667,12 @@ const recommendations = await fetch('/api/advisor/recommendations', {
 These are the tools available to the LLM orchestrator. They're called automatically based on the user query. The `userId` parameter is automatically extracted from the authenticated user's email.
 
 ### UserProfileAgent Tools
-- `getUserProfile(userId: string): string` - Gets profile for authenticated user
-- `updateRiskTolerance(userId: string, riskTolerance: string): string`
-- `getInvestmentGoals(userId: string): string`
+- `getUserProfile(userId: string): string` - Gets profile for authenticated user (risk tolerance, goals, preferences)
+- `updateRiskTolerance(userId: string, riskTolerance: string): string` - Updates user's risk tolerance
+- `getInvestmentGoals(userId: string): string` - Gets user's investment goals
+- `getPortfolio(userId: string): string` - Gets complete portfolio with all holdings, values, and gain/loss (auto-refreshes prices)
+- `getPortfolioHoldings(userId: string): string` - Gets list of stocks user owns with quantities
+- `getPortfolioSummary(userId: string): string` - Gets portfolio summary (total value, gain/loss, holdings count, symbols)
 
 ### MarketAnalysisAgent Tools
 - `getStockPrice(symbol: string): string`
@@ -672,7 +703,15 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 ## Changelog
 
-### v2.0.0 (Current)
+### v2.1.0 (Current)
+- **Portfolio Access Tools** - AI agents can now access user portfolio data (getPortfolio, getPortfolioHoldings, getPortfolioSummary)
+- **Pre-Generated Recommendations** - Automatic recommendation generation based on user profile and portfolio
+- **Intelligent Greeting Handling** - Natural conversation flow with contextual financial guidance
+- **Recommendation Generation Service** - Background service for personalized recommendations
+- **Async Processing** - Enabled async processing for background tasks
+- **Stock Price Graph Favicon** - Professional branding with stock chart icon
+
+### v2.0.0
 - **Google OAuth2 Authentication** - Secure passwordless authentication
 - **JWT Token-based API** - All endpoints require authentication
 - **User Management** - User entity with Google OAuth integration

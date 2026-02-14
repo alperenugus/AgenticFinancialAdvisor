@@ -10,11 +10,15 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 
 - **Google Sign-In Authentication**: Secure OAuth2 authentication with JWT tokens
 - **Multi-Agent Architecture**: 6 specialized AI agents working in coordination
+- **Intelligent Greeting Handling**: Natural conversation flow with contextual financial guidance
+- **Portfolio-Aware Recommendations**: AI agents have full access to user portfolio and profile data
+- **Pre-Generated Recommendations**: Personalized recommendations automatically generated based on risk tolerance and portfolio
 - **Real-time Market Data**: Integration with Alpha Vantage API for live stock data
 - **Risk Assessment**: Automated risk evaluation based on user preferences
-- **Portfolio Management**: Track and manage investment portfolios
+- **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and recommendations
 - **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b (orchestrator) and llama-3.1-8b (tool agents)
+- **Professional UI**: Modern, responsive design with stock price graph branding
 
 ## 🏗️ System Architecture
 
@@ -190,12 +194,15 @@ The frontend will start on `http://localhost:5173`
 Coordinates all other agents, manages workflows, and synthesizes final responses.
 
 ### 2. User Profile Agent
-Manages user investment preferences, risk tolerance, goals, and constraints.
+Manages user investment preferences, risk tolerance, goals, and constraints. **Also provides portfolio access tools.**
 
 **Tools:**
-- `getUserProfile(userId)` - Get user profile
+- `getUserProfile(userId)` - Get user profile (risk tolerance, goals, preferences)
 - `updateRiskTolerance(userId, level)` - Update risk tolerance
 - `getInvestmentGoals(userId)` - Get investment goals
+- `getPortfolio(userId)` - Get complete portfolio with all holdings and current prices
+- `getPortfolioHoldings(userId)` - Get list of stocks user owns
+- `getPortfolioSummary(userId)` - Get portfolio summary (total value, gain/loss, holdings count)
 
 ### 3. Market Analysis Agent
 Analyzes market data, price trends, and technical indicators.
@@ -225,13 +232,25 @@ Performs fundamental analysis and company research.
 - `getSectorAnalysis(sector)` - Sector analysis
 
 ### 6. Recommendation Agent
-Synthesizes all information into actionable recommendations.
+Synthesizes all information into actionable recommendations. Recommendations are automatically pre-generated based on user profile and portfolio.
 
 **Tools:**
 - `generateRecommendation(...)` - Generate final recommendation
 - `explainReasoning(components)` - Explain recommendation reasoning
 - `calculateConfidence(factors)` - Calculate confidence score
 - `formatRecommendation(recommendation)` - Format for user
+
+### 7. Recommendation Generation Service
+Automatically generates personalized recommendations in the background based on:
+- User's risk tolerance (conservative/moderate/aggressive stocks)
+- Current portfolio (skips stocks user already owns)
+- User profile preferences
+
+**Triggers:**
+- When user profile is created/updated
+- When portfolio holdings are added/removed
+- When user requests recommendations and none exist
+- Manual trigger via `POST /api/advisor/generate-recommendations`
 
 ## 🧪 Testing
 
@@ -260,9 +279,11 @@ mvn test jacoco:report
 
 ### Frontend
 - **React + Vite** - UI framework
-- **Tailwind CSS** - Styling
-- **Recharts** - Data visualization
+- **Tailwind CSS** - Professional styling with financial advisor theme
+- **Recharts** - Data visualization (portfolio charts, allocation graphs)
 - **WebSocket Client** - Real-time updates
+- **Google OAuth Client Library** - Authentication
+- **Stock Price Graph Favicon** - Professional branding
 
 ### External APIs
 - **Alpha Vantage** - Market data
