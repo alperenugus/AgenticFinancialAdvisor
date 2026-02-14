@@ -50,13 +50,14 @@ langchain4j:
   # Groq provides fast, cost-effective LLM inference via OpenAI-compatible API
   # Get API key from: https://console.groq.com/
   groq:
-    # Orchestrator Model: High-level thinking and planning (llama-3.3-70b)
+    # Orchestrator Model: High-level thinking and planning
+    # Using mixtral-8x7b-32768 for better comprehensive analysis and research capabilities
     orchestrator:
       api-key: ${GROQ_API_KEY:}
       base-url: https://api.groq.com/openai/v1
-      model: ${GROQ_ORCHESTRATOR_MODEL:llama-3.3-70b-versatile}
+      model: ${GROQ_ORCHESTRATOR_MODEL:mixtral-8x7b-32768}
       temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.7}
-      timeout-seconds: ${GROQ_ORCHESTRATOR_TIMEOUT_SECONDS:60}
+      timeout-seconds: ${GROQ_ORCHESTRATOR_TIMEOUT_SECONDS:90}
     # Tool Agent Model: Fast, cheap function calling (llama-3.1-8b)
     tool-agent:
       api-key: ${GROQ_API_KEY:}

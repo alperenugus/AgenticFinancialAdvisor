@@ -107,24 +107,39 @@ public class PortfolioRecommendationService {
                 return CompletableFuture.completedFuture(null);
             }
 
-            log.info("Generating recommendations for {} stocks for user {}: {}", stocksToAnalyze.size(), userId, stocksToAnalyze);
+            log.info("🎯 Generating recommendations for {} stocks for user {}: {}", stocksToAnalyze.size(), userId, stocksToAnalyze);
+            
+            // Log current recommendations in DB before generation
+            List<Recommendation> existingBefore = recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            log.info("📋 Current recommendations in DB before generation: {} (symbols: {})", 
+                existingBefore.size(), 
+                existingBefore.stream().map(r -> r.getSymbol() + "(" + r.getAction() + ")").toList());
 
             int generated = 0;
+            int failed = 0;
             String sessionId = "portfolio-recommendation-" + userId + "-" + System.currentTimeMillis();
 
             // Generate recommendations for each stock (prioritize owned stocks)
             for (String symbol : stocksToAnalyze) {
-                // Delete any existing recommendations for this stock to ensure only one per stock
-                Optional<Recommendation> existingOpt = recommendationRepository.findByUserIdAndSymbol(userId, symbol);
-                if (existingOpt.isPresent()) {
-                    log.info("Deleting existing recommendation for {} (user: {}) to ensure single recommendation", 
-                        symbol, userId);
-                    recommendationRepository.delete(existingOpt.get());
-                }
-                
-                log.info("Generating recommendation {}/{} for {} (user: {})", generated + 1, stocksToAnalyze.size(), symbol, userId);
-
                 try {
+                    // Delete ALL existing recommendations for this stock to ensure only one per stock
+                    List<Recommendation> existingRecommendations = recommendationRepository
+                        .findByUserIdOrderByCreatedAtDesc(userId)
+                        .stream()
+                        .filter(r -> r.getSymbol().equalsIgnoreCase(symbol.toUpperCase()))
+                        .toList();
+                    
+                    if (!existingRecommendations.isEmpty()) {
+                        log.info("🗑️ Deleting {} existing recommendation(s) for {} (user: {}) to ensure single recommendation", 
+                            existingRecommendations.size(), symbol, userId);
+                        recommendationRepository.deleteAll(existingRecommendations);
+                        // Verify deletion
+                        Thread.sleep(100); // Small delay to ensure DB commit
+                    }
+                    
+                    log.info("🔄 Generating recommendation {}/{} for {} (user: {})", 
+                        generated + 1, stocksToAnalyze.size(), symbol, userId);
+
                     // Use orchestrator to analyze and recommend with comprehensive research
                     String query = String.format(
                         "As a SENIOR FINANCIAL ANALYST with expertise in technical analysis, fundamental analysis, market sentiment, and portfolio management, " +
@@ -177,13 +192,36 @@ public class PortfolioRecommendationService {
                     saveRecommendationFromOrchestrator(userId, symbol, recommendationText, profile);
 
                     generated++;
-                    log.info("Generated portfolio recommendation for {}: {}", symbol, recommendationText.substring(0, Math.min(100, recommendationText.length())));
+                    log.info("✅ Successfully generated portfolio recommendation {}/{} for {} (user: {})", 
+                        generated, stocksToAnalyze.size(), symbol, userId);
+                    log.debug("Recommendation preview: {}", recommendationText.substring(0, Math.min(200, recommendationText.length())));
 
                     // Add delay to avoid rate limiting
                     Thread.sleep(2000);
                 } catch (Exception e) {
-                    log.warn("Error generating portfolio recommendation for {}: {}", symbol, e.getMessage());
+                    failed++;
+                    log.error("❌ Error generating portfolio recommendation for {} (user: {}): {}", 
+                        symbol, userId, e.getMessage(), e);
+                    log.error("Stack trace:", e);
+                    // Continue with next stock instead of breaking
                 }
+            }
+            
+            log.info("📊 Generation summary: Generated: {}, Failed: {}, Total stocks: {} for user {}", 
+                generated, failed, stocksToAnalyze.size(), userId);
+            
+            // Final verification: Check how many recommendations were actually saved
+            List<Recommendation> savedRecommendations = recommendationRepository
+                .findByUserIdOrderByCreatedAtDesc(userId);
+            log.info("📊 Recommendation generation complete. Generated: {}, Saved in DB: {} for user {}", 
+                generated, savedRecommendations.size(), userId);
+            if (savedRecommendations.size() != stocksToAnalyze.size()) {
+                log.warn("⚠️ Mismatch: Expected {} recommendations but found {} in database for user {}", 
+                    stocksToAnalyze.size(), savedRecommendations.size(), userId);
+                log.info("Stocks analyzed: {}", stocksToAnalyze);
+                log.info("Recommendations in DB: {}", savedRecommendations.stream()
+                    .map(r -> r.getSymbol() + "(" + r.getAction() + ")")
+                    .toList());
             }
 
             log.info("Generated {} portfolio recommendations for user {} (analyzed {} stocks)", 
@@ -225,9 +263,23 @@ public class PortfolioRecommendationService {
      */
     private void saveRecommendationFromOrchestrator(String userId, String symbol, String recommendationText, UserProfile profile) {
         try {
+            log.info("💾 Saving recommendation for {} (user: {})", symbol, userId);
+            
+            // Double-check: Delete any remaining duplicates for this symbol
+            List<Recommendation> duplicates = recommendationRepository
+                .findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .filter(r -> r.getSymbol().equalsIgnoreCase(symbol))
+                .toList();
+            if (!duplicates.isEmpty()) {
+                log.warn("Found {} duplicate recommendation(s) for {} (user: {}), deleting them", 
+                    duplicates.size(), symbol, userId);
+                recommendationRepository.deleteAll(duplicates);
+            }
+            
             Recommendation recommendation = new Recommendation();
             recommendation.setUserId(userId);
-            recommendation.setSymbol(symbol);
+            recommendation.setSymbol(symbol.toUpperCase()); // Ensure uppercase
             
             // Parse action from text
             String upperText = recommendationText.toUpperCase();
