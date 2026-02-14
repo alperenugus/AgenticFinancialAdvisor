@@ -65,17 +65,29 @@ public class OrchestratorService {
         log.info("🎯 Orchestrator coordinating analysis for userId={}, query={}", userId, userQuery);
         
         try {
-            // Send initial thinking update
-            webSocketService.sendThinking(sessionId, "Analyzing your request and coordinating specialized agents...");
+            // Check if this is a casual greeting - if so, don't call tools
+            if (isCasualGreeting(userQuery)) {
+                log.info("📝 Detected casual greeting, responding without tools");
+                webSocketService.sendReasoning(sessionId, "👋 Detected greeting - responding directly without using tools");
+                String greetingResponse = "Hello! I'm your AI financial advisor. I can help you with stock analysis, portfolio management, investment strategies, and market insights. What would you like to know?";
+                webSocketService.sendFinalResponse(sessionId, greetingResponse);
+                return greetingResponse;
+            }
 
+            // STEP 1: ORCHESTRATOR PLANNING
+            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Planning: Analyzing user query to determine what information is needed...");
+            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Plan: I need to understand the user's request and determine which agents and tools to use.");
+            
             // Get or create AI agent for this session
             FinancialAdvisorAgent agent = getOrCreateAgent(sessionId);
 
-            // Build context-aware prompt
-            String contextualQuery = buildContextualQuery(userId, userQuery);
+            // STEP 2: BUILD CONTEXT (only if not a greeting)
+            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Executing: Gathering user context (profile and portfolio) to provide personalized advice...");
+            String contextualQuery = buildContextualQuery(userId, userQuery, sessionId);
 
-            // Send thinking update
-            webSocketService.sendThinking(sessionId, "Processing your request with AI agents...");
+            // STEP 3: EXECUTE WITH EXPLICIT REASONING
+            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Delegating: Coordinating specialized agents to gather required information...");
+            webSocketService.sendReasoning(sessionId, "🤔 [ORCHESTRATOR] Reasoning: The agents will now make their own plans, use tools, and reason about the results.");
 
             // Execute the agent with timeout protection
             // Use CompletableFuture to enforce timeout limit
@@ -89,13 +101,12 @@ public class OrchestratorService {
                 log.info("🔧 Thread {} has sessionId={} for tool tracking", Thread.currentThread().getName(), currentSessionId);
                 
                 try {
-                    // Send reasoning step before agent execution
-                    webSocketService.sendReasoning(sessionId, "🤔 Analyzing your request and determining which tools to use...");
-                    
+                    // The agent will now reason, plan, and use tools
+                    // All tool calls and reasoning will be captured by AOP and sent via WebSocket
                     return agent.chat(sessionId, contextualQuery);
                 } catch (Exception e) {
                     log.error("Error in agent chat execution: {}", e.getMessage(), e);
-                    webSocketService.sendReasoning(sessionId, "❌ Error during analysis: " + e.getMessage());
+                    webSocketService.sendReasoning(sessionId, "❌ [ORCHESTRATOR] Error: " + e.getMessage());
                     throw new RuntimeException("Agent execution failed: " + e.getMessage(), e);
                 }
             });
@@ -164,41 +175,77 @@ public class OrchestratorService {
     }
 
     /**
-     * Build a contextual query that includes user profile and portfolio information
+     * Check if the query is a casual greeting
      */
-    private String buildContextualQuery(String userId, String userQuery) {
+    private boolean isCasualGreeting(String query) {
+        String lowerQuery = query.toLowerCase().trim();
+        String[] greetings = {"hello", "hi", "hey", "good morning", "good afternoon", "good evening", 
+                             "how are you", "what's up", "what can you do", "what do you do"};
+        for (String greeting : greetings) {
+            if (lowerQuery.equals(greeting) || lowerQuery.startsWith(greeting + " ")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Build a contextual query that includes user profile and portfolio information
+     * This is called by the orchestrator to gather context before delegating to agents
+     */
+    private String buildContextualQuery(String userId, String userQuery, String sessionId) {
         StringBuilder contextualQuery = new StringBuilder();
+        
+        // ORCHESTRATOR: Planning to gather user context
+        webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR → UserProfileAgent] Requesting user profile for context...");
         
         // Try to get user profile for context
         try {
             String profileInfo = userProfileAgent.getUserProfile(userId);
             if (profileInfo.contains("\"exists\": true")) {
                 contextualQuery.append("User Profile Context: ").append(profileInfo).append("\n\n");
+                webSocketService.sendReasoning(sessionId, "✅ [ORCHESTRATOR] Received user profile context");
             } else {
                 contextualQuery.append("Note: User profile not found. You may need to ask the user to create a profile first.\n\n");
+                webSocketService.sendReasoning(sessionId, "⚠️ [ORCHESTRATOR] User profile not found");
             }
         } catch (Exception e) {
             log.warn("Could not fetch user profile for context: {}", e.getMessage());
+            webSocketService.sendReasoning(sessionId, "❌ [ORCHESTRATOR] Failed to get user profile: " + e.getMessage());
         }
 
+        // ORCHESTRATOR: Planning to gather portfolio context
+        webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR → UserProfileAgent] Requesting portfolio summary for context...");
+        
         // Try to get user portfolio for context
         try {
             String portfolioInfo = userProfileAgent.getPortfolioSummary(userId);
             if (portfolioInfo.contains("\"exists\": true")) {
                 contextualQuery.append("User Portfolio Context: ").append(portfolioInfo).append("\n\n");
+                webSocketService.sendReasoning(sessionId, "✅ [ORCHESTRATOR] Received portfolio context");
             } else {
                 contextualQuery.append("Note: User portfolio is empty or not found. User may not have any holdings yet.\n\n");
+                webSocketService.sendReasoning(sessionId, "⚠️ [ORCHESTRATOR] Portfolio is empty or not found");
             }
         } catch (Exception e) {
             log.warn("Could not fetch user portfolio for context: {}", e.getMessage());
+            webSocketService.sendReasoning(sessionId, "❌ [ORCHESTRATOR] Failed to get portfolio: " + e.getMessage());
         }
 
         contextualQuery.append("User Query: ").append(userQuery);
-        contextualQuery.append("\n\nPlease analyze this request and use the available tools to provide a comprehensive financial recommendation. ");
-        contextualQuery.append("You have access to the user's profile and portfolio data. Use this information to provide personalized advice. ");
-        contextualQuery.append("If the user is asking about a stock, analyze it thoroughly using market analysis tools, web search for latest news, and fintwit for social sentiment. ");
-        contextualQuery.append("Consider how recommendations fit with their current portfolio and risk tolerance. ");
-        contextualQuery.append("Then synthesize all information into a clear recommendation.");
+        contextualQuery.append("\n\n");
+        contextualQuery.append("### YOUR TASK:\n");
+        contextualQuery.append("1. **PLAN FIRST**: Think about what information you need to answer this question\n");
+        contextualQuery.append("2. **REASON**: Consider which tools will give you the required data\n");
+        contextualQuery.append("3. **EXECUTE**: Use the appropriate tools to gather information\n");
+        contextualQuery.append("4. **ANALYZE**: Review the tool results and reason about what they mean\n");
+        contextualQuery.append("5. **SYNTHESIZE**: Combine all information into a clear, professional response\n\n");
+        contextualQuery.append("### IMPORTANT:\n");
+        contextualQuery.append("- You have access to the user's profile and portfolio data above\n");
+        contextualQuery.append("- If asking about a stock, use getStockPrice, searchStockAnalysis, and getFintwitSentiment\n");
+        contextualQuery.append("- Always use tools for current data - never use training data\n");
+        contextualQuery.append("- Provide professional insights including technical patterns, stop-loss levels, entry/exit prices\n");
+        contextualQuery.append("- Address the user directly using 'you' and 'your'\n");
 
         return contextualQuery.toString();
     }
@@ -232,20 +279,18 @@ public class OrchestratorService {
                        "- You don't need to show, mention, or write out tool calls\n" +
                        "- Just think about what information you need, and the system will automatically call the appropriate tool\n" +
                        "- For example, if you need a stock price, just think 'I need the current price of ZETA' - the system will automatically call getStockPrice\n\n" +
-                       "### HANDLING CASUAL GREETINGS AND IRRELEVANT MESSAGES:\n" +
-                       "When users send casual greetings (e.g., \"hello\", \"hi\", \"how are you\", \"what's up\", \"good morning\") or irrelevant messages:\n" +
-                       "1. **Acknowledge briefly and politely** - Give a short, friendly greeting response\n" +
-                       "2. **Immediately redirect to your purpose** - Don't engage in extended casual conversation\n" +
-                       "3. **Provide helpful examples** - Show what you can help with\n" +
-                       "4. **Keep it concise** - One or two sentences maximum\n" +
-                       "5. **DO NOT use tools** - These messages don't require data fetching\n\n" +
-                       "**Example responses for casual greetings:**\n" +
-                       "- User: \"Hello\" or \"Hi\" → Response: \"Hello! I'm your AI financial advisor. I can help you with stock analysis, portfolio management, investment strategies, and market insights. What would you like to know?\"\n" +
-                       "- User: \"How are you?\" → Response: \"I'm doing well, thank you! I'm here to help you with your financial decisions. How can I assist you today?\"\n" +
-                       "- User: \"What can you do?\" → Response: \"I can help you with stock analysis, portfolio management, investment recommendations, market trends, and financial planning. What would you like to explore?\"\n\n" +
-                       "**For completely irrelevant messages** (e.g., \"tell me a joke\", \"what's the weather\"):\n" +
-                       "- Response: \"I'm a financial advisor, so I can only help with financial matters. I can help you with stock analysis, portfolio management, investment strategies, and market insights. How can I assist you?\"\n\n" +
-                       "**CRITICAL**: For casual greetings and irrelevant messages, provide a direct response WITHOUT using any tools.\n\n" +
+                       "### WORKFLOW: PLAN → REASON → EXECUTE → ANALYZE → RESPOND\n" +
+                       "**STEP 1 - PLAN**: Before doing anything, think about what information you need\n" +
+                       "**STEP 2 - REASON**: Consider which tools will provide the required data\n" +
+                       "**STEP 3 - EXECUTE**: Use the appropriate tools (system will call them automatically)\n" +
+                       "**STEP 4 - ANALYZE**: Review tool results and reason about what they mean\n" +
+                       "**STEP 5 - RESPOND**: Synthesize all information into a clear, professional answer\n\n" +
+                       "**IMPORTANT**: The system will show your planning, reasoning, and tool usage in the thinking panel. " +
+                       "Think through each step explicitly so users can see your process.\n\n" +
+                       "### HANDLING CASUAL GREETINGS:\n" +
+                       "**CRITICAL**: For casual greetings (\"hello\", \"hi\", \"how are you\"), respond directly WITHOUT using any tools.\n" +
+                       "Just say: \"Hello! I'm your AI financial advisor. I can help you with stock analysis, portfolio management, investment strategies, and market insights. What would you like to know?\"\n" +
+                       "**DO NOT** call tools, analyze portfolio, or provide recommendations for greetings.\n\n" +
                        "### YOUR CAPABILITIES:\n" +
                        "You can help users with:\n" +
                        "- Stock price queries and analysis\n" +
@@ -293,18 +338,27 @@ public class OrchestratorService {
                        "- Provide clear, professional financial advice\n" +
                        "- Use the exact data returned by tools (don't modify or guess)\n\n" +
                        "### EXAMPLE INTERACTIONS:\n\n" +
-                       "Example 1:\n" +
+                       "Example 1 - Simple Price Query:\n" +
                        "User: \"What is the price of ZETA?\"\n" +
-                       "Response: \"The current price of ZETA is $15.46.\" (System automatically called getStockPrice(\"ZETA\") behind the scenes)\n\n" +
-                       "Example 2:\n" +
+                       "Your Thinking: \"I need the current price of ZETA. I'll use getStockPrice tool.\"\n" +
+                       "System: [Automatically calls getStockPrice(\"ZETA\")]\n" +
+                       "Your Response: \"The current price of ZETA is $15.46.\"\n\n" +
+                       "Example 2 - Portfolio Analysis:\n" +
                        "User: \"How is my portfolio doing?\"\n" +
-                       "Response: \"Let me check your portfolio... [System automatically calls getPortfolio(userId)] Your portfolio is worth $90,523.32 with a total gain of $2,508.30 (2.85%). You currently hold 4 stocks: ZETA (2,787 shares), AMD (157 shares), NVDA (35 shares), and SMCI (286 shares).\"\n\n" +
-                       "Example 3:\n" +
+                       "Your Thinking: \"I need to get the user's complete portfolio to see holdings and performance.\"\n" +
+                       "System: [Automatically calls getPortfolio(userId)]\n" +
+                       "Your Thinking: \"The portfolio shows 4 holdings with total value of $90,523.32.\"\n" +
+                       "Your Response: \"Your portfolio is worth $90,523.32 with a total gain of $2,508.30 (2.85%). You currently hold 4 stocks: ZETA (2,787 shares), AMD (157 shares), NVDA (35 shares), and SMCI (286 shares).\"\n\n" +
+                       "Example 3 - Investment Recommendation:\n" +
                        "User: \"Should I buy NVDA?\"\n" +
-                       "Response: \"Let me analyze NVDA for you... [System automatically calls multiple tools: getStockPrice, getMarketNews, searchStockAnalysis, getFintwitSentiment] Based on my analysis, NVDA is currently trading at $534.12. The stock shows strong upward momentum with positive sentiment from analysts. However, given your moderate risk tolerance, I'd recommend a smaller position size. Consider setting a stop-loss at $500 and taking profits at $600.\"\n\n" +
-                       "Example 4:\n" +
+                       "Your Thinking: \"I need to analyze NVDA comprehensively. I'll need: current price, market news, analysis reports, and social sentiment.\"\n" +
+                       "System: [Automatically calls getStockPrice, getMarketNews, searchStockAnalysis, getFintwitSentiment]\n" +
+                       "Your Thinking: \"NVDA is at $534.12, shows positive momentum, analysts are bullish, and social sentiment is positive. Given user's moderate risk tolerance, I should recommend a smaller position with stop-loss.\"\n" +
+                       "Your Response: \"Based on my analysis, NVDA is currently trading at $534.12. The stock shows strong upward momentum with positive sentiment from analysts. However, given your moderate risk tolerance, I'd recommend a smaller position size. Consider setting a stop-loss at $500 and taking profits at $600.\"\n\n" +
+                       "Example 4 - Greeting (NO TOOLS):\n" +
                        "User: \"Hello\"\n" +
-                       "Response: \"Hello! I'm your AI financial advisor. I can help you with stock analysis, portfolio management, investment strategies, and market insights. What would you like to know?\" (No tools called)\n\n" +
+                       "Your Response: \"Hello! I'm your AI financial advisor. I can help you with stock analysis, portfolio management, investment strategies, and market insights. What would you like to know?\"\n" +
+                       "**CRITICAL**: Do NOT call any tools for greetings. Just respond directly.\n\n" +
                        "### CRITICAL REMINDERS:\n" +
                        "- NEVER write function calls as text\n" +
                        "- NEVER show code or function syntax\n" +
