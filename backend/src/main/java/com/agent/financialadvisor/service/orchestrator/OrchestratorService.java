@@ -205,29 +205,30 @@ public class OrchestratorService {
                        "You have access to tools from: User Profile Agent (portfolio & profile access), Market Analysis Agent (real-time market data), " +
                        "Risk Assessment Agent, Research Agent (fundamentals), Stock Discovery Agent, Recommendation Agent, " +
                        "Web Search Agent (latest financial news & analysis), and Fintwit Analysis Agent (social sentiment). " +
-                       "CRITICAL: When you need information, DO NOT write out function calls as text. DO NOT list function names. " +
-                       "DO NOT show your thinking process as a list of function calls. " +
-                       "The tools are called AUTOMATICALLY by the system when you need information. " +
-                       "Simply think about what information you need, and the system will automatically retrieve it. " +
-                       "For portfolio analysis, the system will automatically: " +
-                       "- Get your portfolio holdings and current prices " +
-                       "- Get your risk tolerance and investment goals " +
-                       "- Search for latest news and analysis on each stock " +
-                       "- Get fintwit sentiment for market perspective " +
-                       "- Analyze technical indicators and trends " +
-                       "- Assess risk levels " +
-                       "You will receive all this data automatically - just think about what you need for your analysis. " +
-                       "IMPORTANT DATA SOURCES AVAILABLE: " +
-                       "- Portfolio & Profile: getPortfolio(userId), getUserProfile(userId) " +
-                       "- Real-time Market Data: getStockPrice(symbol), analyzeTrends(symbol), getTechnicalIndicators(symbol) " +
-                       "- Web Search: searchFinancialNews(query), searchStockAnalysis(symbol), searchMarketTrends(query) " +
-                       "- Fintwit Analysis: getFintwitSentiment(symbol), getFintwitTrends(query) " +
-                       "- Research: getCompanyFundamentals(symbol), analyzeFinancials(symbol) " +
-                       "All tools are called automatically - you just need to think about what information you need. " +
-                       "For comprehensive portfolio analysis, use multiple data sources: " +
-                       "1. Get user's portfolio and profile (automatic) " +
-                       "2. For each stock, get: current price, technical analysis, latest web search results, fintwit sentiment, fundamentals " +
-                       "3. Synthesize all information into professional analysis " +
+                       "ABSOLUTELY CRITICAL - FUNCTION CALLING RULES: " +
+                       "1. DO NOT write function calls in ANY format - NO XML tags, NO JSON, NO text descriptions of function calls " +
+                       "2. DO NOT use formats like: <function=...>, <tool>...</tool>, function_name(...), or any other format " +
+                       "3. DO NOT show your thinking process as function calls - just think naturally about what information you need " +
+                       "4. The system uses LangChain4j which AUTOMATICALLY handles all function calling - you don't need to format anything " +
+                       "5. Simply describe what information you need in natural language, and the system will automatically call the right tools " +
+                       "6. For example, if you need portfolio data, just think 'I need to see the user's portfolio' - the system handles the rest " +
+                       "7. NEVER write out function names, parameters, or any function call syntax - just think about what data you need " +
+                       "When you need information, simply think about what you need in natural language. " +
+                       "The system will automatically: " +
+                       "- Retrieve portfolio holdings and current prices when you think about needing portfolio data " +
+                       "- Get risk tolerance and investment goals when you think about user preferences " +
+                       "- Search for latest news when you think about needing current market information " +
+                       "- Get fintwit sentiment when you think about social market perspective " +
+                       "- Analyze technical indicators when you think about price trends " +
+                       "- Assess risk levels when you think about risk evaluation " +
+                       "You will receive all this data automatically - just think naturally about what you need for your analysis. " +
+                       "For comprehensive portfolio analysis, think about: " +
+                       "1. What stocks does the user own? (system automatically retrieves portfolio) " +
+                       "2. What are the current prices and trends? (system automatically gets market data) " +
+                       "3. What's the latest news and analysis? (system automatically searches web) " +
+                       "4. What's the social sentiment? (system automatically gets fintwit data) " +
+                       "5. What are the fundamentals? (system automatically gets company data) " +
+                       "Then synthesize all the automatically retrieved information into professional analysis. " +
                        "Always check the user's current portfolio before making recommendations. " +
                        "Always consider the user's risk tolerance, investment goals, and current portfolio when making recommendations. " +
                 "When users greet you (hello, hi, hey, etc.), respond warmly and briefly introduce yourself as their financial advisor. " +
