@@ -98,9 +98,12 @@ public class PortfolioRecommendationService {
                 return CompletableFuture.completedFuture(null);
             }
 
+            log.info("Discovered {} stocks for user {}: {}", discoveredStocks.size(), userId, discoveredStocks);
+
             // Limit to 5 recommendations
             int maxRecommendations = 5;
             int generated = 0;
+            int skipped = 0;
             String sessionId = "portfolio-recommendation-" + userId + "-" + System.currentTimeMillis();
 
             // Use orchestrator to generate recommendations for each discovered stock
@@ -116,9 +119,12 @@ public class PortfolioRecommendationService {
                     ).toDays();
                     if (daysSinceCreation < 7) {
                         log.debug("Recent recommendation exists for {} and user {}, skipping", symbol, userId);
+                        skipped++;
                         continue;
                     }
                 }
+                
+                log.info("Generating recommendation {}/{} for {} (user: {})", generated + 1, maxRecommendations, symbol, userId);
 
                 try {
                     // Use orchestrator to analyze and recommend with professional financial analyst approach
@@ -126,23 +132,32 @@ public class PortfolioRecommendationService {
                         "As a professional financial analyst, provide a comprehensive portfolio recommendation for %s. " +
                         "User profile: risk tolerance=%s, investment horizon=%s, goals=%s. " +
                         "Current portfolio holdings: %s. " +
+                        "CRITICAL: You MUST use the available tools to get REAL, CURRENT data. Do NOT use placeholders like [$Current Price] or [Stop Loss Price]. " +
+                        "REQUIRED STEPS: " +
+                        "1. First, call getStockPrice(%s) to get the CURRENT stock price - use this actual price in your recommendation " +
+                        "2. Call getStockPriceData(%s, 'daily') to get price history for technical analysis " +
+                        "3. Call analyzeTrends(%s, 'daily') to identify chart patterns " +
+                        "4. Call getCompanyOverview(%s) to get fundamental data " +
+                        "5. Call assessRisk(%s) to get risk metrics " +
+                        "6. Use the ACTUAL current price to calculate stop loss (e.g., 5%% below current price) " +
+                        "7. Use the ACTUAL current price to suggest entry/exit levels " +
                         "Provide a professional financial analyst-level recommendation including: " +
-                        "1. Technical analysis patterns (head and shoulders, support/resistance, chart patterns) - use getStockPriceData and analyzeTrends tools " +
-                        "2. Stop loss level (specific price, e.g., 'For this stock, you can have a stop loss at $X') " +
-                        "3. Averaging down advice if applicable (e.g., 'For this stock, you can average down a bit if price reaches $X') " +
-                        "4. Entry price suggestion " +
-                        "5. Target price with reasoning " +
-                        "6. Exit price for profit taking " +
+                        "1. Technical analysis patterns (head and shoulders, support/resistance, chart patterns) - MUST use getStockPriceData and analyzeTrends tools " +
+                        "2. Stop loss level (specific price based on current price, e.g., 'For this stock, you can have a stop loss at $X' where X is calculated from current price) " +
+                        "3. Averaging down advice if applicable (e.g., 'For this stock, you can average down a bit if price reaches $X' where X is calculated) " +
+                        "4. Entry price suggestion (based on current price) " +
+                        "5. Target price with reasoning (based on technical analysis) " +
+                        "6. Exit price for profit taking (based on current price and target) " +
                         "7. Portfolio diversification analysis considering current holdings " +
                         "8. Risk assessment aligned with user's risk tolerance " +
-                        "Format like: 'For %s, I identify [PATTERN] on [TIMEFRAME]... For this stock, you can have a stop loss at $X...' " +
-                        "Be specific with price levels, percentages, and technical analysis.",
+                        "Format like: 'For %s, the current price is $X. I identify [PATTERN] on [TIMEFRAME]... For this stock, you can have a stop loss at $Y (Y%% below current price)...' " +
+                        "Be specific with ACTUAL price levels, percentages, and technical analysis. NEVER use placeholders.",
                         symbol,
                         profile.getRiskTolerance(),
                         profile.getHorizon(),
                         profile.getGoals() != null ? profile.getGoals().toString() : "[]",
                         ownedSymbols.isEmpty() ? "no holdings" : String.join(", ", ownedSymbols),
-                        symbol
+                        symbol, symbol, symbol, symbol, symbol, symbol
                     );
 
                     // Use orchestrator to generate recommendation
@@ -161,7 +176,8 @@ public class PortfolioRecommendationService {
                 }
             }
 
-            log.info("Generated {} portfolio recommendations for user {}", generated, userId);
+            log.info("Generated {} portfolio recommendations for user {} (skipped {} recent ones, discovered {} total stocks)", 
+                generated, userId, skipped, discoveredStocks.size());
         } catch (Exception e) {
             log.error("Error generating portfolio recommendations for user {}: {}", userId, e.getMessage(), e);
         }
@@ -175,14 +191,21 @@ public class PortfolioRecommendationService {
     private List<String> parseDiscoveredStocks(String discoveryResult) {
         List<String> stocks = new ArrayList<>();
         try {
+            log.info("Parsing discovery result: {}", discoveryResult);
             JsonNode json = objectMapper.readTree(discoveryResult);
             if (json.has("discoveredStocks") && json.get("discoveredStocks").isArray()) {
                 for (JsonNode stock : json.get("discoveredStocks")) {
-                    stocks.add(stock.asText());
+                    String symbol = stock.asText();
+                    if (symbol != null && !symbol.trim().isEmpty()) {
+                        stocks.add(symbol.trim().toUpperCase());
+                    }
                 }
+                log.info("Parsed {} stocks from discovery result: {}", stocks.size(), stocks);
+            } else {
+                log.warn("No 'discoveredStocks' array found in discovery result: {}", discoveryResult);
             }
         } catch (Exception e) {
-            log.warn("Error parsing discovered stocks: {}", e.getMessage());
+            log.error("Error parsing discovered stocks from: {}", discoveryResult, e);
         }
         return stocks;
     }

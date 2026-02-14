@@ -211,12 +211,17 @@ public class OrchestratorService {
                 "5. Target price with reasoning " +
                 "6. Professional analysis of chart patterns, trends, and technical indicators " +
                 "7. Portfolio management advice considering current holdings " +
+                "MANDATORY: You MUST use the available tools to get REAL, CURRENT data. NEVER use placeholders like [$Current Price], [Stop Loss Price], [Current Date], etc. " +
+                "ALWAYS call getStockPrice(symbol) FIRST to get the current price, then use that actual price in all calculations. " +
+                "ALWAYS call getStockPriceData(symbol, timeframe) to get price history for technical analysis. " +
+                "ALWAYS call analyzeTrends(symbol, timeframe) to identify chart patterns. " +
                 "Format your recommendations like a professional financial analyst would: " +
-                "- 'For [SYMBOL], I identify a [PATTERN] pattern on [TIMEFRAME] chart...' " +
-                "- 'For [SYMBOL], you can have a stop loss at $X...' " +
-                "- 'For [SYMBOL], you can average down a bit if price reaches $X...' " +
-                "- Provide specific price levels, percentages, and technical analysis " +
+                "- 'For [SYMBOL], the current price is $X (use actual price from getStockPrice). I identify a [PATTERN] pattern on [TIMEFRAME] chart...' " +
+                "- 'For [SYMBOL], you can have a stop loss at $Y (calculate Y as X * 0.95 or similar based on actual current price)...' " +
+                "- 'For [SYMBOL], you can average down a bit if price reaches $Z (calculate Z based on actual current price)...' " +
+                "- Provide specific price levels, percentages, and technical analysis using REAL data from tools " +
                 "Always use technical analysis tools (getStockPriceData, analyzeTrends, getTechnicalIndicators) to identify patterns and levels. " +
+                "NEVER write placeholders - always fetch and use actual data. " +
                 "Provide clear, well-reasoned, professional recommendations based on data from all agents. " +
                 "If a user profile doesn't exist, guide them to create one first. " +
                 "Always include appropriate disclaimers about investment risks, but only when giving actual investment advice.")
