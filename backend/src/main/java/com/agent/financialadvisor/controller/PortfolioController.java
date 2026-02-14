@@ -92,6 +92,19 @@ public class PortfolioController {
                         .body(createErrorResponse("Symbol cannot be empty"));
             }
 
+            // Validate symbol format (basic check)
+            if (!symbol.matches("^[A-Z0-9]{1,10}$")) {
+                return ResponseEntity.badRequest()
+                        .body(createErrorResponse("Invalid symbol format. Symbol must be 1-10 alphanumeric characters (e.g., AAPL, MSFT)"));
+            }
+
+            // Validate symbol exists by fetching current price
+            BigDecimal currentPrice = marketDataService.getStockPrice(symbol);
+            if (currentPrice == null) {
+                return ResponseEntity.badRequest()
+                        .body(createErrorResponse("Invalid stock symbol: '" + symbol + "'. The symbol does not exist or could not be found. Please check the symbol and try again."));
+            }
+
             Integer quantity;
             try {
                 quantity = ((Number) request.get("quantity")).intValue();
@@ -150,21 +163,9 @@ public class PortfolioController {
                     symbol, quantity, averagePrice);
             }
 
-            // Fetch and update current price
-            try {
-                BigDecimal currentPrice = marketDataService.getStockPrice(symbol);
-                if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
-                    holding.setCurrentPrice(currentPrice);
-                    log.info("Set current price for {}: {}", symbol, currentPrice);
-                } else {
-                    log.warn("Could not fetch current price for {}, setting to average price", symbol);
-                    holding.setCurrentPrice(averagePrice);
-                }
-            } catch (Exception e) {
-                log.warn("Error fetching current price for {}: {}", symbol, e.getMessage());
-                // Set current price to average price as fallback
-                holding.setCurrentPrice(averagePrice);
-            }
+            // Set current price (already validated above)
+            holding.setCurrentPrice(currentPrice);
+            log.info("Set current price for {}: {}", symbol, currentPrice);
 
             // Save portfolio (cascade will save the holding)
             portfolio = portfolioRepository.save(portfolio);

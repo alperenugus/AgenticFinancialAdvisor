@@ -40,6 +40,7 @@ public class MarketDataService {
 
     /**
      * Get current stock price
+     * @return Stock price, or null if symbol is invalid or error occurs
      */
     public BigDecimal getStockPrice(String symbol) {
         try {
@@ -54,10 +55,29 @@ public class MarketDataService {
                     .block();
             
             JsonNode json = objectMapper.readTree(response);
+            
+            // Check for API errors first (invalid symbol, rate limit, etc.)
+            if (json.has("Error Message")) {
+                String errorMsg = json.get("Error Message").asText();
+                log.warn("Alpha Vantage API error for {}: {}", symbol, errorMsg);
+                return null;
+            }
+            if (json.has("Note")) {
+                String note = json.get("Note").asText();
+                log.warn("Alpha Vantage API note for {}: {}", symbol, note);
+                return null;
+            }
+            
             JsonNode quote = json.get("Global Quote");
             if (quote != null && quote.has("05. price")) {
-                return new BigDecimal(quote.get("05. price").asText());
+                String priceStr = quote.get("05. price").asText();
+                if (priceStr != null && !priceStr.trim().isEmpty()) {
+                    return new BigDecimal(priceStr);
+                }
             }
+            
+            // If Global Quote is empty or missing price, symbol might be invalid
+            log.warn("No valid price data found for symbol: {}", symbol);
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("timeout")) {
                 log.warn("Timeout fetching stock price for {}: {}", symbol, e.getMessage());
@@ -66,6 +86,27 @@ public class MarketDataService {
             }
         }
         return null;
+    }
+
+    /**
+     * Validate if a stock symbol exists and is valid
+     * @param symbol Stock symbol to validate
+     * @return true if symbol is valid, false otherwise
+     */
+    public boolean validateSymbol(String symbol) {
+        if (symbol == null || symbol.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Basic format validation (alphanumeric, 1-10 characters)
+        if (!symbol.matches("^[A-Z0-9]{1,10}$")) {
+            log.warn("Symbol {} does not match valid format (1-10 alphanumeric uppercase)", symbol);
+            return false;
+        }
+        
+        // Try to fetch price to validate symbol exists
+        BigDecimal price = getStockPrice(symbol);
+        return price != null;
     }
 
     /**
