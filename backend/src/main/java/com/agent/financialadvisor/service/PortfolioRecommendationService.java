@@ -123,18 +123,25 @@ public class PortfolioRecommendationService {
             for (String symbol : stocksToAnalyze) {
                 try {
                     // Delete ALL existing recommendations for this stock to ensure only one per stock
-                    List<Recommendation> existingRecommendations = recommendationRepository
-                        .findByUserIdOrderByCreatedAtDesc(userId)
-                        .stream()
-                        .filter(r -> r.getSymbol().equalsIgnoreCase(symbol.toUpperCase()))
-                        .toList();
-                    
-                    if (!existingRecommendations.isEmpty()) {
-                        log.info("🗑️ Deleting {} existing recommendation(s) for {} (user: {}) to ensure single recommendation", 
-                            existingRecommendations.size(), symbol, userId);
-                        recommendationRepository.deleteAll(existingRecommendations);
-                        // Verify deletion
-                        Thread.sleep(100); // Small delay to ensure DB commit
+                    // Use repository method for case-insensitive deletion
+                    try {
+                        recommendationRepository.deleteByUserIdAndSymbolIgnoreCase(userId, symbol);
+                        log.info("🗑️ Deleted all existing recommendations for {} (user: {})", symbol, userId);
+                        // Small delay to ensure DB commit
+                        Thread.sleep(100);
+                    } catch (Exception e) {
+                        log.warn("Could not delete existing recommendations for {}: {}", symbol, e.getMessage());
+                        // Try manual deletion as fallback
+                        List<Recommendation> existingRecommendations = recommendationRepository
+                            .findByUserIdOrderByCreatedAtDesc(userId)
+                            .stream()
+                            .filter(r -> r.getSymbol().equalsIgnoreCase(symbol))
+                            .toList();
+                        if (!existingRecommendations.isEmpty()) {
+                            recommendationRepository.deleteAll(existingRecommendations);
+                            log.info("🗑️ Manually deleted {} existing recommendation(s) for {} (user: {})", 
+                                existingRecommendations.size(), symbol, userId);
+                        }
                     }
                     
                     log.info("🔄 Generating recommendation {}/{} for {} (user: {})", 

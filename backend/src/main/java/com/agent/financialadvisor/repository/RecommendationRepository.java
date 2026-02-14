@@ -12,6 +12,8 @@ public interface RecommendationRepository extends JpaRepository<Recommendation, 
     List<Recommendation> findByUserIdOrderByCreatedAtDesc(String userId);
     Optional<Recommendation> findByUserIdAndSymbol(String userId, String symbol);
     List<Recommendation> findByUserIdAndActionOrderByCreatedAtDesc(String userId, Recommendation.RecommendationAction action);
+    List<Recommendation> findByUserIdAndSymbolIgnoreCase(String userId, String symbol);
+    void deleteByUserIdAndSymbolIgnoreCase(String userId, String symbol);
 }
 
 
