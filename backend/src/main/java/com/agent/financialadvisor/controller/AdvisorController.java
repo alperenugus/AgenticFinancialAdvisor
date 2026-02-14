@@ -1,14 +1,18 @@
 package com.agent.financialadvisor.controller;
 
+import com.agent.financialadvisor.exception.RateLimitExceededException;
 import com.agent.financialadvisor.model.Portfolio;
 import com.agent.financialadvisor.model.Recommendation;
 import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.repository.RecommendationRepository;
 import com.agent.financialadvisor.service.PortfolioRecommendationService;
+import com.agent.financialadvisor.service.RateLimitService;
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
 import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,17 +33,20 @@ public class AdvisorController {
     private final RecommendationRepository recommendationRepository;
     private final PortfolioRecommendationService portfolioRecommendationService;
     private final PortfolioRepository portfolioRepository;
+    private final RateLimitService rateLimitService;
 
     public AdvisorController(
             OrchestratorService orchestratorService,
             RecommendationRepository recommendationRepository,
             PortfolioRecommendationService portfolioRecommendationService,
-            PortfolioRepository portfolioRepository
+            PortfolioRepository portfolioRepository,
+            RateLimitService rateLimitService
     ) {
         this.orchestratorService = orchestratorService;
         this.recommendationRepository = recommendationRepository;
         this.portfolioRecommendationService = portfolioRecommendationService;
         this.portfolioRepository = portfolioRepository;
+        this.rateLimitService = rateLimitService;
     }
 
     /**
@@ -63,6 +70,9 @@ public class AdvisorController {
                         .body(createErrorResponse("Query is required"));
             }
 
+            // Check rate limit before processing
+            rateLimitService.checkAdvisorRateLimit(sessionId);
+
             log.info("Received analysis request: userId={}, query={}", userId, query);
 
             // Coordinate analysis through orchestrator
@@ -74,7 +84,22 @@ public class AdvisorController {
             result.put("response", response);
             result.put("status", "success");
 
-            return ResponseEntity.ok(result);
+            // Add rate limit headers to successful response
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("X-RateLimit-Remaining", String.valueOf(rateLimitService.getRemainingAdvisorTokens(sessionId)));
+
+            return ResponseEntity.ok().headers(headers).body(result);
+        } catch (RateLimitExceededException e) {
+            // Return 429 Too Many Requests with proper headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("X-RateLimit-Remaining", String.valueOf(e.getRemainingTokens()));
+            headers.add("Retry-After", String.valueOf(e.getRetryAfterSeconds()));
+            headers.add("X-RateLimit-Reset", String.valueOf(System.currentTimeMillis() / 1000 + e.getRetryAfterSeconds()));
+            
+            log.warn("Rate limit exceeded for session: {}", request.getOrDefault("sessionId", "unknown"));
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .headers(headers)
+                    .body(createErrorResponse(e.getMessage()));
         } catch (Exception e) {
             log.error("Error in analyze endpoint: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()

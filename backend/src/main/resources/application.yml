@@ -93,6 +93,18 @@ market-data:
     api-key: ${NEWS_API_KEY:}
     base-url: https://newsapi.org/v2
 
+# Rate Limiting Configuration
+# Per-session rate limits (using token bucket algorithm)
+rate-limit:
+  # Advisor endpoint rate limits
+  advisor:
+    # Maximum number of requests allowed
+    capacity: ${RATE_LIMIT_CAPACITY:20}
+    # Number of tokens to refill per period
+    refill-tokens: ${RATE_LIMIT_REFILL:10}
+    # Refill period in seconds
+    refill-period-seconds: ${RATE_LIMIT_REFILL_PERIOD:60}
+
 # Web Search Configuration
 # Tavily MCP (Model Context Protocol) - Recommended for LLM agents
 # Get API key from https://tavily.com
