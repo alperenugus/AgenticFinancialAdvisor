@@ -249,17 +249,33 @@ public String discoverStocks(String riskTolerance, String sectors, String exclud
 - Uses StockDiscoveryAgent for real-time stock discovery (no hardcoded lists)
 - Portfolio-focused recommendations considering diversification and risk alignment
 - Uses orchestrator to analyze stocks in context of user's portfolio
+- **Generates recommendations for all stocks in user's portfolio**
+- **Deletes all existing recommendations before generating new ones** (fresh start)
 - Limits to 5 recommendations per user
 - Avoids duplicates (won't regenerate within 7 days)
 - Runs asynchronously to avoid blocking user requests
+- **Professional Financial Analyst Level**: Includes stop-loss prices, technical patterns, averaging down advice, entry/exit prices
+- **Real-time Data**: Uses actual current prices (no placeholders)
 
 **Process**:
-1. Get user profile and current portfolio
-2. Use StockDiscoveryAgent to discover stocks matching risk tolerance
-3. Exclude stocks user already owns
-4. For each discovered stock, use orchestrator to analyze in portfolio context
-5. Generate BUY/SELL/HOLD recommendation with portfolio diversification reasoning
-6. Save recommendations to database
+1. **Delete all existing recommendations** (fresh start)
+2. Get user profile and current portfolio
+3. **For each stock in user's portfolio**, use orchestrator to analyze in portfolio context
+4. Use StockDiscoveryAgent to discover additional stocks matching risk tolerance (if needed)
+5. Exclude stocks user already owns (for new recommendations)
+6. For each stock, use orchestrator to analyze with:
+   - Current market data (real-time prices)
+   - Technical analysis (patterns, support/resistance)
+   - Portfolio context (diversification, existing holdings)
+   - User risk tolerance and goals
+7. Generate BUY/SELL/HOLD recommendation with:
+   - Stop-loss price levels
+   - Technical patterns (head and shoulders, etc.)
+   - Averaging down advice (if applicable)
+   - Entry and exit price suggestions
+   - Target price with reasoning
+   - Professional financial analyst analysis
+8. Save recommendations to database (with duplicate prevention)
 
 **Triggers**:
 - User profile created/updated
@@ -376,7 +392,7 @@ Final Response (via WebSocket + REST)
 
 ### LLM Integration
 - **LangChain4j 0.34.0**: Java LLM framework
-- **Groq API**: Fast LLM inference (llama-3.3-70b for orchestrator, llama-3.1-8b for tool agents)
+- **Groq API**: Fast LLM inference (llama-3.3-70b-versatile for orchestrator, llama-3.1-8b-instant for tool agents)
 
 ### Authentication & Security
 - **Spring Security OAuth2**: Google Sign-In integration

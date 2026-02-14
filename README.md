@@ -13,11 +13,14 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 - **Intelligent Greeting Handling**: Natural conversation flow with contextual financial guidance
 - **Portfolio-Aware Recommendations**: AI agents have full access to user portfolio and profile data
 - **Portfolio Recommendations Engine**: AI-powered portfolio recommendations with real-time stock discovery (no hardcoded lists)
+- **Professional Financial Analyst Recommendations**: Includes stop-loss levels, technical patterns, averaging down advice, entry/exit prices
+- **Collapsible Recommendation Cards**: Beautiful UX with expandable cards showing detailed analysis
+- **Debug Endpoint**: `/api/advisor/debug-recommendations` for troubleshooting portfolio and recommendations
 - **Real-time Market Data**: Integration with Alpha Vantage API for live stock data
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and recommendations
-- **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b (orchestrator) and llama-3.1-8b (tool agents)
+- **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b-versatile (orchestrator) and llama-3.1-8b-instant (tool agents)
 - **Professional UI**: Modern, responsive design with stock price graph branding
 
 ## 🏗️ System Architecture
@@ -145,10 +148,11 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
      groq:
        orchestrator:
          api-key: ${GROQ_API_KEY:}
-         model: llama-3.3-70b-versatile
-       tool-agent:
-         api-key: ${GROQ_API_KEY:}
-         model: llama-3.1-8b-instant
+      model: llama-3.3-70b-versatile  # Most capable model for comprehensive analysis
+      timeout-seconds: 90  # Increased timeout for complex analysis
+      tool-agent:
+        api-key: ${GROQ_API_KEY:}
+        model: llama-3.1-8b-instant  # Fast, cost-effective for tool calls
    
    jwt:
      secret: ${JWT_SECRET:your-secure-secret-key}

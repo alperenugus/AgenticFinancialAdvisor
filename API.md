@@ -320,15 +320,24 @@ Authorization: Bearer <token>
 
 **Note:**
 - Triggers background generation of portfolio-focused recommendations
+- **Deletes all existing recommendations first** to ensure fresh start
 - Uses real-time stock discovery (no hardcoded stock lists)
 - Recommendations consider portfolio diversification and risk alignment
-- Skips stocks user already owns
-- Limits to 5 recommendations
+- Generates recommendations for **all stocks in user's portfolio**
+- Skips stocks user already owns (for new recommendations)
+- Limits to 5 recommendations per user
 - Won't regenerate duplicates within 7 days
 - Portfolio recommendations are also automatically generated when:
   - User profile is created/updated
   - Portfolio holdings are added/removed
   - User requests recommendations and none exist
+
+**Recommendation Features:**
+- **Professional Financial Analyst Level**: Includes stop-loss prices, technical patterns (head and shoulders, support/resistance), averaging down advice
+- **Real-time Data**: Uses actual current prices from market data APIs (no placeholders)
+- **Entry/Exit Prices**: Specific price levels for buying and selling
+- **Target Prices**: Calculated based on technical analysis
+- **Portfolio Context**: Considers user's existing holdings and risk tolerance
 
 ### Check Agent Status
 
@@ -352,6 +361,42 @@ GET /api/advisor/status
 ```
 
 **Note:** This endpoint is public (no authentication required) for health checks.
+
+### Debug Recommendations
+
+```http
+GET /api/advisor/debug-recommendations
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "portfolioHoldings": ["AAPL", "NVDA", "MSFT", "GOOGL"],
+  "portfolioHoldingsCount": 4,
+  "recommendationsCount": 4,
+  "recommendationsBySymbol": {
+    "AAPL": ["BUY"],
+    "NVDA": ["HOLD"],
+    "MSFT": ["BUY"],
+    "GOOGL": ["HOLD"]
+  },
+  "recommendations": [
+    {
+      "id": 1,
+      "symbol": "AAPL",
+      "action": "BUY",
+      "createdAt": "2024-01-15T10:30:00"
+    }
+  ]
+}
+```
+
+**Note:**
+- Useful for troubleshooting why recommendations aren't showing
+- Shows all stocks in portfolio vs. recommendations in database
+- Helps identify missing recommendations or duplicates
+- Shows recommendation count per symbol
 
 ---
 
@@ -491,6 +536,13 @@ interface Recommendation {
   marketAnalysis: string;
   riskAssessment: string;
   researchSummary: string;
+  // Professional Financial Analyst Fields
+  stopLossPrice?: number;           // Stop loss price level
+  entryPrice?: number;               // Recommended entry price
+  exitPrice?: number;                // Recommended exit price
+  technicalPatterns?: string;        // Technical analysis patterns (e.g., "head and shoulders pattern on monthly")
+  averagingDownAdvice?: string;      // Averaging down strategy advice
+  professionalAnalysis?: string;    // Professional financial analyst analysis
   createdAt: string;
 }
 ```
@@ -708,11 +760,21 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 ## Changelog
 
-### v2.2.0 (Current)
+### v2.3.0 (Current)
+- **Fixed Model Error** - Reverted from decommissioned `mixtral-8x7b-32768` to `llama-3.3-70b-versatile`
+- **Increased Timeout** - Orchestrator timeout increased to 90 seconds for comprehensive analysis
+- **Debug Endpoint** - Added `/api/advisor/debug-recommendations` for troubleshooting
+- **Improved Duplicate Handling** - Better duplicate deletion with repository method
+- **Fresh Start Generation** - Deletes all existing recommendations before generating new ones
+- **All Portfolio Stocks** - Generates recommendations for all stocks in user's portfolio
+
+### v2.2.0
 - **Portfolio Recommendations Engine** - Transformed from individual stock recommendations to portfolio-focused recommendations
 - **Real-Time Stock Discovery** - StockDiscoveryAgent for discovering stocks with live market data validation (no hardcoded lists)
 - **Portfolio Recommendation Service** - Uses orchestrator to analyze stocks in context of user's portfolio
 - **Removed Hardcoded Stocks** - All stock discovery now uses real-time web lookups via MarketDataService
+- **Professional Financial Analyst Recommendations** - Includes stop-loss, technical patterns, averaging down advice, entry/exit prices
+- **Collapsible Recommendation Cards** - Beautiful UX with expandable cards
 
 ### v2.1.0
 - **Portfolio Access Tools** - AI agents can now access user portfolio data (getPortfolio, getPortfolioHoldings, getPortfolioSummary)
