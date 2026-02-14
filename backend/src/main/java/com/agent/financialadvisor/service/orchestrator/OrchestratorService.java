@@ -32,6 +32,8 @@ public class OrchestratorService {
     private final ResearchAgent researchAgent;
     private final RecommendationAgent recommendationAgent;
     private final StockDiscoveryAgent stockDiscoveryAgent;
+    private final WebSearchAgent webSearchAgent; // NEW: Web search capabilities
+    private final FintwitAnalysisAgent fintwitAnalysisAgent; // NEW: Fintwit analysis
     private final WebSocketService webSocketService;
     private final int orchestratorTimeoutSeconds;
     
@@ -46,6 +48,8 @@ public class OrchestratorService {
             ResearchAgent researchAgent,
             RecommendationAgent recommendationAgent,
             StockDiscoveryAgent stockDiscoveryAgent,
+            WebSearchAgent webSearchAgent, // NEW: Web search agent
+            FintwitAnalysisAgent fintwitAnalysisAgent, // NEW: Fintwit analysis agent
             WebSocketService webSocketService,
             @Value("${agent.timeout.orchestrator-seconds:60}") int orchestratorTimeoutSeconds
     ) {
@@ -56,6 +60,8 @@ public class OrchestratorService {
         this.researchAgent = researchAgent;
         this.recommendationAgent = recommendationAgent;
         this.stockDiscoveryAgent = stockDiscoveryAgent;
+        this.webSearchAgent = webSearchAgent; // Assign web search agent
+        this.fintwitAnalysisAgent = fintwitAnalysisAgent; // Assign fintwit agent
         this.webSocketService = webSocketService;
         this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
     }
@@ -142,7 +148,9 @@ public class OrchestratorService {
                             riskAssessmentAgent,
                             researchAgent,
                             recommendationAgent,
-                            stockDiscoveryAgent
+                            stockDiscoveryAgent,
+                            webSearchAgent, // NEW: Web search tools
+                            fintwitAnalysisAgent // NEW: Fintwit analysis tools
                     )
                     .build();
         });
@@ -194,21 +202,33 @@ public class OrchestratorService {
            public interface FinancialAdvisorAgent {
                @SystemMessage("You are a PROFESSIONAL FINANCIAL ANALYST with deep expertise in technical analysis, portfolio management, and risk management. " +
                        "You coordinate multiple specialized agents to provide comprehensive, professional-grade investment recommendations. " +
-                       "You have access to tools from: User Profile Agent (can access user profile AND portfolio), Market Analysis Agent, Risk Assessment Agent, Research Agent, Stock Discovery Agent, and Recommendation Agent. " +
-                       "CRITICAL: When you need information, DO NOT write out function calls as text. DO NOT list function names like 'getPortfolioHoldings(userId=...)'. " +
+                       "You have access to tools from: User Profile Agent (portfolio & profile access), Market Analysis Agent (real-time market data), " +
+                       "Risk Assessment Agent, Research Agent (fundamentals), Stock Discovery Agent, Recommendation Agent, " +
+                       "Web Search Agent (latest financial news & analysis), and Fintwit Analysis Agent (social sentiment). " +
+                       "CRITICAL: When you need information, DO NOT write out function calls as text. DO NOT list function names. " +
                        "DO NOT show your thinking process as a list of function calls. " +
                        "The tools are called AUTOMATICALLY by the system when you need information. " +
                        "Simply think about what information you need, and the system will automatically retrieve it. " +
-                       "For example, if you need to analyze a portfolio, just think 'I need to see the user's portfolio holdings' - the system will automatically call getPortfolio(userId) behind the scenes. " +
-                       "You will receive the results automatically - you don't need to format or request function calls. " +
-                       "IMPORTANT: You can access the user's portfolio and profile data automatically. The system will call: " +
-                       "- getPortfolio(userId) to get complete portfolio with holdings and prices " +
-                       "- getPortfolioSummary(userId) to get portfolio overview " +
-                       "- getUserProfile(userId) to get user's risk tolerance and goals " +
-                       "- getStockPrice(symbol) to get current stock prices " +
-                       "- analyzeTrends(symbol, timeframe) for technical analysis " +
-                       "All of these are called automatically - you just need to think about what information you need. " +
-                       "Always check the user's current portfolio before making recommendations to ensure advice is personalized and considers their existing holdings. " +
+                       "For portfolio analysis, the system will automatically: " +
+                       "- Get your portfolio holdings and current prices " +
+                       "- Get your risk tolerance and investment goals " +
+                       "- Search for latest news and analysis on each stock " +
+                       "- Get fintwit sentiment for market perspective " +
+                       "- Analyze technical indicators and trends " +
+                       "- Assess risk levels " +
+                       "You will receive all this data automatically - just think about what you need for your analysis. " +
+                       "IMPORTANT DATA SOURCES AVAILABLE: " +
+                       "- Portfolio & Profile: getPortfolio(userId), getUserProfile(userId) " +
+                       "- Real-time Market Data: getStockPrice(symbol), analyzeTrends(symbol), getTechnicalIndicators(symbol) " +
+                       "- Web Search: searchFinancialNews(query), searchStockAnalysis(symbol), searchMarketTrends(query) " +
+                       "- Fintwit Analysis: getFintwitSentiment(symbol), getFintwitTrends(query) " +
+                       "- Research: getCompanyFundamentals(symbol), analyzeFinancials(symbol) " +
+                       "All tools are called automatically - you just need to think about what information you need. " +
+                       "For comprehensive portfolio analysis, use multiple data sources: " +
+                       "1. Get user's portfolio and profile (automatic) " +
+                       "2. For each stock, get: current price, technical analysis, latest web search results, fintwit sentiment, fundamentals " +
+                       "3. Synthesize all information into professional analysis " +
+                       "Always check the user's current portfolio before making recommendations. " +
                        "Always consider the user's risk tolerance, investment goals, and current portfolio when making recommendations. " +
                 "When users greet you (hello, hi, hey, etc.), respond warmly and briefly introduce yourself as their financial advisor. " +
                 "Then guide them to share their financial questions or goals. Do NOT immediately provide stock recommendations for greetings. " +
@@ -252,6 +272,9 @@ public class OrchestratorService {
         status.put("riskAssessmentAgent", riskAssessmentAgent != null);
         status.put("researchAgent", researchAgent != null);
         status.put("recommendationAgent", recommendationAgent != null);
+        status.put("stockDiscoveryAgent", stockDiscoveryAgent != null);
+        status.put("webSearchAgent", webSearchAgent != null); // NEW: Web search agent status
+        status.put("fintwitAnalysisAgent", fintwitAnalysisAgent != null); // NEW: Fintwit agent status
         status.put("chatLanguageModel", chatLanguageModel != null);
         return status;
     }
