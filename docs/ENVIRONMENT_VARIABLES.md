@@ -65,6 +65,20 @@ FRONTEND_REDIRECT_URL=https://your-frontend.railway.app
 
 # News API (optional - get free key from https://newsapi.org/)
 NEWS_API_KEY=your_news_api_key_here
+
+# Web Search API (OPTIONAL - but recommended for better analysis)
+# Tavily API (recommended for LLM agents) - Get from https://tavily.com
+# Free tier: 1,000 searches/month, Paid: $20/month for 10,000 searches
+TAVILY_API_KEY=your_tavily_api_key_here
+
+# Serper API (alternative to Tavily) - Get from https://serper.dev
+# Free tier: 2,500 searches/month, Paid: $50/month for 10,000 searches
+SERPER_API_KEY=your_serper_api_key_here
+
+# Fintwit Analysis (OPTIONAL - Twitter API v2)
+# Get bearer token from https://developer.twitter.com
+# If not set, will use web search to find fintwit content
+TWITTER_BEARER_TOKEN=your_twitter_bearer_token_here
 ```
 
 ---
@@ -131,6 +145,9 @@ PORT=3000
 - [ ] (Optional) `GROQ_ORCHESTRATOR_TIMEOUT_SECONDS` - Default: 90 (increased for comprehensive analysis)
 - [ ] (Optional) `GROQ_TOOL_AGENT_MODEL` - Default: llama-3.1-8b-instant
 - [ ] (Optional) `NEWS_API_KEY` - If using NewsAPI
+- [ ] (Optional) `TAVILY_API_KEY` - For web search (recommended) - Get from https://tavily.com
+- [ ] (Optional) `SERPER_API_KEY` - Alternative web search API - Get from https://serper.dev
+- [ ] (Optional) `TWITTER_BEARER_TOKEN` - For direct Twitter API access - Get from https://developer.twitter.com
 
 ### Frontend Service Variables
 
@@ -249,6 +266,37 @@ See [Google Auth Setup Guide](../GOOGLE_AUTH_SETUP.md) for detailed instructions
 2. Sign up for free account
 3. Get your API key (100 requests/day free)
 4. Set as `NEWS_API_KEY`
+
+### Tavily API Key (Optional but Recommended)
+
+**Why?** Enables web search for latest financial news and analysis. Greatly improves portfolio analysis quality.
+
+1. Go to https://tavily.com
+2. Sign up for free account
+3. Get your API key (1,000 searches/month free)
+4. Set as `TAVILY_API_KEY`
+5. **Note**: If not set, web search features will be disabled
+
+### Serper API Key (Optional - Alternative to Tavily)
+
+**Why?** Alternative web search API using Google Search.
+
+1. Go to https://serper.dev
+2. Sign up for free account
+3. Get your API key (2,500 searches/month free)
+4. Set as `SERPER_API_KEY`
+5. **Note**: System will use Tavily if available, otherwise Serper
+
+### Twitter API Bearer Token (Optional)
+
+**Why?** Enables direct fintwit (financial Twitter) sentiment analysis.
+
+1. Go to https://developer.twitter.com
+2. Apply for API access (may require approval)
+3. Create a project and app
+4. Generate Bearer Token
+5. Set as `TWITTER_BEARER_TOKEN`
+6. **Note**: If not set, system will use web search to find fintwit content
 
 ### JWT Secret (Required)
 
