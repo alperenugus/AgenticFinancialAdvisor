@@ -304,7 +304,7 @@ public class UserProfileAgent {
     @Tool("Get user's portfolio summary (total value, gain/loss, number of holdings). " +
           "Use this for quick portfolio overview without full details. " +
           "Requires: userId (string). Returns portfolio summary statistics.")
-    @Transactional(readOnly = true)
+    @Transactional
     public String getPortfolioSummary(String userId) {
         log.info("🔵 getPortfolioSummary CALLED with userId={}", userId);
         try {
@@ -318,9 +318,14 @@ public class UserProfileAgent {
 
             Portfolio portfolio = portfolioOpt.get();
             
+            // Materialize lazy collection to avoid LazyInitializationException
+            List<StockHolding> holdings = portfolio.getHoldings() != null 
+                ? new ArrayList<>(portfolio.getHoldings()) 
+                : new ArrayList<>();
+            
             // Refresh prices if holdings exist
-            if (portfolio.getHoldings() != null && !portfolio.getHoldings().isEmpty()) {
-                for (StockHolding holding : portfolio.getHoldings()) {
+            if (!holdings.isEmpty()) {
+                for (StockHolding holding : holdings) {
                     try {
                         BigDecimal currentPrice = marketDataService.getStockPrice(holding.getSymbol());
                         if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
@@ -331,13 +336,22 @@ public class UserProfileAgent {
                         log.warn("Could not refresh price for {}: {}", holding.getSymbol(), e.getMessage());
                     }
                 }
-                // Save to trigger @PreUpdate calculations
+                // Update portfolio with refreshed holdings
+                portfolio.setHoldings(holdings);
+                // Save to trigger @PreUpdate calculations for both holdings and portfolio
                 portfolio = portfolioRepository.save(portfolio);
+                // Refresh from DB to get calculated totals
+                portfolio = portfolioRepository.findByUserId(userId).orElse(portfolio);
             }
 
-            int holdingsCount = portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0;
-            String symbols = portfolio.getHoldings() != null && !portfolio.getHoldings().isEmpty()
-                ? portfolio.getHoldings().stream()
+            // Materialize again after save to ensure we have the latest data
+            holdings = portfolio.getHoldings() != null 
+                ? new ArrayList<>(portfolio.getHoldings()) 
+                : new ArrayList<>();
+            
+            int holdingsCount = holdings.size();
+            String symbols = !holdings.isEmpty()
+                ? holdings.stream()
                     .map(StockHolding::getSymbol)
                     .collect(Collectors.joining(", "))
                 : "none";

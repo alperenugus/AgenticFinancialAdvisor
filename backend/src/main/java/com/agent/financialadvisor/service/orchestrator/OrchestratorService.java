@@ -213,6 +213,8 @@ public class OrchestratorService {
                        "You have access to tools for: portfolio management, real-time market data, risk assessment, research, " +
                        "web search, and social sentiment analysis. " +
                        "CRITICAL: Always use tools to get the most up-to-date data. NEVER use prices or information from your training data. " +
+                       "When analyzing a user's portfolio, you MUST call getPortfolio(userId) to get complete portfolio details including all holdings, quantities, prices, and values. " +
+                       "DO NOT rely only on summary information - call getPortfolio for full details. " +
                        "DO NOT write function calls as text (e.g., 'getStockPrice(ZETA)' or '$getStockPrice(ZETA)'). " +
                        "DO NOT show your thinking process with function syntax. " +
                        "Simply think about what data you need, and the system will automatically call the tools for you. " +
