@@ -58,7 +58,7 @@ langchain4j:
       api-key: ${GROQ_API_KEY:}
       base-url: https://api.groq.com/openai/v1
       model: ${GROQ_ORCHESTRATOR_MODEL:llama-3.3-70b-versatile}
-      temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.7}
+      temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.5}  # Lowered for more deterministic function calls
       timeout-seconds: ${GROQ_ORCHESTRATOR_TIMEOUT_SECONDS:90}
     # Tool Agent Model: Fast, cheap function calling (llama-3.1-8b)
     tool-agent:

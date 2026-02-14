@@ -72,6 +72,8 @@ public class LangChain4jConfig {
                 .modelName(orchestratorModel)
                 .temperature(orchestratorTemperature)
                 .timeout(java.time.Duration.ofSeconds(orchestratorTimeoutSeconds))
+                .logRequests(true)  // Enable logging to debug function call issues
+                .logResponses(true)
                 .build();
     }
 
