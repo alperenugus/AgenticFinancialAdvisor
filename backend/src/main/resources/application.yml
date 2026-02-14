@@ -31,12 +31,16 @@ spring:
               - openid
               - profile
               - email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           google:
             issuer-uri: https://accounts.google.com
 
 server:
   port: ${PORT:8080}
+  # Trust proxy headers (important for Railway/cloud deployments)
+  forward-headers-strategy: framework
+  use-forward-headers: true
 
 # LangChain4j Configuration
 # LangChain4j is the industry standard for Java LLM applications
