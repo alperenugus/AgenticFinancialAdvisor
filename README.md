@@ -1,25 +1,21 @@
 # Agentic Financial Advisor
 
-A multi-agent financial advisory system powered by Groq API that provides stock market investment recommendations through coordinated specialized AI agents.
+A multi-agent financial advisory system powered by Groq API that provides personalized financial advice through coordinated specialized AI agents with full access to user portfolio and profile data.
 
 ## 🎯 Overview
 
-This system uses a multi-agent architecture where specialized AI agents work together to provide comprehensive investment recommendations. Each agent has specific expertise and tools, coordinated by an Orchestrator Agent that manages the workflow.
+This system uses a multi-agent architecture where specialized AI agents work together to provide comprehensive financial advice. Each agent has specific expertise and tools, coordinated by an Orchestrator Agent that manages the workflow. The AI Advisor has full access to user portfolio and profile data for personalized recommendations.
 
 ## ✨ Features
 
 - **Google Sign-In Authentication**: Secure OAuth2 authentication with JWT tokens
 - **Multi-Agent Architecture**: 6 specialized AI agents working in coordination
 - **Intelligent Greeting Handling**: Natural conversation flow with contextual financial guidance
-- **Portfolio-Aware Recommendations**: AI agents have full access to user portfolio and profile data
-- **Portfolio Recommendations Engine**: AI-powered portfolio recommendations with real-time stock discovery (no hardcoded lists)
-- **Professional Financial Analyst Recommendations**: Includes stop-loss levels, technical patterns, averaging down advice, entry/exit prices
-- **Collapsible Recommendation Cards**: Beautiful UX with expandable cards showing detailed analysis
-- **Debug Endpoint**: `/api/advisor/debug-recommendations` for troubleshooting portfolio and recommendations
+- **Portfolio & Profile Access**: AI Advisor has full access to user portfolio and profile data for personalized advice
 - **Real-time Market Data**: Integration with Alpha Vantage API for live stock data
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
-- **WebSocket Support**: Real-time updates on agent thinking and recommendations
+- **WebSocket Support**: Real-time updates on agent thinking and analysis
 - **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b-versatile (orchestrator) and llama-3.1-8b-instant (tool agents)
 - **Professional UI**: Modern, responsive design with stock price graph branding
 

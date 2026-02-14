@@ -85,8 +85,11 @@ public class AdvisorController {
     /**
      * Get all recommendations for authenticated user
      * GET /api/advisor/recommendations
+     * 
+     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
      */
-    @GetMapping("/recommendations")
+    // @GetMapping("/recommendations")
+    // @Deprecated
     public ResponseEntity<List<Recommendation>> getRecommendations() {
         try {
             String userId = SecurityUtil.getCurrentUserEmail()
@@ -111,8 +114,11 @@ public class AdvisorController {
     /**
      * Generate recommendations for authenticated user
      * POST /api/advisor/generate-recommendations
+     * 
+     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
      */
-    @PostMapping("/generate-recommendations")
+    // @PostMapping("/generate-recommendations")
+    // @Deprecated
     public ResponseEntity<Map<String, Object>> generateRecommendations() {
         try {
             String userId = SecurityUtil.getCurrentUserEmail()
@@ -146,8 +152,11 @@ public class AdvisorController {
     /**
      * Debug endpoint to check portfolio and recommendations status
      * GET /api/advisor/debug-recommendations
+     * 
+     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
      */
-    @GetMapping("/debug-recommendations")
+    // @GetMapping("/debug-recommendations")
+    // @Deprecated
     public ResponseEntity<Map<String, Object>> debugRecommendations() {
         try {
             String userId = SecurityUtil.getCurrentUserEmail()
@@ -198,8 +207,11 @@ public class AdvisorController {
     /**
      * Get specific recommendation
      * GET /api/advisor/recommendations/{symbol}
+     * 
+     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
      */
-    @GetMapping("/recommendations/{symbol}")
+    // @GetMapping("/recommendations/{symbol}")
+    // @Deprecated
     public ResponseEntity<Recommendation> getRecommendation(@PathVariable String symbol) {
         try {
             String userId = SecurityUtil.getCurrentUserEmail()

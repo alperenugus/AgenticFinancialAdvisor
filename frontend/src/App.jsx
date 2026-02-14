@@ -1,62 +1,14 @@
-import { useState, useEffect } from 'react';
-import { MessageSquare, Briefcase, User, TrendingUp, AlertTriangle, LineChart, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, Briefcase, User, AlertTriangle, LineChart, LogOut } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import ChatComponent from './components/ChatComponent';
 import PortfolioView from './components/PortfolioView';
 import UserProfileForm from './components/UserProfileForm';
-import RecommendationCard from './components/RecommendationCard';
-import { advisorAPI } from './services/api';
 
 function App() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('chat');
-  const [recommendations, setRecommendations] = useState([]);
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
-  const [generatingRecommendations, setGeneratingRecommendations] = useState(false);
-  const [chatInitialMessage, setChatInitialMessage] = useState(null);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadRecommendations();
-    }
-  }, [isAuthenticated]);
-
-  const loadRecommendations = async () => {
-    try {
-      setLoadingRecommendations(true);
-      const response = await advisorAPI.getRecommendations();
-      setRecommendations(response.data || []);
-    } catch (error) {
-      console.error('Error loading recommendations:', error);
-    } finally {
-      setLoadingRecommendations(false);
-    }
-  };
-
-  const generateRecommendations = async () => {
-    try {
-      setGeneratingRecommendations(true);
-      await advisorAPI.generateRecommendations();
-      // Wait a bit then reload recommendations
-      setTimeout(() => {
-        loadRecommendations();
-        setGeneratingRecommendations(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Error generating recommendations:', error);
-      alert('Failed to generate recommendations. Please try again.');
-      setGeneratingRecommendations(false);
-    }
-  };
-
-  const handleRecommendationClick = (recommendation) => {
-    // Set initial message for chat about this recommendation
-    const message = `Can you explain the reasoning behind your ${recommendation.action} recommendation for ${recommendation.symbol}? ` +
-      `Specifically, I'd like to understand: ${recommendation.reasoning ? recommendation.reasoning.substring(0, 100) + '...' : 'the analysis behind this recommendation'}`;
-    setChatInitialMessage(message);
-    setActiveTab('chat');
-  };
 
   // Show login page if not authenticated
   if (loading) {
@@ -77,7 +29,6 @@ function App() {
   const tabs = [
     { id: 'chat', label: 'AI Advisor', icon: MessageSquare, description: 'Get personalized advice' },
     { id: 'portfolio', label: 'Portfolio', icon: Briefcase, description: 'Manage investments' },
-    { id: 'recommendations', label: 'Recommendations', icon: TrendingUp, description: 'View insights' },
     { id: 'profile', label: 'Profile', icon: User, description: 'Your preferences' },
   ];
 
@@ -176,7 +127,7 @@ function App() {
         <div className="min-h-[calc(100vh-280px)]">
           {activeTab === 'chat' && (
             <div className="card-elevated h-[calc(100vh-300px)] min-h-[600px] p-0 overflow-hidden">
-              <ChatComponent initialMessage={chatInitialMessage} onMessageSent={() => setChatInitialMessage(null)} />
+              <ChatComponent />
             </div>
           )}
 
@@ -184,98 +135,8 @@ function App() {
             <PortfolioView />
           )}
 
-          {activeTab === 'recommendations' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Portfolio Recommendations</h2>
-                  <p className="text-gray-600 dark:text-gray-400">AI-powered insights tailored to your profile</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={generateRecommendations}
-                    disabled={generatingRecommendations || loadingRecommendations}
-                    className="btn-primary flex items-center gap-2"
-                  >
-                    {generatingRecommendations ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="w-4 h-4" />
-                        Generate Recommendations
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={loadRecommendations}
-                    disabled={loadingRecommendations || generatingRecommendations}
-                    className="btn-secondary flex items-center gap-2"
-                  >
-                    {loadingRecommendations ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquare className="w-4 h-4" />
-                        Refresh
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {loadingRecommendations ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400 font-medium">Loading recommendations...</p>
-                  </div>
-                </div>
-              ) : recommendations.length === 0 ? (
-                <div className="card text-center py-16">
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <TrendingUp className="w-10 h-10 text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No portfolio recommendations yet</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                    Portfolio recommendations are being generated based on your profile and current holdings. 
-                    They will appear here once ready. You can also start a conversation with your AI advisor for real-time portfolio advice.
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('chat')}
-                    className="btn-primary inline-flex items-center gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Start Chat
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {recommendations.map((rec) => (
-                    <div 
-                      key={rec.id} 
-                      onClick={() => handleRecommendationClick(rec)}
-                      className="cursor-pointer transform transition-transform hover:scale-[1.02]"
-                    >
-                      <RecommendationCard recommendation={rec} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {activeTab === 'profile' && (
-            <UserProfileForm
-              onSave={() => {
-                loadRecommendations();
-              }}
-            />
+            <UserProfileForm />
           )}
         </div>
       </main>

@@ -241,58 +241,7 @@ public String discoverStocks(String riskTolerance, String sectors, String exclud
 }
 ```
 
-### 0.1. Portfolio Recommendation Service
-
-**Purpose**: Generates portfolio-level recommendations using AI agents and real-time stock discovery.
-
-**Key Features**:
-- Uses StockDiscoveryAgent for real-time stock discovery (no hardcoded lists)
-- Portfolio-focused recommendations considering diversification and risk alignment
-- Uses orchestrator to analyze stocks in context of user's portfolio
-- **Generates recommendations for all stocks in user's portfolio**
-- **Deletes all existing recommendations before generating new ones** (fresh start)
-- Limits to 5 recommendations per user
-- Avoids duplicates (won't regenerate within 7 days)
-- Runs asynchronously to avoid blocking user requests
-- **Professional Financial Analyst Level**: Includes stop-loss prices, technical patterns, averaging down advice, entry/exit prices
-- **Real-time Data**: Uses actual current prices (no placeholders)
-
-**Process**:
-1. **Delete all existing recommendations** (fresh start)
-2. Get user profile and current portfolio
-3. **For each stock in user's portfolio**, use orchestrator to analyze in portfolio context
-4. Use StockDiscoveryAgent to discover additional stocks matching risk tolerance (if needed)
-5. Exclude stocks user already owns (for new recommendations)
-6. For each stock, use orchestrator to analyze with:
-   - Current market data (real-time prices)
-   - Technical analysis (patterns, support/resistance)
-   - Portfolio context (diversification, existing holdings)
-   - User risk tolerance and goals
-7. Generate BUY/SELL/HOLD recommendation with:
-   - Stop-loss price levels
-   - Technical patterns (head and shoulders, etc.)
-   - Averaging down advice (if applicable)
-   - Entry and exit price suggestions
-   - Target price with reasoning
-   - Professional financial analyst analysis
-8. Save recommendations to database (with duplicate prevention)
-
-**Triggers**:
-- User profile created/updated
-- Portfolio holdings added/removed
-- User requests recommendations and none exist
-- Manual trigger via `POST /api/advisor/generate-recommendations`
-
-**Implementation**:
-```java
-@Async
-public CompletableFuture<Void> generatePortfolioRecommendations(String userId) {
-    // Get profile and portfolio
-    // Use StockDiscoveryAgent to discover stocks
-    // Use orchestrator to analyze each stock in portfolio context
-    // Save portfolio-focused recommendations
-}
-```
+**Note**: Portfolio Recommendation Service is currently disabled. Will be re-enabled in a future iteration.
 
 ### 1. Orchestrator Service
 

@@ -234,7 +234,7 @@ Authorization: Bearer <token>
 
 ---
 
-## Advisor & Recommendations
+## Advisor
 
 ### Request Analysis
 
@@ -263,81 +263,13 @@ Content-Type: application/json
 - `userId` is automatically extracted from JWT token
 - This endpoint triggers the orchestrator to coordinate all agents
 - Real-time updates are sent via WebSocket
-- The orchestrator automatically checks user's portfolio and profile before making recommendations
+- **The AI Advisor has full access to user's portfolio and profile data** - it automatically checks these before providing advice
+- The orchestrator uses UserProfileAgent tools to access:
+  - `getUserProfile(userId)` - User's risk tolerance, goals, preferences
+  - `getPortfolio(userId)` - Complete portfolio with all holdings and current prices
+  - `getPortfolioSummary(userId)` - Portfolio summary (total value, gain/loss, holdings)
+  - `getPortfolioHoldings(userId)` - List of stocks user owns
 - For greetings (hello, hi, etc.), the agent responds naturally and guides users to financial questions
-
-### Get All Recommendations
-
-```http
-GET /api/advisor/recommendations
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "userId": "user@example.com",
-    "symbol": "AAPL",
-    "action": "BUY",
-    "confidence": 0.85,
-    "reasoning": "Strong fundamentals and positive market trends...",
-    "riskLevel": "MEDIUM",
-    "targetPrice": 180.00,
-    "timeHorizon": "MEDIUM",
-    "marketAnalysis": "...",
-    "riskAssessment": "...",
-    "researchSummary": "...",
-    "createdAt": "2024-01-15T10:30:00"
-  }
-]
-```
-
-### Get Specific Recommendation
-
-```http
-GET /api/advisor/recommendations/{symbol}
-Authorization: Bearer <token>
-```
-
-**Response:** Single recommendation object
-
-### Generate Recommendations
-
-```http
-POST /api/advisor/generate-recommendations
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Recommendation generation started in background"
-}
-```
-
-**Note:**
-- Triggers background generation of portfolio-focused recommendations
-- **Deletes all existing recommendations first** to ensure fresh start
-- Uses real-time stock discovery (no hardcoded stock lists)
-- Recommendations consider portfolio diversification and risk alignment
-- Generates recommendations for **all stocks in user's portfolio**
-- Skips stocks user already owns (for new recommendations)
-- Limits to 5 recommendations per user
-- Won't regenerate duplicates within 7 days
-- Portfolio recommendations are also automatically generated when:
-  - User profile is created/updated
-  - Portfolio holdings are added/removed
-  - User requests recommendations and none exist
-
-**Recommendation Features:**
-- **Professional Financial Analyst Level**: Includes stop-loss prices, technical patterns (head and shoulders, support/resistance), averaging down advice
-- **Real-time Data**: Uses actual current prices from market data APIs (no placeholders)
-- **Entry/Exit Prices**: Specific price levels for buying and selling
-- **Target Prices**: Calculated based on technical analysis
-- **Portfolio Context**: Considers user's existing holdings and risk tolerance
 
 ### Check Agent Status
 
@@ -760,21 +692,15 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 ## Changelog
 
-### v2.3.0 (Current)
+### v2.4.0 (Current)
+- **Removed Recommendations Tab** - Recommendations feature temporarily disabled, will be re-enabled in future iteration
+- **AI Advisor Portfolio & Profile Access** - Confirmed AI Advisor has full access to user portfolio and profile via UserProfileAgent tools
+- **Simplified UI** - Removed recommendation-related UI components and endpoints
+
+### v2.3.0
 - **Fixed Model Error** - Reverted from decommissioned `mixtral-8x7b-32768` to `llama-3.3-70b-versatile`
 - **Increased Timeout** - Orchestrator timeout increased to 90 seconds for comprehensive analysis
-- **Debug Endpoint** - Added `/api/advisor/debug-recommendations` for troubleshooting
-- **Improved Duplicate Handling** - Better duplicate deletion with repository method
-- **Fresh Start Generation** - Deletes all existing recommendations before generating new ones
-- **All Portfolio Stocks** - Generates recommendations for all stocks in user's portfolio
-
-### v2.2.0
-- **Portfolio Recommendations Engine** - Transformed from individual stock recommendations to portfolio-focused recommendations
-- **Real-Time Stock Discovery** - StockDiscoveryAgent for discovering stocks with live market data validation (no hardcoded lists)
-- **Portfolio Recommendation Service** - Uses orchestrator to analyze stocks in context of user's portfolio
-- **Removed Hardcoded Stocks** - All stock discovery now uses real-time web lookups via MarketDataService
-- **Professional Financial Analyst Recommendations** - Includes stop-loss, technical patterns, averaging down advice, entry/exit prices
-- **Collapsible Recommendation Cards** - Beautiful UX with expandable cards
+- **Improved Function Calling** - Fixed function calling errors with better system message instructions
 
 ### v2.1.0
 - **Portfolio Access Tools** - AI agents can now access user portfolio data (getPortfolio, getPortfolioHoldings, getPortfolioSummary)

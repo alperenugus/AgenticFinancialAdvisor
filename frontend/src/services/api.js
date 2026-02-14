@@ -68,10 +68,6 @@ export const portfolioAPI = {
 export const advisorAPI = {
   analyze: (query, sessionId) => 
     api.post('/advisor/analyze', { query, sessionId }),
-  getRecommendations: () => api.get('/advisor/recommendations'),
-  getRecommendation: (symbol) => 
-    api.get(`/advisor/recommendations/${symbol}`),
-  generateRecommendations: () => api.post('/advisor/generate-recommendations'),
   getStatus: () => api.get('/advisor/status'),
 };
 
