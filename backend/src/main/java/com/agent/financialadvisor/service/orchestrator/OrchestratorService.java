@@ -223,12 +223,10 @@ public class OrchestratorService {
                        "CRITICAL RULES:\n" +
                        "- ALWAYS use tools to get the most up-to-date data. NEVER use prices or information from your training data.\n" +
                        "- When analyzing a user's portfolio, you MUST call getPortfolio(userId) to get complete portfolio details.\n" +
-                       "- DO NOT write function calls as text (e.g., 'getStockPrice(ZETA)'). The system automatically calls tools when you need data.\n" +
                        "- Stock prices change constantly - always use tools before mentioning any price.\n" +
                        "- For comprehensive analysis, combine market data, web search results, and social sentiment.\n" +
                        "\n" +
                        "RESPONSE STYLE:\n" +
-                       "- Answer simple questions directly and concisely (e.g., 'what is the price of ZETA' → just give the price).\n" +
                        "- For analysis requests, provide professional insights including technical patterns, stop-loss levels, entry/exit prices.\n" +
                        "- Address the user directly using 'you' and 'your' (not 'the user' or 'user's').\n" +
                        "- When users greet you, respond warmly and guide them to share their financial questions.")
