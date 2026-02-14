@@ -1,4 +1,4 @@
-import { LogIn, Sparkles, TrendingUp } from 'lucide-react';
+import { LogIn, LineChart, TrendingUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage = () => {
@@ -13,7 +13,7 @@ const LoginPage = () => {
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-3xl blur-xl opacity-50"></div>
               <div className="relative p-4 bg-gradient-to-br from-primary-600 to-primary-700 rounded-3xl shadow-2xl">
-                <Sparkles className="w-12 h-12 text-white" />
+                <LineChart className="w-12 h-12 text-white" />
               </div>
             </div>
           </div>

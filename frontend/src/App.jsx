@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Briefcase, User, TrendingUp, AlertTriangle, Sparkles, LogOut } from 'lucide-react';
+import { MessageSquare, Briefcase, User, TrendingUp, AlertTriangle, LineChart, LogOut } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import ChatComponent from './components/ChatComponent';
@@ -65,7 +65,7 @@ function App() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl blur opacity-75"></div>
                 <div className="relative p-3 bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl shadow-lg">
-                  <Sparkles className="w-7 h-7 text-white" />
+                  <LineChart className="w-7 h-7 text-white" />
                 </div>
               </div>
               <div>
