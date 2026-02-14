@@ -31,6 +31,7 @@ public class OrchestratorService {
     private final RiskAssessmentAgent riskAssessmentAgent;
     private final ResearchAgent researchAgent;
     private final RecommendationAgent recommendationAgent;
+    private final StockDiscoveryAgent stockDiscoveryAgent;
     private final WebSocketService webSocketService;
     private final int orchestratorTimeoutSeconds;
     
@@ -44,6 +45,7 @@ public class OrchestratorService {
             RiskAssessmentAgent riskAssessmentAgent,
             ResearchAgent researchAgent,
             RecommendationAgent recommendationAgent,
+            StockDiscoveryAgent stockDiscoveryAgent,
             WebSocketService webSocketService,
             @Value("${agent.timeout.orchestrator-seconds:60}") int orchestratorTimeoutSeconds
     ) {
@@ -53,6 +55,7 @@ public class OrchestratorService {
         this.riskAssessmentAgent = riskAssessmentAgent;
         this.researchAgent = researchAgent;
         this.recommendationAgent = recommendationAgent;
+        this.stockDiscoveryAgent = stockDiscoveryAgent;
         this.webSocketService = webSocketService;
         this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
     }
@@ -138,7 +141,8 @@ public class OrchestratorService {
                             marketAnalysisAgent,
                             riskAssessmentAgent,
                             researchAgent,
-                            recommendationAgent
+                            recommendationAgent,
+                            stockDiscoveryAgent
                     )
                     .build();
         });

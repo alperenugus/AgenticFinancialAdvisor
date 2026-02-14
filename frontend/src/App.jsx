@@ -162,7 +162,7 @@ function App() {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Investment Recommendations</h2>
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Portfolio Recommendations</h2>
                   <p className="text-gray-600 dark:text-gray-400">AI-powered insights tailored to your profile</p>
                 </div>
                 <button
@@ -196,9 +196,10 @@ function App() {
                   <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <TrendingUp className="w-10 h-10 text-primary-600 dark:text-primary-400" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No recommendations yet</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No portfolio recommendations yet</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                    Start a conversation with your AI advisor to get personalized investment recommendations based on your profile and goals.
+                    Portfolio recommendations are being generated based on your profile and current holdings. 
+                    They will appear here once ready. You can also start a conversation with your AI advisor for real-time portfolio advice.
                   </p>
                   <button
                     onClick={() => setActiveTab('chat')}

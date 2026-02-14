@@ -20,7 +20,9 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Service to pre-generate recommendations based on user profile and portfolio
+ * @deprecated Use PortfolioRecommendationService instead for portfolio-focused recommendations
  */
+@Deprecated
 @Service
 public class RecommendationGenerationService {
 

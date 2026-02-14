@@ -4,7 +4,7 @@ import com.agent.financialadvisor.model.Portfolio;
 import com.agent.financialadvisor.model.StockHolding;
 import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.service.MarketDataService;
-import com.agent.financialadvisor.service.RecommendationGenerationService;
+import com.agent.financialadvisor.service.PortfolioRecommendationService;
 import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,16 +24,16 @@ public class PortfolioController {
     private static final Logger log = LoggerFactory.getLogger(PortfolioController.class);
     private final PortfolioRepository portfolioRepository;
     private final MarketDataService marketDataService;
-    private final RecommendationGenerationService recommendationGenerationService;
+    private final PortfolioRecommendationService portfolioRecommendationService;
 
     public PortfolioController(
             PortfolioRepository portfolioRepository,
             MarketDataService marketDataService,
-            RecommendationGenerationService recommendationGenerationService
+            PortfolioRecommendationService portfolioRecommendationService
     ) {
         this.portfolioRepository = portfolioRepository;
         this.marketDataService = marketDataService;
-        this.recommendationGenerationService = recommendationGenerationService;
+        this.portfolioRecommendationService = portfolioRecommendationService;
     }
 
     /**
@@ -183,8 +183,8 @@ public class PortfolioController {
             log.info("Holding saved successfully: {} - Value: {}, Gain/Loss: {}", 
                 symbol, holding.getValue(), holding.getGainLoss());
 
-            // Trigger recommendation regeneration in background when portfolio changes
-            recommendationGenerationService.generateRecommendationsForUser(userId);
+            // Trigger portfolio recommendation regeneration in background when portfolio changes
+            portfolioRecommendationService.generatePortfolioRecommendations(userId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Holding added successfully");
@@ -223,8 +223,8 @@ public class PortfolioController {
 
             portfolio = portfolioRepository.save(portfolio);
 
-            // Trigger recommendation regeneration in background when portfolio changes
-            recommendationGenerationService.generateRecommendationsForUser(userId);
+            // Trigger portfolio recommendation regeneration in background when portfolio changes
+            portfolioRecommendationService.generatePortfolioRecommendations(userId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Holding removed successfully");
