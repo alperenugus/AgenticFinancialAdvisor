@@ -73,6 +73,12 @@ public class PortfolioController {
             String userId = SecurityUtil.getCurrentUserEmail()
                     .orElseThrow(() -> new RuntimeException("User not authenticated"));
             
+            // Validate request parameters
+            if (request.get("symbol") == null || request.get("quantity") == null || request.get("averagePrice") == null) {
+                return ResponseEntity.badRequest()
+                        .body(createErrorResponse("Missing required fields: symbol, quantity, averagePrice"));
+            }
+
             Portfolio portfolio = portfolioRepository.findByUserId(userId)
                     .orElseGet(() -> {
                         Portfolio p = new Portfolio();
@@ -80,13 +86,39 @@ public class PortfolioController {
                         return portfolioRepository.save(p);
                     });
 
-            String symbol = ((String) request.get("symbol")).toUpperCase();
-            Integer quantity = ((Number) request.get("quantity")).intValue();
-            BigDecimal averagePrice = new BigDecimal(request.get("averagePrice").toString());
+            String symbol = ((String) request.get("symbol")).toUpperCase().trim();
+            if (symbol.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(createErrorResponse("Symbol cannot be empty"));
+            }
+
+            Integer quantity;
+            try {
+                quantity = ((Number) request.get("quantity")).intValue();
+                if (quantity <= 0) {
+                    return ResponseEntity.badRequest()
+                            .body(createErrorResponse("Quantity must be greater than 0"));
+                }
+            } catch (ClassCastException | NumberFormatException e) {
+                return ResponseEntity.badRequest()
+                        .body(createErrorResponse("Invalid quantity format"));
+            }
+
+            BigDecimal averagePrice;
+            try {
+                averagePrice = new BigDecimal(request.get("averagePrice").toString());
+                if (averagePrice.compareTo(BigDecimal.ZERO) <= 0) {
+                    return ResponseEntity.badRequest()
+                            .body(createErrorResponse("Average price must be greater than 0"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest()
+                        .body(createErrorResponse("Invalid average price format"));
+            }
 
             // Check if holding already exists
             Optional<StockHolding> existingHolding = portfolio.getHoldings().stream()
-                    .filter(h -> h.getSymbol().equals(symbol))
+                    .filter(h -> h.getSymbol().equalsIgnoreCase(symbol))
                     .findFirst();
 
             StockHolding holding;
@@ -104,6 +136,8 @@ public class PortfolioController {
                 
                 holding.setQuantity(oldQuantity + quantity);
                 holding.setAveragePrice(newAvgPrice);
+                log.info("Updating existing holding: {} - New quantity: {}, New avg price: {}", 
+                    symbol, holding.getQuantity(), newAvgPrice);
             } else {
                 // Create new holding
                 holding = new StockHolding();
@@ -112,15 +146,37 @@ public class PortfolioController {
                 holding.setQuantity(quantity);
                 holding.setAveragePrice(averagePrice);
                 portfolio.getHoldings().add(holding);
+                log.info("Creating new holding: {} - Quantity: {}, Avg price: {}", 
+                    symbol, quantity, averagePrice);
             }
 
-            // Update current price
-            BigDecimal currentPrice = marketDataService.getStockPrice(symbol);
-            if (currentPrice != null) {
-                holding.setCurrentPrice(currentPrice);
+            // Fetch and update current price
+            try {
+                BigDecimal currentPrice = marketDataService.getStockPrice(symbol);
+                if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
+                    holding.setCurrentPrice(currentPrice);
+                    log.info("Set current price for {}: {}", symbol, currentPrice);
+                } else {
+                    log.warn("Could not fetch current price for {}, setting to average price", symbol);
+                    holding.setCurrentPrice(averagePrice);
+                }
+            } catch (Exception e) {
+                log.warn("Error fetching current price for {}: {}", symbol, e.getMessage());
+                // Set current price to average price as fallback
+                holding.setCurrentPrice(averagePrice);
             }
 
+            // Save portfolio (cascade will save the holding)
             portfolio = portfolioRepository.save(portfolio);
+            
+            // Refresh the holding to get calculated values
+            holding = portfolio.getHoldings().stream()
+                    .filter(h -> h.getSymbol().equalsIgnoreCase(symbol))
+                    .findFirst()
+                    .orElse(holding);
+
+            log.info("Holding saved successfully: {} - Value: {}, Gain/Loss: {}", 
+                symbol, holding.getValue(), holding.getGainLoss());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Holding added successfully");
