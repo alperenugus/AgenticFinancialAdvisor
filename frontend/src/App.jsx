@@ -13,6 +13,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('chat');
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [generatingRecommendations, setGeneratingRecommendations] = useState(false);
+  const [chatInitialMessage, setChatInitialMessage] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -30,6 +32,30 @@ function App() {
     } finally {
       setLoadingRecommendations(false);
     }
+  };
+
+  const generateRecommendations = async () => {
+    try {
+      setGeneratingRecommendations(true);
+      await advisorAPI.generateRecommendations();
+      // Wait a bit then reload recommendations
+      setTimeout(() => {
+        loadRecommendations();
+        setGeneratingRecommendations(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      alert('Failed to generate recommendations. Please try again.');
+      setGeneratingRecommendations(false);
+    }
+  };
+
+  const handleRecommendationClick = (recommendation) => {
+    // Set initial message for chat about this recommendation
+    const message = `Can you explain the reasoning behind your ${recommendation.action} recommendation for ${recommendation.symbol}? ` +
+      `Specifically, I'd like to understand: ${recommendation.reasoning ? recommendation.reasoning.substring(0, 100) + '...' : 'the analysis behind this recommendation'}`;
+    setChatInitialMessage(message);
+    setActiveTab('chat');
   };
 
   // Show login page if not authenticated
@@ -150,7 +176,7 @@ function App() {
         <div className="min-h-[calc(100vh-280px)]">
           {activeTab === 'chat' && (
             <div className="card-elevated h-[calc(100vh-300px)] min-h-[600px] p-0 overflow-hidden">
-              <ChatComponent />
+              <ChatComponent initialMessage={chatInitialMessage} onMessageSent={() => setChatInitialMessage(null)} />
             </div>
           )}
 
@@ -165,23 +191,42 @@ function App() {
                   <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Portfolio Recommendations</h2>
                   <p className="text-gray-600 dark:text-gray-400">AI-powered insights tailored to your profile</p>
                 </div>
-                <button
-                  onClick={loadRecommendations}
-                  disabled={loadingRecommendations}
-                  className="btn-secondary flex items-center gap-2"
-                >
-                  {loadingRecommendations ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      <TrendingUp className="w-4 h-4" />
-                      Refresh
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={generateRecommendations}
+                    disabled={generatingRecommendations || loadingRecommendations}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    {generatingRecommendations ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp className="w-4 h-4" />
+                        Generate Recommendations
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={loadRecommendations}
+                    disabled={loadingRecommendations || generatingRecommendations}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    {loadingRecommendations ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4" />
+                        Refresh
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {loadingRecommendations ? (
@@ -212,7 +257,13 @@ function App() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {recommendations.map((rec) => (
-                    <RecommendationCard key={rec.id} recommendation={rec} />
+                    <div 
+                      key={rec.id} 
+                      onClick={() => handleRecommendationClick(rec)}
+                      className="cursor-pointer transform transition-transform hover:scale-[1.02]"
+                    >
+                      <RecommendationCard recommendation={rec} />
+                    </div>
                   ))}
                 </div>
               )}

@@ -3,13 +3,14 @@ import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { advisorAPI } from '../services/api';
 import websocketService from '../services/websocket';
 
-const ChatComponent = () => {
+const ChatComponent = ({ initialMessage, onMessageSent }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const messagesEndRef = useRef(null);
   const [thinkingMessages, setThinkingMessages] = useState([]);
+  const [hasSentInitialMessage, setHasSentInitialMessage] = useState(false);
 
   useEffect(() => {
     // Connect WebSocket
@@ -41,6 +42,23 @@ const ChatComponent = () => {
     scrollToBottom();
   }, [messages, thinkingMessages]);
 
+  // Handle initial message from recommendation click
+  useEffect(() => {
+    if (initialMessage && !hasSentInitialMessage && messages.length > 0) {
+      // Wait for initial greeting, then send the initial message
+      setInput(initialMessage);
+      setHasSentInitialMessage(true);
+      // Auto-submit after a brief delay
+      setTimeout(() => {
+        const form = document.querySelector('form');
+        if (form) {
+          const event = new Event('submit', { bubbles: true, cancelable: true });
+          form.dispatchEvent(event);
+        }
+      }, 500);
+    }
+  }, [initialMessage, hasSentInitialMessage, messages.length]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -58,6 +76,11 @@ const ChatComponent = () => {
     addMessage('user', userMessage);
     setIsLoading(true);
     setThinkingMessages([]);
+
+    // Notify parent that message was sent (to clear initial message)
+    if (onMessageSent && initialMessage) {
+      onMessageSent();
+    }
 
     try {
       const response = await advisorAPI.analyze(userMessage, sessionId);

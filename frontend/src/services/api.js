@@ -71,6 +71,7 @@ export const advisorAPI = {
   getRecommendations: () => api.get('/advisor/recommendations'),
   getRecommendation: (symbol) => 
     api.get(`/advisor/recommendations/${symbol}`),
+  generateRecommendations: () => api.post('/advisor/generate-recommendations'),
   getStatus: () => api.get('/advisor/status'),
 };
 

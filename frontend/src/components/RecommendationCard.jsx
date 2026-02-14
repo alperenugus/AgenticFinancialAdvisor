@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, AlertCircle, Calendar, Target, Sparkles, BarChart3, Shield, TrendingDown as TrendingDownIcon, ArrowDown, ArrowUp } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, AlertCircle, Calendar, Target, Sparkles, BarChart3, Shield, TrendingDown as TrendingDownIcon, ArrowDown, ArrowUp, MessageSquare } from 'lucide-react';
 
 const RecommendationCard = ({ recommendation }) => {
   if (!recommendation) return null;
@@ -46,7 +46,14 @@ const RecommendationCard = ({ recommendation }) => {
   const targetPrice = recommendation.targetPrice ? parseFloat(recommendation.targetPrice) : null;
 
   return (
-    <div className="card-elevated hover:shadow-large transition-all duration-300 group">
+    <div className="card-elevated hover:shadow-large transition-all duration-300 group relative">
+      {/* Click indicator */}
+      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="bg-primary-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+          <MessageSquare className="w-3 h-3" />
+          Click to ask about this
+        </div>
+      </div>
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
