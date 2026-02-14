@@ -191,9 +191,14 @@ public class UserProfileAgent {
 
             Portfolio portfolio = portfolioOpt.get();
             
+            // Materialize lazy collection to avoid LazyInitializationException
+            List<StockHolding> holdings = portfolio.getHoldings() != null 
+                ? new ArrayList<>(portfolio.getHoldings()) 
+                : new ArrayList<>();
+            
             // Refresh current prices for all holdings
-            if (portfolio.getHoldings() != null && !portfolio.getHoldings().isEmpty()) {
-                for (StockHolding holding : portfolio.getHoldings()) {
+            if (!holdings.isEmpty()) {
+                for (StockHolding holding : holdings) {
                     try {
                         BigDecimal currentPrice = marketDataService.getStockPrice(holding.getSymbol());
                         if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
@@ -204,12 +209,21 @@ public class UserProfileAgent {
                         log.warn("Could not refresh price for {}: {}", holding.getSymbol(), e.getMessage());
                     }
                 }
-                // Save to trigger @PreUpdate calculations
+                // Update portfolio with refreshed holdings
+                portfolio.setHoldings(holdings);
+                // Save to trigger @PreUpdate calculations for both holdings and portfolio
                 portfolio = portfolioRepository.save(portfolio);
+                // Refresh from DB to get calculated totals
+                portfolio = portfolioRepository.findByUserId(userId).orElse(portfolio);
             }
+            
+            // Materialize again after save to ensure we have the latest data
+            holdings = portfolio.getHoldings() != null 
+                ? new ArrayList<>(portfolio.getHoldings()) 
+                : new ArrayList<>();
 
-            // Build holdings JSON
-            String holdingsJson = portfolio.getHoldings().stream()
+            // Build holdings JSON using materialized holdings
+            String holdingsJson = holdings.stream()
                 .map(h -> String.format(
                     "{\"symbol\": \"%s\", \"quantity\": %d, \"averagePrice\": %s, \"currentPrice\": %s, " +
                     "\"value\": %s, \"gainLoss\": %s, \"gainLossPercent\": %s}",
@@ -238,10 +252,11 @@ public class UserProfileAgent {
             // Send tool result notification
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                int holdingsCount = portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0;
+                int holdingsCount = holdings.size();
+                String totalValueStr = portfolio.getTotalValue() != null ? portfolio.getTotalValue().toString() : "0";
                 webSocketService.sendToolResult(sessionId, "Get Portfolio", 
-                    holdingsCount + " holdings, Total: $" + (portfolio.getTotalValue() != null ? portfolio.getTotalValue().toString() : "0"), duration);
-                webSocketService.sendReasoning(sessionId, "✅ Portfolio retrieved: " + holdingsCount + " holdings");
+                    holdingsCount + " holdings, Total: $" + totalValueStr, duration);
+                webSocketService.sendReasoning(sessionId, "✅ Portfolio retrieved: " + holdingsCount + " holdings, Total Value: $" + totalValueStr);
             }
             
             return result;
