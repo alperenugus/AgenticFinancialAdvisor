@@ -183,6 +183,9 @@ public class PortfolioController {
             log.info("Holding saved successfully: {} - Value: {}, Gain/Loss: {}", 
                 symbol, holding.getValue(), holding.getGainLoss());
 
+            // Trigger recommendation regeneration in background when portfolio changes
+            recommendationGenerationService.generateRecommendationsForUser(userId);
+
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Holding added successfully");
             response.put("holding", holding);
