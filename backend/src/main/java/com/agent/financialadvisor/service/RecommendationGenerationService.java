@@ -45,18 +45,17 @@ public class RecommendationGenerationService {
             UserProfileRepository userProfileRepository,
             RecommendationRepository recommendationRepository,
             UserProfileAgent userProfileAgent,
-            MarketAnalysisAgent marketAnalysisAgent,
-            // RiskAssessmentAgent riskAssessmentAgent, // Removed - agent architecture simplified
-            // ResearchAgent researchAgent, // Removed - agent architecture simplified
-            // RecommendationAgent recommendationAgent // Removed - agent architecture simplified
+            MarketAnalysisAgent marketAnalysisAgent
+            // Removed agents - agent architecture simplified:
+            // RiskAssessmentAgent riskAssessmentAgent,
+            // ResearchAgent researchAgent,
+            // RecommendationAgent recommendationAgent
     ) {
         this.userProfileRepository = userProfileRepository;
         this.recommendationRepository = recommendationRepository;
         this.userProfileAgent = userProfileAgent;
         this.marketAnalysisAgent = marketAnalysisAgent;
-        // this.riskAssessmentAgent = riskAssessmentAgent; // Removed - agent architecture simplified
-        // this.researchAgent = researchAgent; // Removed - agent architecture simplified
-        // this.recommendationAgent = recommendationAgent; // Removed - agent architecture simplified
+        // Removed agent assignments - agent architecture simplified
     }
 
     /**
