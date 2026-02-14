@@ -1,23 +1,37 @@
 package com.agent.financialadvisor.service.agents;
 
+import com.agent.financialadvisor.model.Portfolio;
+import com.agent.financialadvisor.model.StockHolding;
 import com.agent.financialadvisor.model.UserProfile;
+import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.repository.UserProfileRepository;
+import com.agent.financialadvisor.service.MarketDataService;
 import dev.langchain4j.agent.tool.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class UserProfileAgent {
 
     private static final Logger log = LoggerFactory.getLogger(UserProfileAgent.class);
     private final UserProfileRepository userProfileRepository;
+    private final PortfolioRepository portfolioRepository;
+    private final MarketDataService marketDataService;
 
-    public UserProfileAgent(UserProfileRepository userProfileRepository) {
+    public UserProfileAgent(
+            UserProfileRepository userProfileRepository,
+            PortfolioRepository portfolioRepository,
+            MarketDataService marketDataService
+    ) {
         this.userProfileRepository = userProfileRepository;
+        this.portfolioRepository = portfolioRepository;
+        this.marketDataService = marketDataService;
     }
 
     @Tool("Get user's investment profile including risk tolerance, investment horizon, goals, and preferences. " +
@@ -101,6 +115,171 @@ public class UserProfileAgent {
         } catch (Exception e) {
             log.error("Error getting investment goals: {}", e.getMessage(), e);
             return String.format("{\"error\": \"Error getting investment goals: %s\"}", e.getMessage());
+        }
+    }
+
+    @Tool("Get user's complete portfolio including all holdings, total value, and gain/loss. " +
+          "Use this to understand what stocks the user currently owns before making recommendations. " +
+          "Requires: userId (string). Returns portfolio with all holdings and summary.")
+    public String getPortfolio(String userId) {
+        log.info("🔵 getPortfolio CALLED with userId={}", userId);
+        try {
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            if (portfolioOpt.isEmpty()) {
+                return String.format(
+                    "{\"userId\": \"%s\", \"exists\": false, \"message\": \"Portfolio not found. User has no holdings yet.\"}",
+                    userId
+                );
+            }
+
+            Portfolio portfolio = portfolioOpt.get();
+            
+            // Refresh current prices for all holdings
+            if (portfolio.getHoldings() != null && !portfolio.getHoldings().isEmpty()) {
+                for (StockHolding holding : portfolio.getHoldings()) {
+                    try {
+                        BigDecimal currentPrice = marketDataService.getStockPrice(holding.getSymbol());
+                        if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
+                            holding.setCurrentPrice(currentPrice);
+                            // @PreUpdate will handle value, gainLoss, gainLossPercent calculations
+                        }
+                    } catch (Exception e) {
+                        log.warn("Could not refresh price for {}: {}", holding.getSymbol(), e.getMessage());
+                    }
+                }
+                // Save to trigger @PreUpdate calculations
+                portfolio = portfolioRepository.save(portfolio);
+            }
+
+            // Build holdings JSON
+            String holdingsJson = portfolio.getHoldings().stream()
+                .map(h -> String.format(
+                    "{\"symbol\": \"%s\", \"quantity\": %d, \"averagePrice\": %s, \"currentPrice\": %s, " +
+                    "\"value\": %s, \"gainLoss\": %s, \"gainLossPercent\": %s}",
+                    h.getSymbol(),
+                    h.getQuantity(),
+                    h.getAveragePrice() != null ? h.getAveragePrice().toString() : "null",
+                    h.getCurrentPrice() != null ? h.getCurrentPrice().toString() : "null",
+                    h.getValue() != null ? h.getValue().toString() : "null",
+                    h.getGainLoss() != null ? h.getGainLoss().toString() : "null",
+                    h.getGainLossPercent() != null ? h.getGainLossPercent().toString() : "null"
+                ))
+                .collect(Collectors.joining(", ", "[", "]"));
+
+            return String.format(
+                "{\"userId\": \"%s\", \"exists\": true, \"totalValue\": %s, \"totalGainLoss\": %s, " +
+                "\"totalGainLossPercent\": %s, \"holdings\": %s, \"holdingsCount\": %d, " +
+                "\"message\": \"Portfolio retrieved with current prices\"}",
+                userId,
+                portfolio.getTotalValue() != null ? portfolio.getTotalValue().toString() : "0",
+                portfolio.getTotalGainLoss() != null ? portfolio.getTotalGainLoss().toString() : "0",
+                portfolio.getTotalGainLossPercent() != null ? portfolio.getTotalGainLossPercent().toString() : "0",
+                holdingsJson,
+                portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0
+            );
+        } catch (Exception e) {
+            log.error("Error getting portfolio: {}", e.getMessage(), e);
+            return String.format("{\"error\": \"Error getting portfolio: %s\"}", e.getMessage());
+        }
+    }
+
+    @Tool("Get user's portfolio holdings list. Returns just the list of stocks the user owns. " +
+          "Use this when you need to know what stocks are in the portfolio. " +
+          "Requires: userId (string). Returns list of holdings with symbols and quantities.")
+    public String getPortfolioHoldings(String userId) {
+        log.info("🔵 getPortfolioHoldings CALLED with userId={}", userId);
+        try {
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            if (portfolioOpt.isEmpty() || portfolioOpt.get().getHoldings() == null || 
+                portfolioOpt.get().getHoldings().isEmpty()) {
+                return String.format(
+                    "{\"userId\": \"%s\", \"holdings\": [], \"message\": \"Portfolio is empty or not found\"}",
+                    userId
+                );
+            }
+
+            Portfolio portfolio = portfolioOpt.get();
+            String holdingsList = portfolio.getHoldings().stream()
+                .map(h -> String.format("\"%s\" (%d shares)", h.getSymbol(), h.getQuantity()))
+                .collect(Collectors.joining(", "));
+
+            String holdingsJson = portfolio.getHoldings().stream()
+                .map(h -> String.format(
+                    "{\"symbol\": \"%s\", \"quantity\": %d, \"averagePrice\": %s}",
+                    h.getSymbol(),
+                    h.getQuantity(),
+                    h.getAveragePrice() != null ? h.getAveragePrice().toString() : "null"
+                ))
+                .collect(Collectors.joining(", ", "[", "]"));
+
+            return String.format(
+                "{\"userId\": \"%s\", \"holdings\": %s, \"holdingsList\": \"%s\", \"count\": %d, " +
+                "\"message\": \"Portfolio holdings retrieved\"}",
+                userId,
+                holdingsJson,
+                holdingsList,
+                portfolio.getHoldings().size()
+            );
+        } catch (Exception e) {
+            log.error("Error getting portfolio holdings: {}", e.getMessage(), e);
+            return String.format("{\"error\": \"Error getting portfolio holdings: %s\"}", e.getMessage());
+        }
+    }
+
+    @Tool("Get user's portfolio summary (total value, gain/loss, number of holdings). " +
+          "Use this for quick portfolio overview without full details. " +
+          "Requires: userId (string). Returns portfolio summary statistics.")
+    public String getPortfolioSummary(String userId) {
+        log.info("🔵 getPortfolioSummary CALLED with userId={}", userId);
+        try {
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            if (portfolioOpt.isEmpty()) {
+                return String.format(
+                    "{\"userId\": \"%s\", \"exists\": false, \"message\": \"Portfolio not found\"}",
+                    userId
+                );
+            }
+
+            Portfolio portfolio = portfolioOpt.get();
+            
+            // Refresh prices if holdings exist
+            if (portfolio.getHoldings() != null && !portfolio.getHoldings().isEmpty()) {
+                for (StockHolding holding : portfolio.getHoldings()) {
+                    try {
+                        BigDecimal currentPrice = marketDataService.getStockPrice(holding.getSymbol());
+                        if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
+                            holding.setCurrentPrice(currentPrice);
+                            // @PreUpdate will handle value, gainLoss, gainLossPercent calculations
+                        }
+                    } catch (Exception e) {
+                        log.warn("Could not refresh price for {}: {}", holding.getSymbol(), e.getMessage());
+                    }
+                }
+                // Save to trigger @PreUpdate calculations
+                portfolio = portfolioRepository.save(portfolio);
+            }
+
+            int holdingsCount = portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0;
+            String symbols = portfolio.getHoldings() != null && !portfolio.getHoldings().isEmpty()
+                ? portfolio.getHoldings().stream()
+                    .map(StockHolding::getSymbol)
+                    .collect(Collectors.joining(", "))
+                : "none";
+
+            return String.format(
+                "{\"userId\": \"%s\", \"exists\": true, \"totalValue\": %s, \"totalGainLoss\": %s, " +
+                "\"totalGainLossPercent\": %s, \"holdingsCount\": %d, \"symbols\": \"%s\", " +
+                "\"message\": \"Portfolio summary retrieved\"}",
+                userId,
+                portfolio.getTotalValue() != null ? portfolio.getTotalValue().toString() : "0",
+                portfolio.getTotalGainLoss() != null ? portfolio.getTotalGainLoss().toString() : "0",
+                portfolio.getTotalGainLossPercent() != null ? portfolio.getTotalGainLossPercent().toString() : "0",
+                holdingsCount,
+                symbols
+            );
+        } catch (Exception e) {
+            log.error("Error getting portfolio summary: {}", e.getMessage(), e);
+            return String.format("{\"error\": \"Error getting portfolio summary: %s\"}", e.getMessage());
         }
     }
 }

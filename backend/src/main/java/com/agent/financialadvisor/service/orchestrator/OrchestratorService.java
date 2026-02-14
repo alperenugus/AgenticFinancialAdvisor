@@ -145,7 +145,7 @@ public class OrchestratorService {
     }
 
     /**
-     * Build a contextual query that includes user profile information
+     * Build a contextual query that includes user profile and portfolio information
      */
     private String buildContextualQuery(String userId, String userQuery) {
         StringBuilder contextualQuery = new StringBuilder();
@@ -162,9 +162,23 @@ public class OrchestratorService {
             log.warn("Could not fetch user profile for context: {}", e.getMessage());
         }
 
+        // Try to get user portfolio for context
+        try {
+            String portfolioInfo = userProfileAgent.getPortfolioSummary(userId);
+            if (portfolioInfo.contains("\"exists\": true")) {
+                contextualQuery.append("User Portfolio Context: ").append(portfolioInfo).append("\n\n");
+            } else {
+                contextualQuery.append("Note: User portfolio is empty or not found. User may not have any holdings yet.\n\n");
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch user portfolio for context: {}", e.getMessage());
+        }
+
         contextualQuery.append("User Query: ").append(userQuery);
         contextualQuery.append("\n\nPlease analyze this request and use the available tools to provide a comprehensive financial recommendation. ");
+        contextualQuery.append("You have access to the user's profile and portfolio data. Use this information to provide personalized advice. ");
         contextualQuery.append("If the user is asking about a stock, analyze it thoroughly using market analysis, risk assessment, and research tools. ");
+        contextualQuery.append("Consider how recommendations fit with their current portfolio and risk tolerance. ");
         contextualQuery.append("Then synthesize all information into a clear recommendation.");
 
         return contextualQuery.toString();
@@ -176,8 +190,10 @@ public class OrchestratorService {
     public interface FinancialAdvisorAgent {
         @SystemMessage("You are a professional financial advisor AI assistant. " +
                 "You coordinate multiple specialized agents to provide comprehensive investment advice. " +
-                "You have access to tools from: User Profile Agent, Market Analysis Agent, Risk Assessment Agent, Research Agent, and Recommendation Agent. " +
-                "Always consider the user's risk tolerance and investment goals when making recommendations. " +
+                "You have access to tools from: User Profile Agent (can access user profile AND portfolio), Market Analysis Agent, Risk Assessment Agent, Research Agent, and Recommendation Agent. " +
+                "IMPORTANT: You can access the user's portfolio using UserProfileAgent tools: getPortfolio(userId), getPortfolioHoldings(userId), and getPortfolioSummary(userId). " +
+                "Always check the user's current portfolio before making recommendations to ensure advice is personalized and considers their existing holdings. " +
+                "Always consider the user's risk tolerance, investment goals, and current portfolio when making recommendations. " +
                 "Provide clear, well-reasoned recommendations based on data from all agents. " +
                 "If a user profile doesn't exist, guide them to create one first. " +
                 "Always include appropriate disclaimers about investment risks.")
