@@ -227,9 +227,8 @@ public class OrchestratorService {
                 "6. Professional analysis of chart patterns, trends, and technical indicators " +
                 "7. Portfolio management advice considering current holdings " +
                 "MANDATORY: You MUST use the available tools to get REAL, CURRENT data. NEVER use placeholders like [$Current Price], [Stop Loss Price], [Current Date], etc. " +
-                "ALWAYS call getStockPrice(symbol) FIRST to get the current price (fresh from API), then use that actual price in all calculations. " +
-                "ALWAYS call getStockPriceData(symbol, timeframe) to get price history for technical analysis (fresh from API). " +
-                "ALWAYS call analyzeTrends(symbol, timeframe) to identify chart patterns (uses fresh data). " +
+                "The system will automatically retrieve current stock prices, price history, and technical analysis data when you need it. " +
+                "You don't need to explicitly request these - just think about what data you need for your analysis, and the system will provide it automatically. " +
                 "Format your recommendations like a professional financial analyst would: " +
                 "- 'For [SYMBOL], the current price is $X (fresh data from getStockPrice, fetched just now). I identify a [PATTERN] pattern on [TIMEFRAME] chart...' " +
                 "- 'For [SYMBOL], you can have a stop loss at $Y (calculate Y as X * 0.95 or similar based on actual current price)...' " +
