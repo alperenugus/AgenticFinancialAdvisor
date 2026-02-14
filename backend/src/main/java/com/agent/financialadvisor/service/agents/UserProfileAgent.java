@@ -10,6 +10,7 @@ import dev.langchain4j.agent.tool.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -37,6 +38,7 @@ public class UserProfileAgent {
     @Tool("Get user's investment profile including risk tolerance, investment horizon, goals, and preferences. " +
           "Use this to understand the user's investment preferences before making recommendations. " +
           "Requires: userId (string). Returns user profile information.")
+    @Transactional(readOnly = true)
     public String getUserProfile(String userId) {
         log.info("🔵 getUserProfile CALLED with userId={}", userId);
         try {
@@ -49,6 +51,12 @@ public class UserProfileAgent {
             }
             
             UserProfile profile = profileOpt.get();
+            
+            // Access all lazy collections while still in transaction
+            List<String> goals = profile.getGoals() != null ? new ArrayList<>(profile.getGoals()) : new ArrayList<>();
+            List<String> preferredSectors = profile.getPreferredSectors() != null ? new ArrayList<>(profile.getPreferredSectors()) : new ArrayList<>();
+            List<String> excludedSectors = profile.getExcludedSectors() != null ? new ArrayList<>(profile.getExcludedSectors()) : new ArrayList<>();
+            
             return String.format(
                 "{\"userId\": \"%s\", \"exists\": true, \"riskTolerance\": \"%s\", \"horizon\": \"%s\", " +
                 "\"goals\": %s, \"budget\": %s, \"preferredSectors\": %s, \"excludedSectors\": %s, " +
@@ -56,10 +64,10 @@ public class UserProfileAgent {
                 profile.getUserId(),
                 profile.getRiskTolerance(),
                 profile.getHorizon(),
-                profile.getGoals() != null ? profile.getGoals().toString() : "[]",
+                goals.toString(),
                 profile.getBudget() != null ? profile.getBudget().toString() : "null",
-                profile.getPreferredSectors() != null ? profile.getPreferredSectors().toString() : "[]",
-                profile.getExcludedSectors() != null ? profile.getExcludedSectors().toString() : "[]",
+                preferredSectors.toString(),
+                excludedSectors.toString(),
                 profile.getEthicalInvesting()
             );
         } catch (Exception e) {
@@ -99,6 +107,7 @@ public class UserProfileAgent {
 
     @Tool("Get user's investment goals. Returns list of goals like RETIREMENT, GROWTH, INCOME. " +
           "Requires: userId (string).")
+    @Transactional(readOnly = true)
     public String getInvestmentGoals(String userId) {
         log.info("🔵 getInvestmentGoals CALLED with userId={}", userId);
         try {
@@ -107,10 +116,11 @@ public class UserProfileAgent {
                 return String.format("{\"userId\": \"%s\", \"goals\": [], \"message\": \"User profile not found\"}", userId);
             }
             
-            List<String> goals = profileOpt.get().getGoals();
+            // Access lazy collection while still in transaction
+            List<String> goals = profileOpt.get().getGoals() != null ? new ArrayList<>(profileOpt.get().getGoals()) : new ArrayList<>();
             return String.format(
                 "{\"userId\": \"%s\", \"goals\": %s, \"message\": \"Investment goals retrieved\"}",
-                userId, goals != null ? goals.toString() : "[]"
+                userId, goals.toString()
             );
         } catch (Exception e) {
             log.error("Error getting investment goals: {}", e.getMessage(), e);
@@ -121,6 +131,7 @@ public class UserProfileAgent {
     @Tool("Get user's complete portfolio including all holdings, total value, and gain/loss. " +
           "Use this to understand what stocks the user currently owns before making recommendations. " +
           "Requires: userId (string). Returns portfolio with all holdings and summary.")
+    @Transactional(readOnly = true)
     public String getPortfolio(String userId) {
         log.info("🔵 getPortfolio CALLED with userId={}", userId);
         try {
@@ -186,6 +197,7 @@ public class UserProfileAgent {
     @Tool("Get user's portfolio holdings list. Returns just the list of stocks the user owns. " +
           "Use this when you need to know what stocks are in the portfolio. " +
           "Requires: userId (string). Returns list of holdings with symbols and quantities.")
+    @Transactional(readOnly = true)
     public String getPortfolioHoldings(String userId) {
         log.info("🔵 getPortfolioHoldings CALLED with userId={}", userId);
         try {
@@ -229,6 +241,7 @@ public class UserProfileAgent {
     @Tool("Get user's portfolio summary (total value, gain/loss, number of holdings). " +
           "Use this for quick portfolio overview without full details. " +
           "Requires: userId (string). Returns portfolio summary statistics.")
+    @Transactional(readOnly = true)
     public String getPortfolioSummary(String userId) {
         log.info("🔵 getPortfolioSummary CALLED with userId={}", userId);
         try {
