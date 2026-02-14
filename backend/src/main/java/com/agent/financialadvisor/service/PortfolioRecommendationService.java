@@ -76,9 +76,13 @@ public class PortfolioRecommendationService {
             List<String> ownedSymbols = new ArrayList<>();
             if (portfolioOpt.isPresent() && portfolioOpt.get().getHoldings() != null) {
                 ownedSymbols = portfolioOpt.get().getHoldings().stream()
-                    .map(h -> h.getSymbol().toUpperCase())
+                    .map(h -> h.getSymbol().toUpperCase().trim())
+                    .filter(s -> !s.isEmpty())
                     .distinct()
                     .toList();
+                log.info("📊 User {} has {} holdings: {}", userId, ownedSymbols.size(), ownedSymbols);
+            } else {
+                log.warn("⚠️ User {} has no portfolio or holdings", userId);
             }
 
             // PRIMARY: Generate recommendations for stocks the user already owns
