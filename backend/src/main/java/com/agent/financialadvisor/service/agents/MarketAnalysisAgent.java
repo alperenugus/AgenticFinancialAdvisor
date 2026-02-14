@@ -32,9 +32,12 @@ public class MarketAnalysisAgent {
         this.webSocketService = webSocketService;
     }
 
-    @Tool("Get current stock price for a symbol. Use this to get the LATEST AVAILABLE stock price (fetched fresh from API, no caching). " +
+    @Tool("Get current stock price for a symbol. **MANDATORY**: You MUST call this tool whenever the user asks about a stock price, asks 'what is the price of X', asks 'X stock price', or mentions any stock symbol. " +
+          "This tool fetches the LATEST AVAILABLE stock price from the API (no caching, always fresh). " +
+          "**CRITICAL**: Do NOT use training data prices - they are outdated. You MUST call this tool to get current prices. " +
           "Note: Free tier may have 15-minute delay during market hours. Premium tier provides real-time data. " +
-          "Requires: symbol (string, e.g., 'AAPL', 'MSFT'). Returns current price as a number with timestamp.")
+          "Requires: symbol (string, e.g., 'AAPL' for Apple, 'MSFT' for Microsoft). Returns current price as a number with timestamp. " +
+          "**When to use**: ANY time you need to mention a stock price, even if you think you know it from training data.")
     public String getStockPrice(String symbol) {
         log.info("🔵 getStockPrice CALLED with symbol={} - FETCHING FRESH DATA FROM API", symbol);
         

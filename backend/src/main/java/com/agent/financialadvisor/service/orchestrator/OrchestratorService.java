@@ -234,6 +234,23 @@ public class OrchestratorService {
 
         contextualQuery.append("User Query: ").append(userQuery);
         contextualQuery.append("\n\n");
+        // Check if this is a stock price query and add explicit tool requirement
+        String lowerQuery = userQuery.toLowerCase();
+        boolean isPriceQuery = lowerQuery.contains("price") || lowerQuery.contains("stock price") || 
+                              lowerQuery.matches(".*\\b(aapl|msft|googl|amzn|nvda|tsla|meta|nflx|dis|v|ma|jpm|bac|wmt|pg|ko|pep|mcd|sbux|nke|adbe|orcl|intc|amd|qcom|avgo|txn|mu|amd|intel|microsoft|apple|google|amazon|nvidia|tesla|meta|netflix|disney|visa|mastercard|jpmorgan|bank of america|walmart|procter|gamble|coca-cola|pepsi|mcdonalds|starbucks|nike|adobe|oracle|qualcomm|broadcom|texas instruments|micron|advanced micro devices)\\b.*");
+        
+        if (isPriceQuery) {
+            contextualQuery.append("### ⚠️ CRITICAL: STOCK PRICE QUERY DETECTED ⚠️\n");
+            contextualQuery.append("**YOU ARE ASKED ABOUT A STOCK PRICE. THIS IS MANDATORY:**\n");
+            contextualQuery.append("1. You MUST call getStockPrice(symbol) tool - this is NOT optional\n");
+            contextualQuery.append("2. You CANNOT use training data - your training data is OUTDATED\n");
+            contextualQuery.append("3. You CANNOT guess or estimate - you MUST call the tool\n");
+            contextualQuery.append("4. Extract the symbol from the query (e.g., 'apple' or 'AAPL' → 'AAPL')\n");
+            contextualQuery.append("5. Call getStockPrice with the correct symbol\n");
+            contextualQuery.append("6. Use ONLY the price returned by the tool in your response\n");
+            contextualQuery.append("**IF YOU DO NOT CALL getStockPrice, YOUR RESPONSE IS WRONG**\n\n");
+        }
+        
         contextualQuery.append("### CRITICAL: DO NOT EXPLAIN YOUR PROCESS\n");
         contextualQuery.append("**ABSOLUTELY FORBIDDEN**:\n");
         contextualQuery.append("- NEVER explain what you're going to do (e.g., \"I first need to consider\", \"I will utilize\", \"Given this\")\n");
@@ -283,7 +300,10 @@ public class OrchestratorService {
                        "- Stock prices change constantly - ALWAYS use getStockPrice before mentioning any price\n" +
                        "- Market data becomes outdated quickly - ALWAYS use tools for current information\n" +
                        "- When analyzing a user's portfolio, you MUST use getPortfolio to get complete portfolio details\n" +
-                       "- NEVER guess prices, use placeholders like \"$X\", or reference training data\n\n" +
+                       "- NEVER guess prices, use placeholders like \"$X\", or reference training data\n" +
+                       "- **YOUR TRAINING DATA IS COMPLETELY OUTDATED FOR STOCK PRICES** - Apple is NOT $145, Tesla is NOT $200, etc.\n" +
+                       "- **YOU CANNOT KNOW CURRENT PRICES WITHOUT CALLING getStockPrice** - This is physically impossible\n" +
+                       "- **IF YOU MENTION A PRICE WITHOUT CALLING getStockPrice, YOU ARE WRONG** - The system will detect this\n\n" +
                        "### CRITICAL: TOOL CALLING RULES\n" +
                        "**ABSOLUTELY FORBIDDEN**:\n" +
                        "- NEVER write function calls as text (e.g., 'getStockPrice(ZETA)', 'getPortfolio(userId)')\n" +
@@ -338,12 +358,14 @@ public class OrchestratorService {
                        "### OPERATIONAL RULES:\n" +
                        "1. **ALWAYS use tools for current data** - Never use training data or guess prices\n" +
                        "2. **MANDATORY FOR STOCK PRICES**: For ANY stock price query (e.g., \"apple current stock price\", \"what is the price of AAPL\", \"AAPL price\"), you MUST call getStockPrice(symbol) - NEVER use training data, NEVER guess, NEVER use outdated prices from memory\n" +
-                       "3. **For portfolio analysis** - Always call getPortfolio(userId) to get complete portfolio details\n" +
-                       "4. **For comprehensive analysis** - Combine market data, web search results, and social sentiment\n" +
-                       "5. **Answer simple questions directly** - For \"what is the price of ZETA\", just call getStockPrice and answer: \"The current price of ZETA is $X.XX\"\n" +
-                       "6. **For analysis requests** - Provide professional insights including technical patterns, stop-loss levels, entry/exit prices\n" +
-                       "7. **Address users directly** - Use \"you\" and \"your\" (not \"the user\" or \"user's\")\n" +
-                       "8. **CRITICAL**: Stock prices change constantly. Your training data is OUTDATED. You MUST call getStockPrice for EVERY price query, even if you think you know the price.\n\n" +
+                       "3. **SYMBOL EXTRACTION**: When user asks about \"apple\", \"Apple\", or \"AAPL\", extract the symbol as \"AAPL\" and call getStockPrice(\"AAPL\")\n" +
+                       "4. **For portfolio analysis** - Always call getPortfolio(userId) to get complete portfolio details\n" +
+                       "5. **For comprehensive analysis** - Combine market data, web search results, and social sentiment\n" +
+                       "6. **Answer simple questions directly** - For \"what is the price of ZETA\", just call getStockPrice and answer: \"The current price of ZETA is $X.XX\"\n" +
+                       "7. **For analysis requests** - Provide professional insights including technical patterns, stop-loss levels, entry/exit prices\n" +
+                       "8. **Address users directly** - Use \"you\" and \"your\" (not \"the user\" or \"user's\")\n" +
+                       "9. **CRITICAL**: Stock prices change constantly. Your training data is OUTDATED. You MUST call getStockPrice for EVERY price query, even if you think you know the price.\n" +
+                       "10. **VALIDATION**: If you mention a stock price in your response, you MUST have called getStockPrice first. If you didn't call it, your response is incorrect.\n\n" +
                        "### RESPONSE FORMAT:\n" +
                        "- Be direct and conversational - answer as if you already know the information\n" +
                        "- NEVER explain your process, reasoning, or what you're going to do\n" +
