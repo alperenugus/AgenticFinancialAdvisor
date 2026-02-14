@@ -44,18 +44,23 @@ const ChatComponent = ({ initialMessage, onMessageSent }) => {
 
   // Handle initial message from recommendation click
   useEffect(() => {
-    if (initialMessage && !hasSentInitialMessage && messages.length > 0) {
-      // Wait for initial greeting, then send the initial message
-      setInput(initialMessage);
-      setHasSentInitialMessage(true);
-      // Auto-submit after a brief delay
-      setTimeout(() => {
-        const form = document.querySelector('form');
-        if (form) {
-          const event = new Event('submit', { bubbles: true, cancelable: true });
-          form.dispatchEvent(event);
+    if (initialMessage && !hasSentInitialMessage) {
+      // Wait for initial greeting to be added, then send the initial message
+      const timer = setTimeout(() => {
+        if (messages.length > 0) {
+          setInput(initialMessage);
+          setHasSentInitialMessage(true);
+          // Auto-submit after a brief delay
+          setTimeout(() => {
+            const syntheticEvent = {
+              preventDefault: () => {},
+              target: { value: initialMessage }
+            };
+            handleSubmit(syntheticEvent);
+          }, 300);
         }
-      }, 500);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
   }, [initialMessage, hasSentInitialMessage, messages.length]);
 
@@ -68,11 +73,17 @@ const ChatComponent = ({ initialMessage, onMessageSent }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    const messageToSend = input.trim() || (initialMessage && !hasSentInitialMessage ? initialMessage : '');
+    if (!messageToSend || isLoading) return;
 
-    const userMessage = input.trim();
+    const userMessage = messageToSend.trim();
     setInput('');
+    if (initialMessage && !hasSentInitialMessage) {
+      setHasSentInitialMessage(true);
+    }
     addMessage('user', userMessage);
     setIsLoading(true);
     setThinkingMessages([]);
