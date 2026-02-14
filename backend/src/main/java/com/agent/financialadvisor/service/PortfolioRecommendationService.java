@@ -77,87 +77,97 @@ public class PortfolioRecommendationService {
             if (portfolioOpt.isPresent() && portfolioOpt.get().getHoldings() != null) {
                 ownedSymbols = portfolioOpt.get().getHoldings().stream()
                     .map(h -> h.getSymbol().toUpperCase())
+                    .distinct()
                     .toList();
             }
 
-            // Build exclude list for stock discovery
-            String excludeOwned = String.join(",", ownedSymbols);
+            // PRIMARY: Generate recommendations for stocks the user already owns
+            List<String> stocksToAnalyze = new ArrayList<>(ownedSymbols);
             
-            // Use StockDiscoveryAgent to find stocks matching user's risk tolerance
-            String discoveryResult = stockDiscoveryAgent.discoverStocks(
-                profile.getRiskTolerance().toString(),
-                profile.getPreferredSectors() != null ? String.join(",", profile.getPreferredSectors()) : "",
-                excludeOwned
-            );
-
-            // Parse discovered stocks from JSON response
-            List<String> discoveredStocks = parseDiscoveredStocks(discoveryResult);
+            // SECONDARY: Also discover new stocks if user has less than 5 holdings
+            if (ownedSymbols.size() < 5) {
+                String excludeOwned = String.join(",", ownedSymbols);
+                String discoveryResult = stockDiscoveryAgent.discoverStocks(
+                    profile.getRiskTolerance().toString(),
+                    profile.getPreferredSectors() != null ? String.join(",", profile.getPreferredSectors()) : "",
+                    excludeOwned
+                );
+                List<String> discoveredStocks = parseDiscoveredStocks(discoveryResult);
+                // Add discovered stocks up to 5 total
+                for (String symbol : discoveredStocks) {
+                    if (stocksToAnalyze.size() >= 5) break;
+                    if (!stocksToAnalyze.contains(symbol)) {
+                        stocksToAnalyze.add(symbol);
+                    }
+                }
+            }
             
-            if (discoveredStocks.isEmpty()) {
-                log.warn("No stocks discovered for user {}", userId);
+            if (stocksToAnalyze.isEmpty()) {
+                log.warn("No stocks to analyze for user {} (no holdings and no discoveries)", userId);
                 return CompletableFuture.completedFuture(null);
             }
 
-            log.info("Discovered {} stocks for user {}: {}", discoveredStocks.size(), userId, discoveredStocks);
+            log.info("Generating recommendations for {} stocks for user {}: {}", stocksToAnalyze.size(), userId, stocksToAnalyze);
 
-            // Limit to 5 recommendations
-            int maxRecommendations = 5;
             int generated = 0;
-            int skipped = 0;
             String sessionId = "portfolio-recommendation-" + userId + "-" + System.currentTimeMillis();
 
-            // Use orchestrator to generate recommendations for each discovered stock
-            for (String symbol : discoveredStocks) {
-                if (generated >= maxRecommendations) break;
-                
-                // Check if recommendation already exists and is recent (within last 7 days)
-                Optional<Recommendation> existing = recommendationRepository.findByUserIdAndSymbol(userId, symbol);
-                if (existing.isPresent()) {
-                    long daysSinceCreation = java.time.Duration.between(
-                        existing.get().getCreatedAt(),
-                        java.time.LocalDateTime.now()
-                    ).toDays();
-                    if (daysSinceCreation < 7) {
-                        log.debug("Recent recommendation exists for {} and user {}, skipping", symbol, userId);
-                        skipped++;
-                        continue;
-                    }
+            // Generate recommendations for each stock (prioritize owned stocks)
+            for (String symbol : stocksToAnalyze) {
+                // Delete any existing recommendations for this stock to ensure only one per stock
+                Optional<Recommendation> existingOpt = recommendationRepository.findByUserIdAndSymbol(userId, symbol);
+                if (existingOpt.isPresent()) {
+                    log.info("Deleting existing recommendation for {} (user: {}) to ensure single recommendation", 
+                        symbol, userId);
+                    recommendationRepository.delete(existingOpt.get());
                 }
                 
-                log.info("Generating recommendation {}/{} for {} (user: {})", generated + 1, maxRecommendations, symbol, userId);
+                log.info("Generating recommendation {}/{} for {} (user: {})", generated + 1, stocksToAnalyze.size(), symbol, userId);
 
                 try {
-                    // Use orchestrator to analyze and recommend with professional financial analyst approach
+                    // Use orchestrator to analyze and recommend with comprehensive research
                     String query = String.format(
-                        "As a professional financial analyst, provide a comprehensive portfolio recommendation for %s. " +
+                        "As a SENIOR FINANCIAL ANALYST with expertise in technical analysis, fundamental analysis, market sentiment, and portfolio management, " +
+                        "provide a COMPREHENSIVE, RESEARCH-DRIVEN portfolio recommendation for %s. " +
                         "User profile: risk tolerance=%s, investment horizon=%s, goals=%s. " +
                         "Current portfolio holdings: %s. " +
-                        "CRITICAL: You MUST use the available tools to get REAL, CURRENT data. Do NOT use placeholders like [$Current Price] or [Stop Loss Price]. " +
-                        "REQUIRED STEPS: " +
-                        "1. First, call getStockPrice(%s) to get the CURRENT stock price - use this actual price in your recommendation " +
-                        "2. Call getStockPriceData(%s, 'daily') to get price history for technical analysis " +
-                        "3. Call analyzeTrends(%s, 'daily') to identify chart patterns " +
-                        "4. Call getCompanyOverview(%s) to get fundamental data " +
-                        "5. Call assessRisk(%s) to get risk metrics " +
-                        "6. Use the ACTUAL current price to calculate stop loss (e.g., 5%% below current price) " +
-                        "7. Use the ACTUAL current price to suggest entry/exit levels " +
-                        "Provide a professional financial analyst-level recommendation including: " +
-                        "1. Technical analysis patterns (head and shoulders, support/resistance, chart patterns) - MUST use getStockPriceData and analyzeTrends tools " +
-                        "2. Stop loss level (specific price based on current price, e.g., 'For this stock, you can have a stop loss at $X' where X is calculated from current price) " +
-                        "3. Averaging down advice if applicable (e.g., 'For this stock, you can average down a bit if price reaches $X' where X is calculated) " +
-                        "4. Entry price suggestion (based on current price) " +
-                        "5. Target price with reasoning (based on technical analysis) " +
-                        "6. Exit price for profit taking (based on current price and target) " +
-                        "7. Portfolio diversification analysis considering current holdings " +
-                        "8. Risk assessment aligned with user's risk tolerance " +
-                        "Format like: 'For %s, the current price is $X. I identify [PATTERN] on [TIMEFRAME]... For this stock, you can have a stop loss at $Y (Y%% below current price)...' " +
-                        "Be specific with ACTUAL price levels, percentages, and technical analysis. NEVER use placeholders.",
+                        "CRITICAL: You MUST conduct THOROUGH RESEARCH using ALL available tools. This is a professional analysis that will guide investment decisions. " +
+                        "MANDATORY RESEARCH STEPS (execute ALL of these): " +
+                        "1. Call getStockPrice(%s) to get the CURRENT stock price - this is your baseline " +
+                        "2. Call getStockPriceData(%s, 'daily') AND getStockPriceData(%s, 'weekly') to get comprehensive price history " +
+                        "3. Call analyzeTrends(%s, 'daily') AND analyzeTrends(%s, 'weekly') to identify chart patterns across timeframes " +
+                        "4. Call getCompanyOverview(%s) to get fundamental data (P/E, P/B, revenue growth, profit margin, etc.) " +
+                        "5. Call assessRisk(%s) to get risk metrics (volatility, beta, etc.) " +
+                        "6. Call getMarketNews(%s) to understand market sentiment and recent news " +
+                        "7. Call getTechnicalIndicators(%s) to get technical analysis metrics " +
+                        "8. Analyze the data comprehensively: " +
+                        "   - Technical patterns: Look for head and shoulders, double tops/bottoms, triangles, support/resistance, trendlines " +
+                        "   - Fundamental strength: Evaluate P/E ratio, revenue growth, profit margins, dividend yield " +
+                        "   - Market sentiment: Consider recent news, analyst sentiment, market trends " +
+                        "   - Risk assessment: Evaluate volatility, beta, price stability " +
+                        "   - Portfolio fit: Consider how this stock fits with user's existing holdings and risk tolerance " +
+                        "COMPREHENSIVE RECOMMENDATION MUST INCLUDE: " +
+                        "1. Current stock price (from getStockPrice) " +
+                        "2. Technical analysis: Specific chart patterns identified (e.g., 'I identify a bullish engulfing pattern on daily chart and rising trendline on weekly chart') " +
+                        "3. Fundamental analysis: Key metrics and what they mean (e.g., 'P/E ratio of 35.1 indicates...') " +
+                        "4. Market sentiment: Recent news and trends affecting the stock " +
+                        "5. Risk assessment: Specific risk level and why " +
+                        "6. Stop loss level: Calculate as percentage below current price (e.g., 'For this stock, you can have a stop loss at $X, which is Y%% below current price') " +
+                        "7. Averaging down advice: If applicable, specific price level (e.g., 'For this stock, you can average down a bit if price reaches $X') " +
+                        "8. Entry price: If buying, specific entry level " +
+                        "9. Target price: Specific target with reasoning based on technical/fundamental analysis " +
+                        "10. Exit price: Specific exit level for profit taking " +
+                        "11. Portfolio fit: How this recommendation aligns with user's risk tolerance, goals, and existing holdings " +
+                        "12. Clear BUY/SELL/HOLD recommendation with strong reasoning " +
+                        "Format: 'For %s, the current price is $X (from getStockPrice). After comprehensive analysis: [detailed analysis]. " +
+                        "I recommend [BUY/SELL/HOLD] because [strong reasoning]. For this stock, you can have a stop loss at $Y...' " +
+                        "Be specific with ACTUAL prices, percentages, and data. NEVER use placeholders. Provide professional-grade analysis.",
                         symbol,
                         profile.getRiskTolerance(),
                         profile.getHorizon(),
                         profile.getGoals() != null ? profile.getGoals().toString() : "[]",
                         ownedSymbols.isEmpty() ? "no holdings" : String.join(", ", ownedSymbols),
-                        symbol, symbol, symbol, symbol, symbol, symbol
+                        symbol, symbol, symbol, symbol, symbol, symbol, symbol, symbol, symbol
                     );
 
                     // Use orchestrator to generate recommendation
@@ -176,8 +186,8 @@ public class PortfolioRecommendationService {
                 }
             }
 
-            log.info("Generated {} portfolio recommendations for user {} (skipped {} recent ones, discovered {} total stocks)", 
-                generated, userId, skipped, discoveredStocks.size());
+            log.info("Generated {} portfolio recommendations for user {} (analyzed {} stocks)", 
+                generated, userId, stocksToAnalyze.size());
         } catch (Exception e) {
             log.error("Error generating portfolio recommendations for user {}: {}", userId, e.getMessage(), e);
         }

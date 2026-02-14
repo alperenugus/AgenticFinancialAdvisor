@@ -1,6 +1,9 @@
-import { TrendingUp, TrendingDown, Minus, AlertCircle, Calendar, Target, Sparkles, BarChart3, Shield, TrendingDown as TrendingDownIcon, ArrowDown, ArrowUp, MessageSquare } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, TrendingDown, Minus, AlertCircle, Calendar, Target, Sparkles, BarChart3, Shield, TrendingDown as TrendingDownIcon, ArrowDown, ArrowUp, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 const RecommendationCard = ({ recommendation }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   if (!recommendation) return null;
 
   const getActionIcon = () => {
@@ -47,15 +50,68 @@ const RecommendationCard = ({ recommendation }) => {
 
   return (
     <div className="card-elevated hover:shadow-large transition-all duration-300 group relative">
-      {/* Click indicator */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="bg-primary-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-          <MessageSquare className="w-3 h-3" />
-          Click to ask about this
+      {/* Collapsed View - Always Visible */}
+      <div 
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-4 flex-1">
+          <div className={`p-2 rounded-lg border-2 ${getActionColor()}`}>
+            {getActionIcon()}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">{recommendation.symbol}</h3>
+              <span className={`badge ${getActionColor().includes('success') ? 'badge-success' : getActionColor().includes('danger') ? 'badge-danger' : 'badge-warning'}`}>
+                {recommendation.action}
+              </span>
+              {targetPrice && (
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Target: ${targetPrice.toFixed(2)}
+                </span>
+              )}
+            </div>
+            {recommendation.reasoning && !isExpanded && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                {recommendation.reasoning.substring(0, 150)}...
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Confidence</div>
+            <div className="text-lg font-bold text-gray-900 dark:text-white">{confidence.toFixed(0)}%</div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+            aria-label={isExpanded ? "Collapse" : "Expand"}
+          >
+            {isExpanded ? (
+              <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            )}
+          </button>
         </div>
       </div>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+
+      {/* Expanded View */}
+      {isExpanded && (
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+          {/* Click indicator */}
+          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="bg-primary-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+              <MessageSquare className="w-3 h-3" />
+              Click to ask about this
+            </div>
+          </div>
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-xl border-2 ${getActionColor()}`}>
             {getActionIcon()}
@@ -242,14 +298,16 @@ const RecommendationCard = ({ recommendation }) => {
         </div>
       )}
 
-      {/* Footer */}
-      {recommendation.createdAt && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <span>Created: {new Date(recommendation.createdAt).toLocaleString()}</span>
-          <span className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-            Active
-          </span>
+          {/* Footer */}
+          {recommendation.createdAt && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <span>Created: {new Date(recommendation.createdAt).toLocaleString()}</span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
+                Active
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
