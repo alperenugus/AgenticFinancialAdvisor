@@ -223,8 +223,6 @@ User: "What do you think about my portfolio?"
    - MarketDataAgent.getStockPrice(symbol) → Current price
    - MarketDataAgent.analyzeTrends(symbol) → Technical analysis
    - WebSearchAgent.searchStockAnalysis(symbol) → Latest analysis
-   - FintwitAnalysisAgent.getFintwitSentiment(symbol) → Social sentiment
-   - WebSearchAgent.searchStockAnalysis(symbol) → Latest analysis
    - FintwitAnalysisAgent.analyzeFintwitSentiment(symbol) → Social sentiment
    
 4. Orchestrator synthesizes all data
