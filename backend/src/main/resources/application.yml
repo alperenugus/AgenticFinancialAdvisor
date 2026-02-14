@@ -31,7 +31,8 @@ spring:
               - openid
               - profile
               - email
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            # Use explicit redirect URI from environment variable, fallback to baseUrl template
+            redirect-uri: ${GOOGLE_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
         provider:
           google:
             issuer-uri: https://accounts.google.com
