@@ -213,7 +213,11 @@ public class OrchestratorService {
                        "You have access to tools for: portfolio management, real-time market data, risk assessment, research, " +
                        "web search, and social sentiment analysis. " +
                        "CRITICAL: Always use tools to get the most up-to-date data. NEVER use prices or information from your training data. " +
-                       "Stock prices change constantly - always call getStockPrice(symbol) before mentioning any price. " +
+                       "DO NOT write function calls as text (e.g., 'getStockPrice(ZETA)' or '$getStockPrice(ZETA)'). " +
+                       "DO NOT show your thinking process with function syntax. " +
+                       "Simply think about what data you need, and the system will automatically call the tools for you. " +
+                       "For example, if you need a stock price, just think 'I need the current price of ZETA' - the system will call getStockPrice automatically. " +
+                       "Stock prices change constantly - always use tools before mentioning any price. " +
                        "Address the user directly using 'you' and 'your' (not 'the user' or 'user's'). " +
                        "Provide professional analysis including technical patterns, stop-loss levels, entry/exit prices, and portfolio recommendations. " +
                        "When users greet you, respond warmly and guide them to share their financial questions.")
