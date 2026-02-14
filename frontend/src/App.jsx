@@ -65,7 +65,7 @@ function App() {
   // Show login page if not authenticated
   if (loading || checkingOnboarding) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400 font-medium">Loading...</p>
@@ -90,9 +90,9 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black">
       {/* Professional Header */}
-      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-50 shadow-sm">
+      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-4">
@@ -125,7 +125,7 @@ function App() {
                   className="w-10 h-10 rounded-full border-2 border-primary-200 dark:border-primary-800"
                 />
               )}
-              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl">
+              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-gray-900 rounded-xl">
                 <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {user?.name || user?.email}
@@ -145,7 +145,7 @@ function App() {
       </header>
 
       {/* Modern Navigation Tabs */}
-      <nav className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50">
+      <nav className="bg-white/60 dark:bg-black/60 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-800/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 overflow-x-auto">
             {tabs.map((tab) => {
@@ -177,7 +177,7 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="min-h-[calc(100vh-280px)]">
           {activeTab === 'chat' && (
-            <div className="card-elevated h-[calc(100vh-300px)] min-h-[600px] p-0 overflow-hidden">
+            <div className="card-elevated h-[calc(100vh-350px)] min-h-[500px] max-h-[700px] p-0 overflow-hidden">
               <ChatComponent />
             </div>
           )}
@@ -193,7 +193,7 @@ function App() {
       </main>
 
       {/* Professional Footer */}
-      <footer className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-700/50 mt-16">
+      <footer className="bg-white/60 dark:bg-black/60 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-800/50 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col gap-6">
             {/* Disclaimer */}

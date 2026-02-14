@@ -100,7 +100,7 @@ public class OrchestratorService {
             pendingPlans.put(sessionId, new PlanContext(userId, userQuery, plan));
             
             // Return the plan to the user
-            String planResponse = "**Plan of Action:**\n\n" + plan + "\n\nWould you like me to proceed with this plan? Please say 'yes', 'proceed', 'go ahead', or 'execute' to continue.";
+            String planResponse = plan + "\n\nWould you like me to proceed? Please say 'yes', 'proceed', 'go ahead', or 'execute' to continue.";
             webSocketService.sendFinalResponse(sessionId, planResponse);
             return planResponse;
         } catch (Exception e) {
@@ -122,7 +122,7 @@ public class OrchestratorService {
             // Build a planning query
             String planningQuery = buildPlanningQuery(userId, userQuery, sessionId);
             
-            // Use a simple LLM call to generate the plan
+            // Use LLM to generate the plan
             ToolCallAspect.setSessionId(sessionId);
             
             CompletableFuture<String> futurePlan = CompletableFuture.supplyAsync(() -> {
@@ -134,9 +134,13 @@ public class OrchestratorService {
                 }
             });
             
-            String plan = futurePlan.get(30, TimeUnit.SECONDS);
+            String plan = futurePlan.get(15, TimeUnit.SECONDS);
             ToolCallAspect.clearSessionId();
             return plan;
+        } catch (TimeoutException e) {
+            log.warn("Plan creation timeout, using default plan");
+            ToolCallAspect.clearSessionId();
+            return "I'll analyze your query and provide you with the information you need.";
         } catch (Exception e) {
             log.error("Error creating plan: {}", e.getMessage(), e);
             return "I'll analyze your query and use the necessary tools to provide you with accurate information.";
@@ -148,6 +152,8 @@ public class OrchestratorService {
      */
     private String executePlan(String userId, PlanContext planContext, String sessionId) {
         try {
+            log.info("🔧 Executing plan for sessionId={}, query={}", sessionId, planContext.originalQuery);
+            
             // Get or create AI agent for this session
             FinancialAdvisorAgent agent = getOrCreateAgent(sessionId);
             
@@ -156,24 +162,34 @@ public class OrchestratorService {
             
             // Execute the agent with timeout protection
             ToolCallAspect.setSessionId(sessionId);
-            log.info("🔧 Executing plan for sessionId={}", sessionId);
             
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
                 try {
-                    return agent.chat(sessionId, contextualQuery);
+                    log.info("🚀 Starting agent chat execution for sessionId={}", sessionId);
+                    String result = agent.chat(sessionId, contextualQuery);
+                    log.info("✅ Agent chat execution completed for sessionId={}, response length={}", sessionId, result != null ? result.length() : 0);
+                    return result;
                 } catch (Exception e) {
-                    log.error("Error in plan execution: {}", e.getMessage(), e);
+                    log.error("❌ Error in plan execution: {}", e.getMessage(), e);
                     throw new RuntimeException("Plan execution failed: " + e.getMessage(), e);
                 }
             });
 
             String response;
             try {
+                log.info("⏳ Waiting for response (timeout: {}s) for sessionId={}", orchestratorTimeoutSeconds, sessionId);
                 response = futureResponse.get(orchestratorTimeoutSeconds, TimeUnit.SECONDS);
+                log.info("✅ Got response for sessionId={}, length={}", sessionId, response != null ? response.length() : 0);
+                
+                if (response == null || response.trim().isEmpty()) {
+                    log.warn("⚠️ Empty response received for sessionId={}", sessionId);
+                    response = "I apologize, but I didn't receive a valid response. Please try again.";
+                }
+                
                 webSocketService.sendFinalResponse(sessionId, response);
                 return response;
             } catch (TimeoutException e) {
-                log.warn("Plan execution timeout after {} seconds for sessionId={}", 
+                log.warn("⏱️ Plan execution timeout after {} seconds for sessionId={}", 
                         orchestratorTimeoutSeconds, sessionId);
                 futureResponse.cancel(true);
                 String timeoutMsg = String.format(
@@ -185,9 +201,10 @@ public class OrchestratorService {
                 return timeoutMsg;
             } finally {
                 ToolCallAspect.clearSessionId();
+                log.info("🧹 Cleared session context for sessionId={}", sessionId);
             }
         } catch (Exception e) {
-            log.error("Error executing plan: {}", e.getMessage(), e);
+            log.error("❌ Error executing plan: {}", e.getMessage(), e);
             String errorMsg = "I apologize, but I encountered an error while executing the plan. Please try again.";
             webSocketService.sendError(sessionId, errorMsg);
             return errorMsg;
@@ -201,20 +218,13 @@ public class OrchestratorService {
         StringBuilder planningQuery = new StringBuilder();
         planningQuery.append("User Query: ").append(userQuery).append("\n\n");
         planningQuery.append("### TASK: CREATE A PLAN\n");
-        planningQuery.append("Based on the user's query above, create a detailed plan of action.\n");
-        planningQuery.append("Describe what tools you would use and what information you would gather.\n");
-        planningQuery.append("DO NOT execute any tools - just describe the plan.\n");
-        planningQuery.append("Format your response as a clear, numbered list of steps.\n\n");
-        
-        // Add context if available
-        try {
-            String profileInfo = userProfileAgent.getUserProfile(userId);
-            if (profileInfo.contains("\"exists\": true")) {
-                planningQuery.append("User Profile Context: ").append(profileInfo).append("\n\n");
-            }
-        } catch (Exception e) {
-            log.warn("Could not fetch user profile for planning: {}", e.getMessage());
-        }
+        planningQuery.append("Based on the user's query, create a brief plan of what you will do.\n");
+        planningQuery.append("- For simple queries (like stock prices), create a simple 1-2 sentence plan\n");
+        planningQuery.append("- For complex queries, create a concise plan with 2-3 steps\n");
+        planningQuery.append("- DO NOT execute any tools - just describe the plan\n");
+        planningQuery.append("- Keep it brief and conversational\n");
+        planningQuery.append("- Example for price query: \"I'll get the current stock price for [STOCK]. Would you like further analysis?\"\n");
+        planningQuery.append("- Example for complex query: \"I'll analyze [STOCK] by getting the current price, market news, and technical indicators.\"\n\n");
         
         return planningQuery.toString();
     }
@@ -236,14 +246,14 @@ public class OrchestratorService {
     /**
      * Context class to store plan information
      */
+    @SuppressWarnings("unused")
     private static class PlanContext {
-        final String userId;
+        final String userId; // Used in executePlan via buildContextualQuery
         final String originalQuery;
         
         PlanContext(String userId, String originalQuery, String plan) {
             this.userId = userId;
             this.originalQuery = originalQuery;
-            // Plan is stored for potential future use/debugging
         }
     }
 
@@ -376,12 +386,16 @@ public class OrchestratorService {
                        "- **MarketAnalysisAgent**: Provides real-time stock prices and market data\n" +
                        "- **WebSearchAgent**: Searches for financial news and analysis\n" +
                        "- **FintwitAnalysisAgent**: Analyzes social sentiment from financial Twitter\n\n" +
-                       "### WORKFLOW: PLAN → REASON → DELEGATE → ANALYZE → RESPOND\n" +
-                       "**STEP 1 - PLAN**: Think about what information you need to answer the user's question\n" +
-                       "**STEP 2 - REASON**: Consider which agents/tools can provide the required data\n" +
-                       "**STEP 3 - DELEGATE**: The system will automatically call the appropriate tools when you need data\n" +
-                       "**STEP 4 - ANALYZE**: Review tool results and reason about what they mean\n" +
-                       "**STEP 5 - RESPOND**: Synthesize all information into a clear, professional answer\n\n" +
+                       "### WORKFLOW: PLAN → EXECUTE → RESPOND\n" +
+                       "**STEP 1 - PLAN**: When asked to create a plan, create a brief, simple plan:\n" +
+                       "- For simple queries (e.g., \"what is the stock price for tesla\"): \"I'll get the current stock price for Tesla (TSLA). Would you like further analysis?\"\n" +
+                       "- For complex queries: Create a concise plan with 2-3 steps describing what you'll do\n" +
+                       "- Keep plans brief and conversational - 1-2 sentences for simple queries, 2-3 steps for complex ones\n" +
+                       "- DO NOT create overly detailed plans with 8+ steps - keep it simple\n" +
+                       "**STEP 2 - EXECUTE**: When the user confirms, execute the plan by using the appropriate tools\n" +
+                       "**STEP 3 - RESPOND**: Provide a clear, direct answer based on the tool results\n" +
+                       "- For simple price queries: \"The current price of [STOCK] is $[PRICE]. Would you like further analysis?\"\n" +
+                       "- For complex queries: Provide comprehensive analysis based on tool results\n\n" +
                        "### CRITICAL: DATA FRESHNESS RULES\n" +
                        "**ABSOLUTELY CRITICAL**: You MUST use tools to get the most up-to-date data. NEVER use prices or information from your training data.\n" +
                        "- Stock prices change constantly - ALWAYS use getStockPrice before mentioning any price\n" +
@@ -448,7 +462,7 @@ public class OrchestratorService {
                        "3. **SYMBOL EXTRACTION**: When user asks about \"apple\", \"Apple\", or \"AAPL\", extract the symbol as \"AAPL\" and call getStockPrice(\"AAPL\")\n" +
                        "4. **For portfolio analysis** - Always call getPortfolio(userId) to get complete portfolio details\n" +
                        "5. **For comprehensive analysis** - Combine market data, web search results, and social sentiment\n" +
-                       "6. **Answer simple questions directly** - For \"what is the price of ZETA\", just call getStockPrice and answer: \"The current price of ZETA is $X.XX\"\n" +
+                       "6. **Answer simple questions directly** - For \"what is the price of ZETA\" or \"what is the stock price for tesla\", just call getStockPrice and answer: \"The current price of ZETA is $X.XX\" or \"The current price of Tesla (TSLA) is $X.XX. Would you like further analysis?\"\n" +
                        "7. **For analysis requests** - Provide professional insights including technical patterns, stop-loss levels, entry/exit prices\n" +
                        "8. **Address users directly** - Use \"you\" and \"your\" (not \"the user\" or \"user's\")\n" +
                        "9. **CRITICAL**: Stock prices change constantly. Your training data is OUTDATED. You MUST call getStockPrice for EVERY price query, even if you think you know the price.\n" +
