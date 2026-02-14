@@ -36,6 +36,9 @@ public class OrchestratorService {
     
     // Cache for AI service instances per session
     private final Map<String, FinancialAdvisorAgent> agentCache = new HashMap<>();
+    
+    // Store plans per session waiting for user confirmation
+    private final Map<String, PlanContext> pendingPlans = new HashMap<>();
 
     public OrchestratorService(
             ChatLanguageModel chatLanguageModel,
@@ -59,7 +62,7 @@ public class OrchestratorService {
 
     /**
      * Main orchestration method - coordinates all agents to provide financial advice
-     * Implements timeout handling to prevent hanging requests
+     * Implements planning phase: first creates a plan, waits for user confirmation, then executes
      */
     public String coordinateAnalysis(String userId, String userQuery, String sessionId) {
         log.info("🎯 Orchestrator coordinating analysis for userId={}, query={}", userId, userQuery);
@@ -68,83 +71,179 @@ public class OrchestratorService {
             // Check if this is a casual greeting - if so, don't call tools
             if (isCasualGreeting(userQuery)) {
                 log.info("📝 Detected casual greeting, responding without tools");
-                webSocketService.sendReasoning(sessionId, "👋 Detected greeting - responding directly without using tools");
                 String greetingResponse = "Hello! I'm your AI financial advisor. I can help you with stock analysis, portfolio management, investment strategies, and market insights. What would you like to know?";
                 webSocketService.sendFinalResponse(sessionId, greetingResponse);
                 return greetingResponse;
             }
 
-            // STEP 1: ORCHESTRATOR PLANNING
-            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Planning: Analyzing user query to determine what information is needed...");
-            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Plan: I need to understand the user's request and determine which agents and tools to use.");
+            // Check if this is a confirmation to execute a pending plan
+            if (isConfirmation(userQuery)) {
+                PlanContext planContext = pendingPlans.remove(sessionId);
+                if (planContext != null) {
+                    log.info("✅ User confirmed plan execution for sessionId={}", sessionId);
+                    return executePlan(userId, planContext, sessionId);
+                } else {
+                    return "I don't have a pending plan to execute. Please ask me a question first, and I'll create a plan for you.";
+                }
+            }
+
+            // Check if there's a pending plan that wasn't confirmed
+            if (pendingPlans.containsKey(sessionId)) {
+                return "I have a pending plan waiting for your confirmation. Please say 'yes', 'proceed', 'go ahead', or 'execute' to continue, or ask a new question.";
+            }
+
+            // Create a plan first
+            log.info("📋 Creating plan for query: {}", userQuery);
+            String plan = createPlan(userId, userQuery, sessionId);
             
+            // Store the plan context for execution
+            pendingPlans.put(sessionId, new PlanContext(userId, userQuery, plan));
+            
+            // Return the plan to the user
+            String planResponse = "**Plan of Action:**\n\n" + plan + "\n\nWould you like me to proceed with this plan? Please say 'yes', 'proceed', 'go ahead', or 'execute' to continue.";
+            webSocketService.sendFinalResponse(sessionId, planResponse);
+            return planResponse;
+        } catch (Exception e) {
+            log.error("Error in orchestration: {}", e.getMessage(), e);
+            String errorMsg = "I apologize, but I encountered an error while processing your request. Please try again.";
+            webSocketService.sendError(sessionId, errorMsg);
+            return errorMsg;
+        }
+    }
+
+    /**
+     * Create a plan of action for the user's query
+     */
+    private String createPlan(String userId, String userQuery, String sessionId) {
+        try {
             // Get or create AI agent for this session
             FinancialAdvisorAgent agent = getOrCreateAgent(sessionId);
-
-            // STEP 2: BUILD CONTEXT (only if not a greeting)
-            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Executing: Gathering user context (profile and portfolio) to provide personalized advice...");
-            String contextualQuery = buildContextualQuery(userId, userQuery, sessionId);
-
-            // STEP 3: EXECUTE WITH EXPLICIT REASONING
-            webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR] Delegating: Coordinating specialized agents to gather required information...");
-            webSocketService.sendReasoning(sessionId, "🤔 [ORCHESTRATOR] Reasoning: The agents will now make their own plans, use tools, and reason about the results.");
-
-            // Execute the agent with timeout protection
-            // Use CompletableFuture to enforce timeout limit
-            // IMPORTANT: Set sessionId BEFORE creating the CompletableFuture so it's inherited
+            
+            // Build a planning query
+            String planningQuery = buildPlanningQuery(userId, userQuery, sessionId);
+            
+            // Use a simple LLM call to generate the plan
             ToolCallAspect.setSessionId(sessionId);
-            log.info("🔧 Set sessionId={} in ThreadLocal for tool tracking", sessionId);
+            
+            CompletableFuture<String> futurePlan = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return agent.chat(sessionId, planningQuery);
+                } catch (Exception e) {
+                    log.error("Error creating plan: {}", e.getMessage(), e);
+                    throw new RuntimeException("Plan creation failed: " + e.getMessage(), e);
+                }
+            });
+            
+            String plan = futurePlan.get(30, TimeUnit.SECONDS);
+            ToolCallAspect.clearSessionId();
+            return plan;
+        } catch (Exception e) {
+            log.error("Error creating plan: {}", e.getMessage(), e);
+            return "I'll analyze your query and use the necessary tools to provide you with accurate information.";
+        }
+    }
+
+    /**
+     * Execute a confirmed plan
+     */
+    private String executePlan(String userId, PlanContext planContext, String sessionId) {
+        try {
+            // Get or create AI agent for this session
+            FinancialAdvisorAgent agent = getOrCreateAgent(sessionId);
+            
+            // Build contextual query for execution
+            String contextualQuery = buildContextualQuery(userId, planContext.originalQuery, sessionId);
+            
+            // Execute the agent with timeout protection
+            ToolCallAspect.setSessionId(sessionId);
+            log.info("🔧 Executing plan for sessionId={}", sessionId);
             
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
-                // SessionId is inherited via InheritableThreadLocal
-                String currentSessionId = ToolCallAspect.getSessionId();
-                log.info("🔧 Thread {} has sessionId={} for tool tracking", Thread.currentThread().getName(), currentSessionId);
-                
                 try {
-                    // The agent will now reason, plan, and use tools
-                    // All tool calls and reasoning will be captured by AOP and sent via WebSocket
                     return agent.chat(sessionId, contextualQuery);
                 } catch (Exception e) {
-                    log.error("Error in agent chat execution: {}", e.getMessage(), e);
-                    webSocketService.sendReasoning(sessionId, "❌ [ORCHESTRATOR] Error: " + e.getMessage());
-                    throw new RuntimeException("Agent execution failed: " + e.getMessage(), e);
+                    log.error("Error in plan execution: {}", e.getMessage(), e);
+                    throw new RuntimeException("Plan execution failed: " + e.getMessage(), e);
                 }
             });
 
             String response;
             try {
-                // Wait for response with timeout
                 response = futureResponse.get(orchestratorTimeoutSeconds, TimeUnit.SECONDS);
-                
-                // Send final response
                 webSocketService.sendFinalResponse(sessionId, response);
                 return response;
             } catch (TimeoutException e) {
-                log.warn("Orchestrator timeout after {} seconds for sessionId={}, userId={}", 
-                        orchestratorTimeoutSeconds, sessionId, userId);
-                
-                // Cancel the future to stop the agent execution
+                log.warn("Plan execution timeout after {} seconds for sessionId={}", 
+                        orchestratorTimeoutSeconds, sessionId);
                 futureResponse.cancel(true);
-                
                 String timeoutMsg = String.format(
                     "I apologize, but the analysis took longer than expected (exceeded %d seconds). " +
-                    "This may be due to slow external API responses or high system load. " +
-                    "Please try again with a simpler query, or try again later.",
+                    "Please try again with a simpler query.",
                     orchestratorTimeoutSeconds
                 );
                 webSocketService.sendError(sessionId, timeoutMsg);
                 return timeoutMsg;
             } finally {
-                // Always clear session ID after execution
                 ToolCallAspect.clearSessionId();
-                log.info("🔧 Cleared sessionId from ThreadLocal");
             }
         } catch (Exception e) {
-            log.error("Error in orchestration: {}", e.getMessage(), e);
-            String errorMsg = "I apologize, but I encountered an error while processing your request. Please try again.";
+            log.error("Error executing plan: {}", e.getMessage(), e);
+            String errorMsg = "I apologize, but I encountered an error while executing the plan. Please try again.";
             webSocketService.sendError(sessionId, errorMsg);
-            ToolCallAspect.clearSessionId(); // Clear on error too
             return errorMsg;
+        }
+    }
+
+    /**
+     * Build a query specifically for planning (without executing tools)
+     */
+    private String buildPlanningQuery(String userId, String userQuery, String sessionId) {
+        StringBuilder planningQuery = new StringBuilder();
+        planningQuery.append("User Query: ").append(userQuery).append("\n\n");
+        planningQuery.append("### TASK: CREATE A PLAN\n");
+        planningQuery.append("Based on the user's query above, create a detailed plan of action.\n");
+        planningQuery.append("Describe what tools you would use and what information you would gather.\n");
+        planningQuery.append("DO NOT execute any tools - just describe the plan.\n");
+        planningQuery.append("Format your response as a clear, numbered list of steps.\n\n");
+        
+        // Add context if available
+        try {
+            String profileInfo = userProfileAgent.getUserProfile(userId);
+            if (profileInfo.contains("\"exists\": true")) {
+                planningQuery.append("User Profile Context: ").append(profileInfo).append("\n\n");
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch user profile for planning: {}", e.getMessage());
+        }
+        
+        return planningQuery.toString();
+    }
+
+    /**
+     * Check if the query is a confirmation to proceed
+     */
+    private boolean isConfirmation(String query) {
+        String lowerQuery = query.toLowerCase().trim();
+        String[] confirmations = {"yes", "y", "proceed", "go ahead", "execute", "ok", "okay", "sure", "do it", "let's go", "continue"};
+        for (String confirmation : confirmations) {
+            if (lowerQuery.equals(confirmation) || lowerQuery.startsWith(confirmation + " ")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Context class to store plan information
+     */
+    private static class PlanContext {
+        final String userId;
+        final String originalQuery;
+        
+        PlanContext(String userId, String originalQuery, String plan) {
+            this.userId = userId;
+            this.originalQuery = originalQuery;
+            // Plan is stored for potential future use/debugging
         }
     }
 
@@ -196,40 +295,28 @@ public class OrchestratorService {
     private String buildContextualQuery(String userId, String userQuery, String sessionId) {
         StringBuilder contextualQuery = new StringBuilder();
         
-        // ORCHESTRATOR: Planning to gather user context
-        webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR → UserProfileAgent] Requesting user profile for context...");
-        
         // Try to get user profile for context
         try {
             String profileInfo = userProfileAgent.getUserProfile(userId);
             if (profileInfo.contains("\"exists\": true")) {
                 contextualQuery.append("User Profile Context: ").append(profileInfo).append("\n\n");
-                webSocketService.sendReasoning(sessionId, "✅ [ORCHESTRATOR] Received user profile context");
             } else {
                 contextualQuery.append("Note: User profile not found. You may need to ask the user to create a profile first.\n\n");
-                webSocketService.sendReasoning(sessionId, "⚠️ [ORCHESTRATOR] User profile not found");
             }
         } catch (Exception e) {
             log.warn("Could not fetch user profile for context: {}", e.getMessage());
-            webSocketService.sendReasoning(sessionId, "❌ [ORCHESTRATOR] Failed to get user profile: " + e.getMessage());
         }
 
-        // ORCHESTRATOR: Planning to gather portfolio context
-        webSocketService.sendReasoning(sessionId, "🎯 [ORCHESTRATOR → UserProfileAgent] Requesting portfolio summary for context...");
-        
         // Try to get user portfolio for context
         try {
             String portfolioInfo = userProfileAgent.getPortfolioSummary(userId);
             if (portfolioInfo.contains("\"exists\": true")) {
                 contextualQuery.append("User Portfolio Context: ").append(portfolioInfo).append("\n\n");
-                webSocketService.sendReasoning(sessionId, "✅ [ORCHESTRATOR] Received portfolio context");
             } else {
                 contextualQuery.append("Note: User portfolio is empty or not found. User may not have any holdings yet.\n\n");
-                webSocketService.sendReasoning(sessionId, "⚠️ [ORCHESTRATOR] Portfolio is empty or not found");
             }
         } catch (Exception e) {
             log.warn("Could not fetch user portfolio for context: {}", e.getMessage());
-            webSocketService.sendReasoning(sessionId, "❌ [ORCHESTRATOR] Failed to get portfolio: " + e.getMessage());
         }
 
         contextualQuery.append("User Query: ").append(userQuery);
@@ -430,7 +517,8 @@ public class OrchestratorService {
      */
     public void clearSession(String sessionId) {
         agentCache.remove(sessionId);
-        log.info("Cleared agent cache for session: {}", sessionId);
+        pendingPlans.remove(sessionId);
+        log.info("Cleared agent cache and pending plans for session: {}", sessionId);
     }
 }
 

@@ -50,14 +50,8 @@ public class UserProfileAgent {
     public String getUserProfile(String userId) {
         log.info("🔵 getUserProfile CALLED with userId={}", userId);
         
-        // Send tool call notification
+        // Tool call tracking (for logging only)
         String sessionId = ToolCallAspect.getSessionId();
-        if (sessionId != null) {
-            java.util.Map<String, Object> params = new java.util.HashMap<>();
-            params.put("userId", userId.length() > 30 ? userId.substring(0, 27) + "..." : userId);
-            webSocketService.sendToolCall(sessionId, "Get User Profile", params);
-            webSocketService.sendReasoning(sessionId, "🔧 Retrieving user profile...");
-        }
         
         long startTime = System.currentTimeMillis();
         try {
@@ -90,21 +84,19 @@ public class UserProfileAgent {
                 profile.getEthicalInvesting()
             );
             
-            // Send tool result notification
+            // Tool execution completed (logged only)
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                webSocketService.sendToolResult(sessionId, "Get User Profile", 
-                    "Profile retrieved: " + profile.getRiskTolerance() + " risk, " + goals.size() + " goals", duration);
-                webSocketService.sendReasoning(sessionId, "✅ User profile retrieved");
+                log.debug("✅ getUserProfile completed in {}ms", duration);
             }
             
             return result;
         } catch (Exception e) {
             log.error("Error getting user profile: {}", e.getMessage(), e);
             
-            // Send error notification
+            // Error logged
             if (sessionId != null) {
-                webSocketService.sendReasoning(sessionId, "❌ Failed to get user profile: " + e.getMessage());
+                log.debug("❌ getUserProfile failed: {}", e.getMessage());
             }
             
             return String.format("{\"error\": \"Error getting user profile: %s\"}", e.getMessage());
@@ -170,14 +162,8 @@ public class UserProfileAgent {
     public String getPortfolio(String userId) {
         log.info("🔵 getPortfolio CALLED with userId={}", userId);
         
-        // Send tool call notification
+        // Tool call tracking (for logging only)
         String sessionId = ToolCallAspect.getSessionId();
-        if (sessionId != null) {
-            java.util.Map<String, Object> params = new java.util.HashMap<>();
-            params.put("userId", userId.length() > 30 ? userId.substring(0, 27) + "..." : userId);
-            webSocketService.sendToolCall(sessionId, "Get Portfolio", params);
-            webSocketService.sendReasoning(sessionId, "🔧 Retrieving portfolio holdings...");
-        }
         
         long startTime = System.currentTimeMillis();
         try {
@@ -249,23 +235,19 @@ public class UserProfileAgent {
                 portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0
             );
             
-            // Send tool result notification
+            // Tool execution completed (logged only)
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                int holdingsCount = holdings.size();
-                String totalValueStr = portfolio.getTotalValue() != null ? portfolio.getTotalValue().toString() : "0";
-                webSocketService.sendToolResult(sessionId, "Get Portfolio", 
-                    holdingsCount + " holdings, Total: $" + totalValueStr, duration);
-                webSocketService.sendReasoning(sessionId, "✅ Portfolio retrieved: " + holdingsCount + " holdings, Total Value: $" + totalValueStr);
+                log.debug("✅ getPortfolio completed in {}ms", duration);
             }
             
             return result;
         } catch (Exception e) {
             log.error("Error getting portfolio: {}", e.getMessage(), e);
             
-            // Send error notification
+            // Error logged
             if (sessionId != null) {
-                webSocketService.sendReasoning(sessionId, "❌ Failed to get portfolio: " + e.getMessage());
+                log.debug("❌ getPortfolio failed: {}", e.getMessage());
             }
             
             return String.format("{\"error\": \"Error getting portfolio: %s\"}", e.getMessage());

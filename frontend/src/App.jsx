@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Briefcase, User, AlertTriangle, LineChart, LogOut } from 'lucide-react';
+import { MessageSquare, Briefcase, User, AlertTriangle, LineChart, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import ChatComponent from './components/ChatComponent';
@@ -13,6 +13,23 @@ function App() {
   const [activeTab, setActiveTab] = useState('chat');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode');
+    return stored ? stored === 'true' : false;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('darkMode', darkMode.toString());
+  }, [darkMode]);
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
 
   // Check if user needs onboarding
   useEffect(() => {
@@ -93,6 +110,14 @@ function App() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={toggleDarkMode}
+                className="btn-ghost flex items-center gap-2 text-sm"
+                title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                <span className="hidden md:inline">{darkMode ? "Light" : "Dark"}</span>
+              </button>
               {user?.pictureUrl && (
                 <img 
                   src={user.pictureUrl} 
@@ -118,20 +143,6 @@ function App() {
           </div>
         </div>
       </header>
-
-      {/* Professional Disclaimer Banner */}
-      <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 dark:from-amber-900/20 dark:via-yellow-900/20 dark:to-amber-900/20 border-b border-amber-200/50 dark:border-amber-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
-              <strong className="font-semibold">Disclaimer:</strong> This is a demonstration system for educational purposes only. 
-              Not a licensed financial advisor. Consult a professional for actual investment decisions. 
-              Past performance does not guarantee future results. Investments carry risk of loss.
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Modern Navigation Tabs */}
       <nav className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50">
@@ -184,13 +195,28 @@ function App() {
       {/* Professional Footer */}
       <footer className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-700/50 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-              Financial Advisor AI - Powered by <span className="text-primary-600 dark:text-primary-400 font-semibold">Groq</span> & LangChain4j
-            </p>
-            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
-              <div className="w-2 h-2 bg-success-500 rounded-full"></div>
-              <span>System Operational</span>
+          <div className="flex flex-col gap-6">
+            {/* Disclaimer */}
+            <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 dark:from-amber-900/20 dark:via-yellow-900/20 dark:to-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
+                  <strong className="font-semibold">Disclaimer:</strong> This is a demonstration system for educational purposes only. 
+                  Not a licensed financial advisor. Consult a professional for actual investment decisions. 
+                  Past performance does not guarantee future results. Investments carry risk of loss.
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer Content */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                Financial Advisor AI - Powered by <span className="text-primary-600 dark:text-primary-400 font-semibold">Groq</span> & LangChain4j
+              </p>
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+                <div className="w-2 h-2 bg-success-500 rounded-full"></div>
+                <span>System Operational</span>
+              </div>
             </div>
           </div>
         </div>

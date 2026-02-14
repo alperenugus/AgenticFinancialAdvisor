@@ -41,14 +41,8 @@ public class MarketAnalysisAgent {
     public String getStockPrice(String symbol) {
         log.info("🔵 getStockPrice CALLED with symbol={} - FETCHING FRESH DATA FROM API", symbol);
         
-        // Send tool call notification via WebSocket
+        // Tool call tracking (for logging only)
         String sessionId = ToolCallAspect.getSessionId();
-        if (sessionId != null) {
-            java.util.Map<String, Object> params = new java.util.HashMap<>();
-            params.put("symbol", symbol);
-            webSocketService.sendToolCall(sessionId, "Get Stock Price", params);
-            webSocketService.sendReasoning(sessionId, "🔧 Fetching current price for " + symbol + " from API...");
-        }
         
         long startTime = System.currentTimeMillis();
         try {
@@ -64,21 +58,19 @@ public class MarketAnalysisAgent {
                 symbol, price, timestamp
             );
             
-            // Send tool result notification
+            // Tool execution completed (logged only)
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                webSocketService.sendToolResult(sessionId, "Get Stock Price", 
-                    String.format("%s: $%s", symbol, price), duration);
-                webSocketService.sendReasoning(sessionId, "✅ Got current price for " + symbol + ": $" + price);
+                log.debug("✅ getStockPrice completed in {}ms for {}", duration, symbol);
             }
             
             return result;
         } catch (Exception e) {
             log.error("Error getting stock price for {}: {}", symbol, e.getMessage(), e);
             
-            // Send error notification
+            // Error logged
             if (sessionId != null) {
-                webSocketService.sendReasoning(sessionId, "❌ Failed to get price for " + symbol + ": " + e.getMessage());
+                log.debug("❌ getStockPrice failed for {}: {}", symbol, e.getMessage());
             }
             
             return String.format("{\"symbol\": \"%s\", \"error\": \"Error fetching stock price: %s\"}", symbol, e.getMessage());

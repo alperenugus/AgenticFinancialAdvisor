@@ -72,13 +72,8 @@ public class WebSearchAgent {
     public String searchFinancialNews(String query) {
         log.info("🔵 searchFinancialNews CALLED with query={}", query);
         
+        // Tool call tracking (for logging only)
         String sessionId = ToolCallAspect.getSessionId();
-        if (sessionId != null) {
-            java.util.Map<String, Object> params = new java.util.HashMap<>();
-            params.put("query", query);
-            webSocketService.sendToolCall(sessionId, "Search Financial News", params);
-            webSocketService.sendReasoning(sessionId, "🔍 Searching web for financial news: " + query);
-        }
         
         long startTime = System.currentTimeMillis();
         try {
@@ -88,16 +83,14 @@ public class WebSearchAgent {
             
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                webSocketService.sendToolResult(sessionId, "Search Financial News", 
-                    "Found search results", duration);
-                webSocketService.sendReasoning(sessionId, "✅ Retrieved financial news search results");
+                log.debug("✅ searchFinancialNews completed in {}ms", duration);
             }
             
             return result;
         } catch (Exception e) {
             log.error("Error searching financial news: {}", e.getMessage(), e);
             if (sessionId != null) {
-                webSocketService.sendReasoning(sessionId, "❌ Failed to search financial news: " + e.getMessage());
+                log.debug("❌ searchFinancialNews failed: {}", e.getMessage());
             }
             return String.format("{\"error\": \"Error searching financial news: %s\"}", e.getMessage());
         }

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { advisorAPI } from '../services/api';
 import websocketService from '../services/websocket';
-import AgentThinkingPanel from './AgentThinkingPanel';
 
 const ChatComponent = () => {
   // Get or create sessionId from localStorage
@@ -59,7 +58,6 @@ const ChatComponent = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  const [thinkingMessages, setThinkingMessages] = useState([]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,16 +75,11 @@ const ChatComponent = () => {
   useEffect(() => {
     // Connect WebSocket
     websocketService.connect(sessionId, {
-      onThinking: (data) => {
-        setThinkingMessages((prev) => [...prev, data.content]);
-      },
       onResponse: (data) => {
-        setThinkingMessages([]);
         addMessage('assistant', data.content);
         setIsLoading(false);
       },
       onError: (data) => {
-        setThinkingMessages([]);
         addMessage('error', data.content);
         setIsLoading(false);
       },
@@ -99,7 +92,7 @@ const ChatComponent = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, thinkingMessages]);
+  }, [messages]);
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) {
@@ -112,7 +105,6 @@ const ChatComponent = () => {
     setInput('');
     addMessage('user', userMessage);
     setIsLoading(true);
-    setThinkingMessages([]);
 
     try {
       const response = await advisorAPI.analyze(userMessage, sessionId);
@@ -137,7 +129,7 @@ const ChatComponent = () => {
 
   return (
     <div className="flex h-full bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800">
-      {/* Chat Area - Left Side */}
+      {/* Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
       {/* Chat Header */}
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
@@ -200,34 +192,8 @@ const ChatComponent = () => {
           </div>
         ))}
 
-        {/* Thinking messages with professional styling */}
-        {thinkingMessages.length > 0 && (
-          <div className="flex items-start gap-4 justify-start">
-            <div className="flex-shrink-0 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl blur opacity-30 animate-pulse"></div>
-              <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg">
-                <Loader2 className="w-5 h-5 text-white animate-spin" />
-              </div>
-            </div>
-            <div className="max-w-[75%] rounded-2xl px-5 py-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-800 shadow-soft">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-primary-600 dark:text-primary-400 animate-pulse" />
-                <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">Analyzing...</p>
-              </div>
-              <ul className="text-xs space-y-1.5 text-primary-600 dark:text-primary-400">
-                {thinkingMessages.map((msg, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="text-primary-500 mt-1">•</span>
-                    <span>{msg}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
         {/* Loading indicator */}
-        {isLoading && thinkingMessages.length === 0 && (
+        {isLoading && (
           <div className="flex items-start gap-4 justify-start">
             <div className="flex-shrink-0 relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl blur opacity-30 animate-pulse"></div>
@@ -282,11 +248,6 @@ const ChatComponent = () => {
           Press Enter to send • AI responses may take a few moments
         </p>
       </form>
-      </div>
-
-      {/* Agent Thinking Panel - Right Side */}
-      <div className="w-80 flex-shrink-0 border-l border-gray-200 dark:border-gray-700">
-        <AgentThinkingPanel sessionId={sessionId} />
       </div>
     </div>
   );
