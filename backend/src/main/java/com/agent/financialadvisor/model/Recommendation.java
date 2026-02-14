@@ -49,6 +49,24 @@ public class Recommendation {
     @Column(name = "research_summary", columnDefinition = "TEXT")
     private String researchSummary;
 
+    @Column(name = "stop_loss_price", precision = 19, scale = 2)
+    private BigDecimal stopLossPrice;
+
+    @Column(name = "technical_patterns", columnDefinition = "TEXT")
+    private String technicalPatterns; // e.g., "Head and shoulders pattern on monthly chart"
+
+    @Column(name = "averaging_down_advice", columnDefinition = "TEXT")
+    private String averagingDownAdvice; // e.g., "Consider averaging down if price drops to $X"
+
+    @Column(name = "professional_analysis", columnDefinition = "TEXT")
+    private String professionalAnalysis; // Detailed professional financial analyst analysis
+
+    @Column(name = "entry_price", precision = 19, scale = 2)
+    private BigDecimal entryPrice; // Suggested entry price
+
+    @Column(name = "exit_price", precision = 19, scale = 2)
+    private BigDecimal exitPrice; // Suggested exit price for profit taking
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -82,6 +100,18 @@ public class Recommendation {
     public void setRiskAssessment(String riskAssessment) { this.riskAssessment = riskAssessment; }
     public String getResearchSummary() { return researchSummary; }
     public void setResearchSummary(String researchSummary) { this.researchSummary = researchSummary; }
+    public BigDecimal getStopLossPrice() { return stopLossPrice; }
+    public void setStopLossPrice(BigDecimal stopLossPrice) { this.stopLossPrice = stopLossPrice; }
+    public String getTechnicalPatterns() { return technicalPatterns; }
+    public void setTechnicalPatterns(String technicalPatterns) { this.technicalPatterns = technicalPatterns; }
+    public String getAveragingDownAdvice() { return averagingDownAdvice; }
+    public void setAveragingDownAdvice(String averagingDownAdvice) { this.averagingDownAdvice = averagingDownAdvice; }
+    public String getProfessionalAnalysis() { return professionalAnalysis; }
+    public void setProfessionalAnalysis(String professionalAnalysis) { this.professionalAnalysis = professionalAnalysis; }
+    public BigDecimal getEntryPrice() { return entryPrice; }
+    public void setEntryPrice(BigDecimal entryPrice) { this.entryPrice = entryPrice; }
+    public BigDecimal getExitPrice() { return exitPrice; }
+    public void setExitPrice(BigDecimal exitPrice) { this.exitPrice = exitPrice; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 

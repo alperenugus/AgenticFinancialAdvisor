@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -120,17 +121,28 @@ public class PortfolioRecommendationService {
                 }
 
                 try {
-                    // Use orchestrator to analyze and recommend
+                    // Use orchestrator to analyze and recommend with professional financial analyst approach
                     String query = String.format(
-                        "Analyze %s for portfolio recommendation. User has risk tolerance: %s, " +
-                        "investment horizon: %s, goals: %s. Current portfolio contains: %s. " +
-                        "Should this stock be added to the portfolio? Provide a BUY/SELL/HOLD recommendation " +
-                        "with detailed reasoning based on portfolio diversification, risk alignment, and market analysis.",
+                        "As a professional financial analyst, provide a comprehensive portfolio recommendation for %s. " +
+                        "User profile: risk tolerance=%s, investment horizon=%s, goals=%s. " +
+                        "Current portfolio holdings: %s. " +
+                        "Provide a professional financial analyst-level recommendation including: " +
+                        "1. Technical analysis patterns (head and shoulders, support/resistance, chart patterns) - use getStockPriceData and analyzeTrends tools " +
+                        "2. Stop loss level (specific price, e.g., 'For this stock, you can have a stop loss at $X') " +
+                        "3. Averaging down advice if applicable (e.g., 'For this stock, you can average down a bit if price reaches $X') " +
+                        "4. Entry price suggestion " +
+                        "5. Target price with reasoning " +
+                        "6. Exit price for profit taking " +
+                        "7. Portfolio diversification analysis considering current holdings " +
+                        "8. Risk assessment aligned with user's risk tolerance " +
+                        "Format like: 'For %s, I identify [PATTERN] on [TIMEFRAME]... For this stock, you can have a stop loss at $X...' " +
+                        "Be specific with price levels, percentages, and technical analysis.",
                         symbol,
                         profile.getRiskTolerance(),
                         profile.getHorizon(),
                         profile.getGoals() != null ? profile.getGoals().toString() : "[]",
-                        ownedSymbols.isEmpty() ? "no holdings" : String.join(", ", ownedSymbols)
+                        ownedSymbols.isEmpty() ? "no holdings" : String.join(", ", ownedSymbols),
+                        symbol
                     );
 
                     // Use orchestrator to generate recommendation
@@ -176,8 +188,7 @@ public class PortfolioRecommendationService {
     }
 
     /**
-     * Save recommendation from orchestrator response
-     * This is a simplified version - in production, you might want to parse the response more carefully
+     * Save recommendation from orchestrator response with professional financial analyst details
      */
     private void saveRecommendationFromOrchestrator(String userId, String symbol, String recommendationText, UserProfile profile) {
         try {
@@ -185,23 +196,66 @@ public class PortfolioRecommendationService {
             recommendation.setUserId(userId);
             recommendation.setSymbol(symbol);
             
-            // Parse action from text (simplified - could be improved with better parsing)
-            if (recommendationText.toUpperCase().contains("BUY")) {
+            // Parse action from text
+            String upperText = recommendationText.toUpperCase();
+            if (upperText.contains("BUY") || upperText.contains("PURCHASE") || upperText.contains("ACQUIRE")) {
                 recommendation.setAction(Recommendation.RecommendationAction.BUY);
-            } else if (recommendationText.toUpperCase().contains("SELL")) {
+            } else if (upperText.contains("SELL") || upperText.contains("EXIT") || upperText.contains("LIQUIDATE")) {
                 recommendation.setAction(Recommendation.RecommendationAction.SELL);
             } else {
                 recommendation.setAction(Recommendation.RecommendationAction.HOLD);
             }
             
+            // Extract stop loss price
+            BigDecimal stopLoss = extractPrice(recommendationText, "stop loss", "stop-loss", "stoploss");
+            if (stopLoss != null) {
+                recommendation.setStopLossPrice(stopLoss);
+            }
+            
+            // Extract entry price
+            BigDecimal entryPrice = extractPrice(recommendationText, "entry", "enter at", "entry price", "buy at");
+            if (entryPrice != null) {
+                recommendation.setEntryPrice(entryPrice);
+            }
+            
+            // Extract exit price
+            BigDecimal exitPrice = extractPrice(recommendationText, "exit", "exit at", "exit price", "take profit", "profit target");
+            if (exitPrice != null) {
+                recommendation.setExitPrice(exitPrice);
+            }
+            
+            // Extract target price (if not already set as exit price)
+            BigDecimal targetPrice = extractPrice(recommendationText, "target", "target price", "price target");
+            if (targetPrice != null && recommendation.getExitPrice() == null) {
+                recommendation.setExitPrice(targetPrice);
+            }
+            if (targetPrice != null) {
+                recommendation.setTargetPrice(targetPrice);
+            }
+            
+            // Extract technical patterns
+            String technicalPatterns = extractTechnicalPatterns(recommendationText);
+            if (technicalPatterns != null && !technicalPatterns.isEmpty()) {
+                recommendation.setTechnicalPatterns(technicalPatterns);
+            }
+            
+            // Extract averaging down advice
+            String averagingDown = extractAveragingDownAdvice(recommendationText);
+            if (averagingDown != null && !averagingDown.isEmpty()) {
+                recommendation.setAveragingDownAdvice(averagingDown);
+            }
+            
+            // Store full professional analysis
+            recommendation.setProfessionalAnalysis(recommendationText);
+            recommendation.setReasoning(recommendationText); // Also store in reasoning for backward compatibility
+            
             // Set defaults based on profile
-            recommendation.setConfidence(0.7);
+            recommendation.setConfidence(0.75); // Higher confidence for professional analysis
             recommendation.setRiskLevel(profile.getRiskTolerance() == UserProfile.RiskTolerance.CONSERVATIVE 
                 ? Recommendation.RiskLevel.LOW 
                 : profile.getRiskTolerance() == UserProfile.RiskTolerance.AGGRESSIVE 
                     ? Recommendation.RiskLevel.HIGH 
                     : Recommendation.RiskLevel.MEDIUM);
-            recommendation.setReasoning(recommendationText);
             recommendation.setTimeHorizon(profile.getHorizon() == UserProfile.InvestmentHorizon.SHORT
                 ? Recommendation.InvestmentHorizon.SHORT
                 : profile.getHorizon() == UserProfile.InvestmentHorizon.LONG
@@ -209,9 +263,93 @@ public class PortfolioRecommendationService {
                     : Recommendation.InvestmentHorizon.MEDIUM);
             
             recommendationRepository.save(recommendation);
+            log.info("Saved professional recommendation for {} with stop loss: {}, entry: {}, exit: {}", 
+                symbol, stopLoss, entryPrice, exitPrice);
         } catch (Exception e) {
             log.error("Error saving recommendation for {}: {}", symbol, e.getMessage());
         }
+    }
+
+    /**
+     * Extract price from text using various patterns
+     */
+    private BigDecimal extractPrice(String text, String... keywords) {
+        try {
+            // Pattern to match prices: $123.45, $123, 123.45, etc.
+            java.util.regex.Pattern pricePattern = java.util.regex.Pattern.compile(
+                "\\$?([0-9]{1,3}(?:,?[0-9]{3})*(?:\\.[0-9]{1,2})?)"
+            );
+            
+            String lowerText = text.toLowerCase();
+            for (String keyword : keywords) {
+                int keywordIndex = lowerText.indexOf(keyword.toLowerCase());
+                if (keywordIndex >= 0) {
+                    // Look for price within 100 characters after keyword
+                    String searchArea = text.substring(keywordIndex, Math.min(keywordIndex + 100, text.length()));
+                    java.util.regex.Matcher matcher = pricePattern.matcher(searchArea);
+                    if (matcher.find()) {
+                        String priceStr = matcher.group(1).replace(",", "");
+                        return new BigDecimal(priceStr);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Error extracting price: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Extract technical patterns from text
+     */
+    private String extractTechnicalPatterns(String text) {
+        StringBuilder patterns = new StringBuilder();
+        String lowerText = text.toLowerCase();
+        
+        // Common technical patterns
+        String[] patternKeywords = {
+            "head and shoulders", "double top", "double bottom", "triple top", "triple bottom",
+            "ascending triangle", "descending triangle", "symmetrical triangle",
+            "cup and handle", "flag", "pennant", "wedge",
+            "support", "resistance", "breakout", "breakdown",
+            "moving average", "rsi", "macd", "bollinger bands",
+            "fibonacci", "elliot wave", "candlestick pattern"
+        };
+        
+        for (String pattern : patternKeywords) {
+            if (lowerText.contains(pattern)) {
+                if (patterns.length() > 0) {
+                    patterns.append(", ");
+                }
+                // Extract sentence containing the pattern
+                int index = lowerText.indexOf(pattern);
+                int start = Math.max(0, index - 50);
+                int end = Math.min(text.length(), index + pattern.length() + 100);
+                String context = text.substring(start, end).trim();
+                patterns.append(context);
+            }
+        }
+        
+        return patterns.length() > 0 ? patterns.toString() : null;
+    }
+
+    /**
+     * Extract averaging down advice from text
+     */
+    private String extractAveragingDownAdvice(String text) {
+        String lowerText = text.toLowerCase();
+        if (lowerText.contains("average down") || lowerText.contains("averaging down") || 
+            lowerText.contains("dollar cost average") || lowerText.contains("add to position")) {
+            // Extract the sentence or paragraph containing averaging down advice
+            int index = lowerText.indexOf("average");
+            if (index < 0) index = lowerText.indexOf("add to position");
+            if (index >= 0) {
+                int start = Math.max(0, index - 30);
+                int end = Math.min(text.length(), index + 200);
+                return text.substring(start, end).trim();
+            }
+        }
+        return null;
     }
 }
 

@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, AlertCircle, Calendar, Target, Sparkles, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, AlertCircle, Calendar, Target, Sparkles, BarChart3, Shield, TrendingDown as TrendingDownIcon, ArrowDown, ArrowUp } from 'lucide-react';
 
 const RecommendationCard = ({ recommendation }) => {
   if (!recommendation) return null;
@@ -117,15 +117,88 @@ const RecommendationCard = ({ recommendation }) => {
             <div className="font-bold text-2xl text-primary-700 dark:text-primary-300">${targetPrice.toFixed(2)}</div>
           </div>
         )}
+
+        {recommendation.stopLossPrice && (
+          <div className="col-span-2 p-4 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl border border-red-200 dark:border-red-800">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-4 h-4 text-red-600 dark:text-red-400" />
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">Stop Loss</span>
+            </div>
+            <div className="font-bold text-2xl text-red-700 dark:text-red-300">${parseFloat(recommendation.stopLossPrice).toFixed(2)}</div>
+          </div>
+        )}
+
+        {recommendation.entryPrice && (
+          <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2 mb-2">
+              <ArrowDown className="w-4 h-4 text-green-600 dark:text-green-400" />
+              <span className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide">Entry Price</span>
+            </div>
+            <div className="font-bold text-lg text-green-700 dark:text-green-300">${parseFloat(recommendation.entryPrice).toFixed(2)}</div>
+          </div>
+        )}
+
+        {recommendation.exitPrice && (
+          <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2 mb-2">
+              <ArrowUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Exit Price</span>
+            </div>
+            <div className="font-bold text-lg text-blue-700 dark:text-blue-300">${parseFloat(recommendation.exitPrice).toFixed(2)}</div>
+          </div>
+        )}
       </div>
 
+      {/* Professional Analyst Insights */}
+      {(recommendation.technicalPatterns || recommendation.averagingDownAdvice || recommendation.stopLossPrice) && (
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6 space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            <h4 className="font-bold text-gray-900 dark:text-white">Professional Analyst Insights</h4>
+          </div>
+
+          {recommendation.technicalPatterns && (
+            <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
+              <div className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mb-2">
+                Technical Analysis Patterns
+              </div>
+              <p className="text-sm text-indigo-600 dark:text-indigo-400 leading-relaxed whitespace-pre-wrap">
+                {recommendation.technicalPatterns}
+              </p>
+            </div>
+          )}
+
+          {recommendation.averagingDownAdvice && (
+            <div className="p-4 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-xl border border-teal-200 dark:border-teal-800">
+              <div className="text-sm font-bold text-teal-700 dark:text-teal-300 mb-2">
+                Averaging Down Strategy
+              </div>
+              <p className="text-sm text-teal-600 dark:text-teal-400 leading-relaxed whitespace-pre-wrap">
+                {recommendation.averagingDownAdvice}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Detailed Analysis */}
-      {(recommendation.marketAnalysis || recommendation.riskAssessment || recommendation.researchSummary) && (
+      {(recommendation.marketAnalysis || recommendation.riskAssessment || recommendation.researchSummary || recommendation.professionalAnalysis) && (
         <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6 space-y-4">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-5 h-5 text-primary-600 dark:text-primary-400" />
             <h4 className="font-bold text-gray-900 dark:text-white">Detailed Analysis</h4>
           </div>
+
+          {recommendation.professionalAnalysis && (
+            <div className="p-4 bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-900/20 dark:to-gray-900/20 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                Professional Financial Analyst Analysis
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap">
+                {recommendation.professionalAnalysis}
+              </p>
+            </div>
+          )}
           
           {recommendation.marketAnalysis && (
             <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
