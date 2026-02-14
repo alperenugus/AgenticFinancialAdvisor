@@ -89,17 +89,24 @@ public class OrchestratorService {
 
             // Execute the agent with timeout protection
             // Use CompletableFuture to enforce timeout limit
+            // IMPORTANT: Set sessionId BEFORE creating the CompletableFuture so it's inherited
+            ToolCallAspect.setSessionId(sessionId);
+            log.info("🔧 Set sessionId={} in ThreadLocal for tool tracking", sessionId);
+            
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
-                // Set session ID in ThreadLocal for tool tracking (used by agents)
-                ToolCallAspect.setSessionId(sessionId);
+                // SessionId is inherited via InheritableThreadLocal
+                String currentSessionId = ToolCallAspect.getSessionId();
+                log.info("🔧 Thread {} has sessionId={} for tool tracking", Thread.currentThread().getName(), currentSessionId);
+                
                 try {
+                    // Send reasoning step before agent execution
+                    webSocketService.sendReasoning(sessionId, "🤔 Analyzing your request and determining which tools to use...");
+                    
                     return agent.chat(sessionId, contextualQuery);
                 } catch (Exception e) {
                     log.error("Error in agent chat execution: {}", e.getMessage(), e);
+                    webSocketService.sendReasoning(sessionId, "❌ Error during analysis: " + e.getMessage());
                     throw new RuntimeException("Agent execution failed: " + e.getMessage(), e);
-                } finally {
-                    // Clear session ID after execution
-                    ToolCallAspect.clearSessionId();
                 }
             });
 
@@ -126,11 +133,16 @@ public class OrchestratorService {
                 );
                 webSocketService.sendError(sessionId, timeoutMsg);
                 return timeoutMsg;
+            } finally {
+                // Always clear session ID after execution
+                ToolCallAspect.clearSessionId();
+                log.info("🔧 Cleared sessionId from ThreadLocal");
             }
         } catch (Exception e) {
             log.error("Error in orchestration: {}", e.getMessage(), e);
             String errorMsg = "I apologize, but I encountered an error while processing your request. Please try again.";
             webSocketService.sendError(sessionId, errorMsg);
+            ToolCallAspect.clearSessionId(); // Clear on error too
             return errorMsg;
         }
     }
@@ -212,21 +224,24 @@ public class OrchestratorService {
                @SystemMessage("You are a professional financial analyst providing personalized investment advice. " +
                        "You have access to tools for: portfolio management, real-time market data, risk assessment, research, " +
                        "web search, and social sentiment analysis. " +
-                       "CRITICAL: Always use tools to get the most up-to-date data. NEVER use prices or information from your training data. " +
-                       "When analyzing a user's portfolio, you MUST call getPortfolio(userId) to get complete portfolio details including all holdings, quantities, prices, and values. " +
-                       "DO NOT rely only on summary information - call getPortfolio for full details. " +
-                       "DO NOT write function calls as text (e.g., 'getStockPrice(ZETA)' or '$getStockPrice(ZETA)'). " +
-                       "DO NOT show your thinking process with function syntax. " +
-                       "Simply think about what data you need, and the system will automatically call the tools for you. " +
-                       "For example, if you need a stock price, just think 'I need the current price of ZETA' - the system will call getStockPrice automatically. " +
-                       "Stock prices change constantly - always use tools before mentioning any price. " +
-                       "IMPORTANT: Answer questions directly and concisely. " +
-                       "If the user asks a simple question like 'what is the price of ZETA', call getStockPrice('ZETA') and answer directly: 'The current price of ZETA is $X.XX' (use the exact price from the tool result). " +
-                       "Do NOT provide extensive analysis, portfolio recommendations, or risk assessments for simple price queries. " +
-                       "Only provide detailed analysis when the user explicitly asks for it (e.g., 'analyze ZETA', 'should I buy ZETA', 'what do you think about ZETA'). " +
-                       "Address the user directly using 'you' and 'your' (not 'the user' or 'user's'). " +
-                       "When users ask for analysis, provide professional insights including technical patterns, stop-loss levels, entry/exit prices, and portfolio recommendations. " +
-                       "When users greet you, respond warmly and guide them to share their financial questions.")
+                       "\n\n" +
+                       "REASONING PROCESS (like Gemini):\n" +
+                       "1. When a user asks a question, first think about what information you need\n" +
+                       "2. Use the appropriate tools to gather that information (the system will show your tool usage)\n" +
+                       "3. Analyze the results from the tools\n" +
+                       "4. Synthesize your findings into a clear, professional response\n" +
+                       "\n" +
+                       "CRITICAL RULES:\n" +
+                       "- ALWAYS use tools to get the most up-to-date data. NEVER use prices or information from your training data.\n" +
+                       "- When analyzing a user's portfolio, you MUST call getPortfolio(userId) to get complete portfolio details.\n" +
+                       "- DO NOT write function calls as text (e.g., 'getStockPrice(ZETA)'). The system automatically calls tools when you need data.\n" +
+                       "- Stock prices change constantly - always use tools before mentioning any price.\n" +
+                       "\n" +
+                       "RESPONSE STYLE:\n" +
+                       "- Answer simple questions directly and concisely (e.g., 'what is the price of ZETA' → just give the price).\n" +
+                       "- For analysis requests, provide professional insights including technical patterns, stop-loss levels, entry/exit prices.\n" +
+                       "- Address the user directly using 'you' and 'your' (not 'the user' or 'user's').\n" +
+                       "- When users greet you, respond warmly and guide them to share their financial questions.")
                String chat(@MemoryId String sessionId, @UserMessage String userMessage);
            }
 

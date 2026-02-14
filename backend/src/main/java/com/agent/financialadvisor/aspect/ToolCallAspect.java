@@ -27,7 +27,8 @@ public class ToolCallAspect {
     private final WebSocketService webSocketService;
     
     // Thread-local storage for session ID (set by OrchestratorService)
-    private static final ThreadLocal<String> sessionIdHolder = new ThreadLocal<>();
+    // Using InheritableThreadLocal to propagate to child threads (CompletableFuture)
+    private static final InheritableThreadLocal<String> sessionIdHolder = new InheritableThreadLocal<>();
 
     @Autowired
     public ToolCallAspect(WebSocketService webSocketService) {
@@ -49,7 +50,9 @@ public class ToolCallAspect {
     @Around("@annotation(tool)")
     public Object interceptToolCall(ProceedingJoinPoint joinPoint, Tool tool) throws Throwable {
         String sessionId = sessionIdHolder.get();
+        
         if (sessionId == null) {
+            log.warn("⚠️ Tool call intercepted but no sessionId in ThreadLocal. Thread: {}", Thread.currentThread().getName());
             // No session context, proceed normally
             return joinPoint.proceed();
         }
@@ -57,14 +60,17 @@ public class ToolCallAspect {
         String toolName = getToolName(joinPoint, tool);
         Map<String, Object> parameters = extractParameters(joinPoint);
         
+        log.info("🔧 AOP intercepted tool call: {} for sessionId={} on thread={}", 
+                toolName, sessionId, Thread.currentThread().getName());
+        
         long startTime = System.currentTimeMillis();
         
         // Send tool call notification
         webSocketService.sendToolCall(sessionId, toolName, parameters);
         
-        // Send human-friendly thinking update
+        // Send human-friendly thinking update (Gemini-style reasoning step)
         String humanFriendly = formatToolCall(toolName, parameters);
-        webSocketService.sendReasoning(sessionId, "Using tool: " + humanFriendly);
+        webSocketService.sendReasoning(sessionId, "🔧 Calling tool: " + humanFriendly);
         
         try {
             // Execute the tool
@@ -76,14 +82,16 @@ public class ToolCallAspect {
             webSocketService.sendToolResult(sessionId, toolName, 
                 formatResult(result), duration);
             
+            log.info("✅ Tool call completed: {} in {}ms for sessionId={}", toolName, duration, sessionId);
+            
             return result;
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            log.error("Tool call failed: {} (duration: {}ms)", toolName, duration, e);
+            log.error("❌ Tool call failed: {} (duration: {}ms) for sessionId={}", toolName, duration, sessionId, e);
             
             // Send error notification
             webSocketService.sendReasoning(sessionId, 
-                "Tool call failed: " + toolName + " - " + e.getMessage());
+                "❌ Tool call failed: " + toolName + " - " + e.getMessage());
             
             throw e;
         }

@@ -55,10 +55,11 @@ public class WebSocketService {
             toolCall.put("parameters", parameters);
             toolCall.put("timestamp", System.currentTimeMillis());
             
-            messagingTemplate.convertAndSend("/topic/tool-call/" + sessionId, toolCall);
-            log.info("🔧 Sent tool call to session {}: {} with params: {}", sessionId, toolName, parameters);
+            String topic = "/topic/tool-call/" + sessionId;
+            messagingTemplate.convertAndSend(topic, toolCall);
+            log.info("🔧 [WebSocket] Sent tool call to topic={}, toolName={}, params={}", topic, toolName, parameters);
         } catch (Exception e) {
-            log.error("Error sending tool call via WebSocket", e);
+            log.error("❌ [WebSocket] Error sending tool call via WebSocket for sessionId={}", sessionId, e);
         }
     }
 
@@ -71,10 +72,11 @@ public class WebSocketService {
             toolResult.put("duration", duration);
             toolResult.put("timestamp", System.currentTimeMillis());
             
-            messagingTemplate.convertAndSend("/topic/tool-result/" + sessionId, toolResult);
-            log.info("✅ Sent tool result to session {}: {} (duration: {}ms)", sessionId, toolName, duration);
+            String topic = "/topic/tool-result/" + sessionId;
+            messagingTemplate.convertAndSend(topic, toolResult);
+            log.info("✅ [WebSocket] Sent tool result to topic={}, toolName={}, duration={}ms", topic, toolName, duration);
         } catch (Exception e) {
-            log.error("Error sending tool result via WebSocket", e);
+            log.error("❌ [WebSocket] Error sending tool result via WebSocket for sessionId={}", sessionId, e);
         }
     }
 
@@ -85,10 +87,11 @@ public class WebSocketService {
             reasoningMsg.put("content", reasoning);
             reasoningMsg.put("timestamp", System.currentTimeMillis());
             
-            messagingTemplate.convertAndSend("/topic/reasoning/" + sessionId, reasoningMsg);
-            log.info("📢 Sent reasoning to session {}: {}", sessionId, reasoning);
+            String topic = "/topic/reasoning/" + sessionId;
+            messagingTemplate.convertAndSend(topic, reasoningMsg);
+            log.info("📢 [WebSocket] Sent reasoning to topic={}, content={}", topic, reasoning);
         } catch (Exception e) {
-            log.error("Error sending reasoning via WebSocket", e);
+            log.error("❌ [WebSocket] Error sending reasoning via WebSocket for sessionId={}", sessionId, e);
         }
     }
 

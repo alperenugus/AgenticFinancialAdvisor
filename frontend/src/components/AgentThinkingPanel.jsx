@@ -19,45 +19,57 @@ const AgentThinkingPanel = ({ sessionId }) => {
     }, 100);
 
     const setupSubscriptions = () => {
-      console.log('🔌 Setting up WebSocket subscriptions for session:', sessionId);
+      console.log('🔌 [AgentThinkingPanel] Setting up WebSocket subscriptions for session:', sessionId);
       
       // Subscribe to reasoning updates
       const reasoningSub = websocketService.subscribe(`/topic/reasoning/${sessionId}`, (message) => {
-        console.log('📨 Received reasoning message:', message.body);
-        const data = JSON.parse(message.body);
-        setReasoningSteps((prev) => [...prev, {
-          type: 'reasoning',
-          content: data.content,
-          timestamp: new Date(data.timestamp || Date.now()),
-        }]);
+        console.log('📨 [AgentThinkingPanel] Received reasoning message:', message.body);
+        try {
+          const data = JSON.parse(message.body);
+          setReasoningSteps((prev) => [...prev, {
+            type: 'reasoning',
+            content: data.content,
+            timestamp: new Date(data.timestamp || Date.now()),
+          }]);
+        } catch (e) {
+          console.error('❌ [AgentThinkingPanel] Error parsing reasoning message:', e, message.body);
+        }
       });
-      console.log('✅ Subscribed to reasoning:', reasoningSub ? 'success' : 'failed');
+      console.log('✅ [AgentThinkingPanel] Subscribed to reasoning:', reasoningSub ? 'success' : 'failed');
 
       // Subscribe to tool calls
       const toolCallSub = websocketService.subscribe(`/topic/tool-call/${sessionId}`, (message) => {
-        console.log('🔧 Received tool call message:', message.body);
-        const data = JSON.parse(message.body);
-        setToolCalls((prev) => [...prev, {
-          id: `tool-${data.timestamp}`,
-          toolName: data.toolName,
-          parameters: data.parameters,
-          status: 'calling',
-          timestamp: new Date(data.timestamp),
-        }]);
+        console.log('🔧 [AgentThinkingPanel] Received tool call message:', message.body);
+        try {
+          const data = JSON.parse(message.body);
+          setToolCalls((prev) => [...prev, {
+            id: `tool-${data.timestamp}-${Math.random()}`,
+            toolName: data.toolName,
+            parameters: data.parameters,
+            status: 'calling',
+            timestamp: new Date(data.timestamp),
+          }]);
+        } catch (e) {
+          console.error('❌ [AgentThinkingPanel] Error parsing tool call message:', e, message.body);
+        }
       });
-      console.log('✅ Subscribed to tool-call:', toolCallSub ? 'success' : 'failed');
+      console.log('✅ [AgentThinkingPanel] Subscribed to tool-call:', toolCallSub ? 'success' : 'failed');
 
       // Subscribe to tool results
       const toolResultSub = websocketService.subscribe(`/topic/tool-result/${sessionId}`, (message) => {
-        console.log('✅ Received tool result message:', message.body);
-        const data = JSON.parse(message.body);
-        setToolCalls((prev) => prev.map((call) => 
-          call.toolName === data.toolName && call.status === 'calling'
-            ? { ...call, status: 'completed', result: data.result, duration: data.duration }
-            : call
-        ));
+        console.log('✅ [AgentThinkingPanel] Received tool result message:', message.body);
+        try {
+          const data = JSON.parse(message.body);
+          setToolCalls((prev) => prev.map((call) => 
+            call.toolName === data.toolName && call.status === 'calling'
+              ? { ...call, status: 'completed', result: data.result, duration: data.duration }
+              : call
+          ));
+        } catch (e) {
+          console.error('❌ [AgentThinkingPanel] Error parsing tool result message:', e, message.body);
+        }
       });
-      console.log('✅ Subscribed to tool-result:', toolResultSub ? 'success' : 'failed');
+      console.log('✅ [AgentThinkingPanel] Subscribed to tool-result:', toolResultSub ? 'success' : 'failed');
     };
 
     // If already connected, set up subscriptions immediately
