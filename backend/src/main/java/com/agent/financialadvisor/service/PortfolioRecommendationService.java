@@ -7,7 +7,6 @@ import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.repository.RecommendationRepository;
 import com.agent.financialadvisor.repository.UserProfileRepository;
 import com.agent.financialadvisor.service.agents.StockDiscoveryAgent;
-import com.agent.financialadvisor.service.agents.UserProfileAgent;
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -174,19 +173,6 @@ public class PortfolioRecommendationService {
             log.warn("Error parsing discovered stocks: {}", e.getMessage());
         }
         return stocks;
-    }
-
-    /**
-     * Build portfolio context for orchestrator
-     */
-    private String buildPortfolioContext(String userId, UserProfile profile, List<String> ownedSymbols) {
-        StringBuilder context = new StringBuilder();
-        context.append("User Profile: Risk Tolerance=").append(profile.getRiskTolerance());
-        context.append(", Horizon=").append(profile.getHorizon());
-        context.append(", Goals=").append(profile.getGoals());
-        context.append(", Preferred Sectors=").append(profile.getPreferredSectors());
-        context.append("\nCurrent Portfolio Holdings: ").append(ownedSymbols.isEmpty() ? "None" : String.join(", ", ownedSymbols));
-        return context.toString();
     }
 
     /**
