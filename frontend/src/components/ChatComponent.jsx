@@ -5,12 +5,74 @@ import websocketService from '../services/websocket';
 import AgentThinkingPanel from './AgentThinkingPanel';
 
 const ChatComponent = () => {
-  const [messages, setMessages] = useState([]);
+  // Get or create sessionId from localStorage
+  const getOrCreateSessionId = () => {
+    const stored = localStorage.getItem('advisor_sessionId');
+    if (stored) {
+      return stored;
+    }
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('advisor_sessionId', newSessionId);
+    return newSessionId;
+  };
+
+  // Load messages from localStorage
+  const loadMessages = (sessionId) => {
+    try {
+      const stored = localStorage.getItem(`advisor_messages_${sessionId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Convert timestamp strings back to Date objects
+        return parsed.map(msg => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading messages from localStorage:', error);
+    }
+    return [];
+  };
+
+  // Save messages to localStorage
+  const saveMessages = (sessionId, messages) => {
+    try {
+      localStorage.setItem(`advisor_messages_${sessionId}`, JSON.stringify(messages));
+    } catch (error) {
+      console.error('Error saving messages to localStorage:', error);
+    }
+  };
+
+  const [sessionId] = useState(() => getOrCreateSessionId());
+  const [messages, setMessages] = useState(() => {
+    const loaded = loadMessages(sessionId);
+    // Only add initial greeting if no messages exist
+    if (loaded.length === 0) {
+      return [{
+        role: 'assistant',
+        content: "Hello! I'm your AI financial advisor, powered by advanced language models. I can help you with:\n\n• Stock analysis and recommendations\n• Portfolio management advice\n• Risk assessment\n• Investment strategy planning\n• Market insights\n\nHow can I assist you with your financial goals today?",
+        timestamp: new Date()
+      }];
+    }
+    return loaded;
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const messagesEndRef = useRef(null);
   const [thinkingMessages, setThinkingMessages] = useState([]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const addMessage = (role, content) => {
+    setMessages((prev) => [...prev, { role, content, timestamp: new Date() }]);
+  };
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    saveMessages(sessionId, messages);
+  }, [sessionId, messages]);
 
   useEffect(() => {
     // Connect WebSocket
@@ -30,9 +92,6 @@ const ChatComponent = () => {
       },
     });
 
-    // Professional initial greeting
-    addMessage('assistant', "Hello! I'm your AI financial advisor, powered by advanced language models. I can help you with:\n\n• Stock analysis and recommendations\n• Portfolio management advice\n• Risk assessment\n• Investment strategy planning\n• Market insights\n\nHow can I assist you with your financial goals today?");
-
     return () => {
       websocketService.disconnect();
     };
@@ -41,14 +100,6 @@ const ChatComponent = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, thinkingMessages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const addMessage = (role, content) => {
-    setMessages((prev) => [...prev, { role, content, timestamp: new Date() }]);
-  };
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) {
