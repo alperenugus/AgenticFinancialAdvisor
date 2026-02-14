@@ -1,6 +1,8 @@
 package com.agent.financialadvisor.controller;
 
+import com.agent.financialadvisor.model.Portfolio;
 import com.agent.financialadvisor.model.Recommendation;
+import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.repository.RecommendationRepository;
 import com.agent.financialadvisor.service.PortfolioRecommendationService;
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
@@ -10,9 +12,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -24,15 +28,18 @@ public class AdvisorController {
     private final OrchestratorService orchestratorService;
     private final RecommendationRepository recommendationRepository;
     private final PortfolioRecommendationService portfolioRecommendationService;
+    private final PortfolioRepository portfolioRepository;
 
     public AdvisorController(
             OrchestratorService orchestratorService,
             RecommendationRepository recommendationRepository,
-            PortfolioRecommendationService portfolioRecommendationService
+            PortfolioRecommendationService portfolioRecommendationService,
+            PortfolioRepository portfolioRepository
     ) {
         this.orchestratorService = orchestratorService;
         this.recommendationRepository = recommendationRepository;
         this.portfolioRecommendationService = portfolioRecommendationService;
+        this.portfolioRepository = portfolioRepository;
     }
 
     /**
