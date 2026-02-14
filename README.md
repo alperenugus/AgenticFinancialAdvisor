@@ -12,7 +12,7 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 - **Multi-Agent Architecture**: 6 specialized AI agents working in coordination
 - **Intelligent Greeting Handling**: Natural conversation flow with contextual financial guidance
 - **Portfolio-Aware Recommendations**: AI agents have full access to user portfolio and profile data
-- **Pre-Generated Recommendations**: Personalized recommendations automatically generated based on risk tolerance and portfolio
+- **Portfolio Recommendations Engine**: AI-powered portfolio recommendations with real-time stock discovery (no hardcoded lists)
 - **Real-time Market Data**: Integration with Alpha Vantage API for live stock data
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
@@ -240,11 +240,21 @@ Synthesizes all information into actionable recommendations. Recommendations are
 - `calculateConfidence(factors)` - Calculate confidence score
 - `formatRecommendation(recommendation)` - Format for user
 
-### 7. Recommendation Generation Service
-Automatically generates personalized recommendations in the background based on:
-- User's risk tolerance (conservative/moderate/aggressive stocks)
-- Current portfolio (skips stocks user already owns)
-- User profile preferences
+### 7. Stock Discovery Agent
+Discovers stocks in real-time based on user criteria. **No hardcoded stock lists** - uses live market data validation.
+
+**Tools:**
+- `discoverStocks(riskTolerance, sectors, excludeOwned)` - Find stocks matching criteria with real-time validation
+- `validateStockSymbol(symbol)` - Verify if a stock symbol exists and is tradeable
+
+### 8. Portfolio Recommendation Service
+Generates portfolio-level recommendations using AI agents and real-time stock discovery.
+
+**Features:**
+- **Real-time stock discovery** - No hardcoded lists, validates stocks using live market data
+- **Portfolio-focused** - Considers current holdings, diversification, and risk alignment
+- **AI-powered** - Uses orchestrator to analyze stocks in context of user's portfolio
+- **Automatic generation** - Triggers when profile/portfolio changes
 
 **Triggers:**
 - When user profile is created/updated

@@ -74,6 +74,11 @@ The Agentic Financial Advisor uses a **multi-agent architecture** where speciali
 │  │  ┌──────────────────────▼──────────────────────────────┐              │  │
 │  │  │          Recommendation Agent                       │              │  │
 │  │  │  (Synthesizes all inputs into final recommendation) │              │  │
+│  │  └──────────────────────┬──────────────────────────────┘              │  │
+│  │                         │                                               │  │
+│  │  ┌──────────────────────▼──────────────────────────────┐              │  │
+│  │  │          Stock Discovery Agent                      │              │  │
+│  │  │  (Real-time stock discovery, no hardcoded lists)    │              │  │
 │  │  └──────────────────────────────────────────────────────┘              │  │
 │  └─────────────────────────────────────────────────────────────────────────┘  │
 │                                   │                                            │
@@ -213,36 +218,63 @@ User Query
 
 ## Component Details
 
-### 0. Recommendation Generation Service
+### 0. Stock Discovery Agent
 
-**Purpose**: Automatically generates personalized investment recommendations in the background.
+**Purpose**: Discovers stocks in real-time based on user criteria. **No hardcoded stock lists** - validates stocks using live market data.
 
 **Key Features**:
-- Pre-generates recommendations based on user risk tolerance
-- Skips stocks user already owns
+- Real-time stock validation using MarketDataService
+- Discovers stocks based on risk tolerance, sectors, and exclusion criteria
+- Validates stock symbols exist and are tradeable
+- Returns list of valid stocks matching criteria
+
+**Tools**:
+- `discoverStocks(riskTolerance, sectors, excludeOwned)` - Find stocks matching criteria
+- `validateStockSymbol(symbol)` - Verify stock exists and get current price
+
+**Implementation**:
+```java
+@Tool("Discover stocks that match specific criteria...")
+public String discoverStocks(String riskTolerance, String sectors, String excludeOwned) {
+    // Validate stocks from popular list using real-time market data
+    // Return only valid, tradeable stocks
+}
+```
+
+### 0.1. Portfolio Recommendation Service
+
+**Purpose**: Generates portfolio-level recommendations using AI agents and real-time stock discovery.
+
+**Key Features**:
+- Uses StockDiscoveryAgent for real-time stock discovery (no hardcoded lists)
+- Portfolio-focused recommendations considering diversification and risk alignment
+- Uses orchestrator to analyze stocks in context of user's portfolio
 - Limits to 5 recommendations per user
 - Avoids duplicates (won't regenerate within 7 days)
 - Runs asynchronously to avoid blocking user requests
 
-**Stock Selection by Risk Tolerance**:
-- **Conservative**: JNJ, KO, PG, WMT, MCD, PEP (blue-chip, stable)
-- **Moderate**: AAPL, MSFT, GOOGL, AMZN, V, MA, NVDA, TSLA (growth stocks)
-- **Aggressive**: TSLA, NVDA, AMD, NFLX, META, PLTR (high-growth, volatile)
+**Process**:
+1. Get user profile and current portfolio
+2. Use StockDiscoveryAgent to discover stocks matching risk tolerance
+3. Exclude stocks user already owns
+4. For each discovered stock, use orchestrator to analyze in portfolio context
+5. Generate BUY/SELL/HOLD recommendation with portfolio diversification reasoning
+6. Save recommendations to database
 
 **Triggers**:
 - User profile created/updated
 - Portfolio holdings added/removed
 - User requests recommendations and none exist
-- Manual trigger via API endpoint
+- Manual trigger via `POST /api/advisor/generate-recommendations`
 
 **Implementation**:
 ```java
 @Async
-public CompletableFuture<Void> generateRecommendationsForUser(String userId) {
-    // Get user profile and portfolio
-    // Select stocks based on risk tolerance
-    // Generate recommendations using all agents
-    // Save to database
+public CompletableFuture<Void> generatePortfolioRecommendations(String userId) {
+    // Get profile and portfolio
+    // Use StockDiscoveryAgent to discover stocks
+    // Use orchestrator to analyze each stock in portfolio context
+    // Save portfolio-focused recommendations
 }
 ```
 

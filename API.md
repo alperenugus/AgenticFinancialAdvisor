@@ -319,12 +319,13 @@ Authorization: Bearer <token>
 ```
 
 **Note:**
-- Triggers background generation of personalized recommendations
-- Recommendations are based on user's risk tolerance and portfolio
+- Triggers background generation of portfolio-focused recommendations
+- Uses real-time stock discovery (no hardcoded stock lists)
+- Recommendations consider portfolio diversification and risk alignment
 - Skips stocks user already owns
 - Limits to 5 recommendations
 - Won't regenerate duplicates within 7 days
-- Recommendations are also automatically generated when:
+- Portfolio recommendations are also automatically generated when:
   - User profile is created/updated
   - Portfolio holdings are added/removed
   - User requests recommendations and none exist
@@ -699,11 +700,21 @@ These are the tools available to the LLM orchestrator. They're called automatica
 - `calculateConfidence(factors: string): string`
 - `formatRecommendation(recommendation: string): string`
 
+### StockDiscoveryAgent Tools
+- `discoverStocks(riskTolerance: string, sectors: string, excludeOwned: string): string` - Discover stocks matching criteria with real-time validation (no hardcoded lists)
+- `validateStockSymbol(symbol: string): string` - Validate if a stock symbol exists and is tradeable
+
 ---
 
 ## Changelog
 
-### v2.1.0 (Current)
+### v2.2.0 (Current)
+- **Portfolio Recommendations Engine** - Transformed from individual stock recommendations to portfolio-focused recommendations
+- **Real-Time Stock Discovery** - StockDiscoveryAgent for discovering stocks with live market data validation (no hardcoded lists)
+- **Portfolio Recommendation Service** - Uses orchestrator to analyze stocks in context of user's portfolio
+- **Removed Hardcoded Stocks** - All stock discovery now uses real-time web lookups via MarketDataService
+
+### v2.1.0
 - **Portfolio Access Tools** - AI agents can now access user portfolio data (getPortfolio, getPortfolioHoldings, getPortfolioSummary)
 - **Pre-Generated Recommendations** - Automatic recommendation generation based on user profile and portfolio
 - **Intelligent Greeting Handling** - Natural conversation flow with contextual financial guidance
