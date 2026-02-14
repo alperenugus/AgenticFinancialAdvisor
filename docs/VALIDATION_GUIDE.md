@@ -102,7 +102,7 @@ This document describes all input validation checks throughout the application.
 ### High Priority
 
 1. **Stock Symbol Validation in Agents**
-   - `MarketAnalysisAgent`, `RiskAssessmentAgent`, `ResearchAgent` should validate symbols before processing
+   - `MarketAnalysisAgent`, `WebSearchAgent`, `FintwitAnalysisAgent` should validate symbols before processing
    - Currently they handle errors gracefully but don't prevent invalid symbols upfront
 
 2. **Query Input Sanitization**

@@ -165,13 +165,10 @@ User Query
          │   │   ├─► MarketAnalysisAgent.analyzeTrends()
          │   │   └─► MarketAnalysisAgent.getMarketNews()
          │   │
-         │   ├─► RiskAssessmentAgent.assessStockRisk()
-         │   │   └─► RiskAssessmentAgent.checkRiskTolerance()
+         │   ├─► WebSearchAgent.searchFinancialNews()
+         │   │   └─► WebSearchAgent.searchStockAnalysis()
          │   │
-         │   ├─► ResearchAgent.getCompanyFundamentals()
-         │   │   └─► ResearchAgent.analyzeFinancials()
-         │   │
-         │   └─► RecommendationAgent.generateRecommendation()
+         │   └─► FintwitAnalysisAgent.analyzeFintwitSentiment()
          │       └─► Synthesize all inputs
          │
          ▼
@@ -266,9 +263,8 @@ public FinancialAdvisorAgent createAgent() {
         .tools(
             userProfileAgent,
             marketAnalysisAgent,
-            riskAssessmentAgent,
-            researchAgent,
-            recommendationAgent
+            webSearchAgent,
+            fintwitAnalysisAgent
         )
         .build();
 }

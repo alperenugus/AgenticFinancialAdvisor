@@ -213,30 +213,22 @@ Analyzes market data, price trends, and technical indicators.
 - `analyzeTrends(symbol, timeframe)` - Analyze price trends
 - `getTechnicalIndicators(symbol)` - Calculate technical indicators
 
-### 4. Risk Assessment Agent
-Evaluates risk levels and compares with user tolerance.
+### 4. Web Search Agent
+Searches the web for financial news, analysis, and market insights using Tavily MCP.
 
 **Tools:**
-- `assessStockRisk(symbol, metrics)` - Assess individual stock risk
-- `calculatePortfolioRisk(portfolio)` - Calculate portfolio risk
-- `checkRiskTolerance(stockRisk, userTolerance)` - Compare with user tolerance
-- `getRiskMetrics(symbol)` - Get risk metrics (volatility, beta)
+- `searchFinancialNews(query)` - Search for financial news and market insights
+- `searchStockAnalysis(symbol)` - Search for stock analysis and research reports
+- `searchMarketTrends(query)` - Search for market trends and sector analysis
+- `searchCompanyInfo(symbol)` - Search for company information and earnings
 
-### 5. Research Agent
-Performs fundamental analysis and company research.
-
-**Tools:**
-- `getCompanyFundamentals(symbol)` - Get financial ratios
-- `analyzeFinancials(symbol)` - Analyze financial statements
-- `compareCompanies(symbols)` - Compare companies
-- `getSectorAnalysis(sector)` - Sector analysis
-
-### 6. Recommendation Agent
-Synthesizes all information into actionable recommendations. Recommendations are automatically pre-generated based on user profile and portfolio.
+### 5. Fintwit Analysis Agent
+Analyzes social sentiment from financial Twitter (fintwit) for market insights.
 
 **Tools:**
-- `generateRecommendation(...)` - Generate final recommendation
-- `explainReasoning(components)` - Explain recommendation reasoning
+- `analyzeFintwitSentiment(symbol)` - Analyze social sentiment for a stock
+- `getFintwitTrends(query)` - Get trending topics from financial Twitter
+- `searchFintwitContent(query)` - Search for specific content on financial Twitter
 - `calculateConfidence(factors)` - Calculate confidence score
 - `formatRecommendation(recommendation)` - Format for user
 

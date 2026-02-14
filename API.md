@@ -666,27 +666,16 @@ These are the tools available to the LLM orchestrator. They're called automatica
 - `analyzeTrends(symbol: string, timeframe: string): string`
 - `getTechnicalIndicators(symbol: string): string`
 
-### RiskAssessmentAgent Tools
-- `assessStockRisk(symbol: string, metrics: string): string`
-- `calculatePortfolioRisk(userId: string): string`
-- `checkRiskTolerance(userId: string, symbol: string): string`
-- `getRiskMetrics(symbol: string): string`
+### WebSearchAgent Tools
+- `searchFinancialNews(query: string): string` - Search for financial news, analysis, and market insights
+- `searchStockAnalysis(symbol: string): string` - Search for stock analysis and research reports
+- `searchMarketTrends(query: string): string` - Search for market trends and sector analysis
+- `searchCompanyInfo(symbol: string): string` - Search for company information, earnings, and corporate news
 
-### ResearchAgent Tools
-- `getCompanyFundamentals(symbol: string): string`
-- `analyzeFinancials(symbol: string): string`
-- `compareCompanies(symbols: string): string`
-- `getSectorAnalysis(symbol: string): string`
-
-### RecommendationAgent Tools
-- `generateRecommendation(userId, symbol, marketAnalysis, riskAssessment, researchSummary, userProfile): string`
-- `explainReasoning(components: string): string`
-- `calculateConfidence(factors: string): string`
-- `formatRecommendation(recommendation: string): string`
-
-### StockDiscoveryAgent Tools
-- `discoverStocks(riskTolerance: string, sectors: string, excludeOwned: string): string` - Discover stocks matching criteria with real-time validation (no hardcoded lists)
-- `validateStockSymbol(symbol: string): string` - Validate if a stock symbol exists and is tradeable
+### FintwitAnalysisAgent Tools
+- `analyzeFintwitSentiment(symbol: string): string` - Analyze social sentiment from financial Twitter
+- `getFintwitTrends(query: string): string` - Get trending topics from financial Twitter
+- `searchFintwitContent(query: string): string` - Search for specific content on financial Twitter
 
 ---
 

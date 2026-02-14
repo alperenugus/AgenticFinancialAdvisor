@@ -73,9 +73,8 @@ AgenticFinancialAdvisor/
 │   │   │   │   │   ├── agents/
 │   │   │   │   │   │   ├── UserProfileAgent.java
 │   │   │   │   │   │   ├── MarketAnalysisAgent.java
-│   │   │   │   │   │   ├── RiskAssessmentAgent.java
-│   │   │   │   │   │   ├── ResearchAgent.java
-│   │   │   │   │   │   └── RecommendationAgent.java
+│   │   │   │   │   │   ├── WebSearchAgent.java
+│   │   │   │   │   │   └── FintwitAnalysisAgent.java
 │   │   │   │   │   ├── MarketDataService.java
 │   │   │   │   │   ├── PortfolioService.java
 │   │   │   │   │   └── WebSocketService.java

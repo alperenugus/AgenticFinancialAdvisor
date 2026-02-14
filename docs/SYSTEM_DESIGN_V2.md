@@ -224,8 +224,8 @@ User: "What do you think about my portfolio?"
    - MarketDataAgent.analyzeTrends(symbol) → Technical analysis
    - WebSearchAgent.searchStockAnalysis(symbol) → Latest analysis
    - FintwitAnalysisAgent.getFintwitSentiment(symbol) → Social sentiment
-   - ResearchAgent.getCompanyFundamentals(symbol) → Fundamentals
-   - RiskAssessmentAgent.assessStockRisk(symbol) → Risk level
+   - WebSearchAgent.searchStockAnalysis(symbol) → Latest analysis
+   - FintwitAnalysisAgent.analyzeFintwitSentiment(symbol) → Social sentiment
    
 4. Orchestrator synthesizes all data
 5. Provides comprehensive portfolio analysis
