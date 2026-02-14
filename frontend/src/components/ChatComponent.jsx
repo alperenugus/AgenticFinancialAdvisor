@@ -44,25 +44,43 @@ const ChatComponent = ({ initialMessage, onMessageSent }) => {
 
   // Handle initial message from recommendation click
   useEffect(() => {
-    if (initialMessage && !hasSentInitialMessage) {
-      // Wait for initial greeting to be added, then send the initial message
+    if (initialMessage && !hasSentInitialMessage && messages.length > 0) {
+      // Wait for initial greeting, then auto-send the initial message
       const timer = setTimeout(() => {
-        if (messages.length > 0) {
-          setInput(initialMessage);
-          setHasSentInitialMessage(true);
-          // Auto-submit after a brief delay
-          setTimeout(() => {
-            const syntheticEvent = {
-              preventDefault: () => {},
-              target: { value: initialMessage }
-            };
-            handleSubmit(syntheticEvent);
-          }, 300);
+        setHasSentInitialMessage(true);
+        const userMessage = initialMessage.trim();
+        addMessage('user', userMessage);
+        setIsLoading(true);
+        setThinkingMessages([]);
+
+        // Notify parent that message was sent
+        if (onMessageSent) {
+          onMessageSent();
         }
+
+        // Send the message via API
+        advisorAPI.analyze(userMessage, sessionId)
+          .then((response) => {
+            if (response.data.status === 'success') {
+              // Response will come through WebSocket
+              if (!websocketService.isConnected()) {
+                addMessage('assistant', response.data.response);
+                setIsLoading(false);
+              }
+            } else {
+              addMessage('error', response.data.message || 'An error occurred');
+              setIsLoading(false);
+            }
+          })
+          .catch((error) => {
+            console.error('Error sending initial message:', error);
+            addMessage('error', error.response?.data?.message || 'Failed to get response. Please try again.');
+            setIsLoading(false);
+          });
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [initialMessage, hasSentInitialMessage, messages.length]);
+  }, [initialMessage, hasSentInitialMessage, messages.length, sessionId, onMessageSent]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
