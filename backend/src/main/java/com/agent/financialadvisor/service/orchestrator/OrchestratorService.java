@@ -2,6 +2,7 @@ package com.agent.financialadvisor.service.orchestrator;
 
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
+import com.agent.financialadvisor.aspect.ToolCallAspect;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
@@ -90,9 +91,17 @@ public class OrchestratorService {
             // Use CompletableFuture to enforce timeout limit
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
                 try {
-                    return agent.chat(sessionId, contextualQuery);
+                    // Set session ID in ThreadLocal for AOP aspect to track tool calls
+                    ToolCallAspect.setSessionId(sessionId);
+                    try {
+                        return agent.chat(sessionId, contextualQuery);
+                    } finally {
+                        // Clear session ID after execution
+                        ToolCallAspect.clearSessionId();
+                    }
                 } catch (Exception e) {
                     log.error("Error in agent chat execution: {}", e.getMessage(), e);
+                    ToolCallAspect.clearSessionId(); // Ensure cleanup on error
                     throw new RuntimeException("Agent execution failed: " + e.getMessage(), e);
                 }
             });
@@ -229,6 +238,9 @@ public class OrchestratorService {
                        "4. What's the social sentiment? (system automatically gets fintwit data) " +
                        "5. What are the fundamentals? (system automatically gets company data) " +
                        "Then synthesize all the automatically retrieved information into professional analysis. " +
+                       "CRITICAL: When responding to the user, ALWAYS address them directly using 'you' and 'your', NOT 'the user' or 'user's'. " +
+                       "For example, say 'your portfolio' not 'the user's portfolio', 'your risk tolerance' not 'the user's risk tolerance'. " +
+                       "This makes the conversation natural and personal. " +
                        "Always check the user's current portfolio before making recommendations. " +
                        "Always consider the user's risk tolerance, investment goals, and current portfolio when making recommendations. " +
                 "When users greet you (hello, hi, hey, etc.), respond warmly and briefly introduce yourself as their financial advisor. " +

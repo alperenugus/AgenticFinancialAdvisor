@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { advisorAPI } from '../services/api';
 import websocketService from '../services/websocket';
+import AgentThinkingPanel from './AgentThinkingPanel';
 
 const ChatComponent = () => {
   const [messages, setMessages] = useState([]);
@@ -84,7 +85,9 @@ const ChatComponent = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800">
+    <div className="flex h-full bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800">
+      {/* Chat Area - Left Side */}
+      <div className="flex-1 flex flex-col min-w-0">
       {/* Chat Header */}
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
@@ -228,6 +231,12 @@ const ChatComponent = () => {
           Press Enter to send • AI responses may take a few moments
         </p>
       </form>
+      </div>
+
+      {/* Agent Thinking Panel - Right Side */}
+      <div className="w-80 flex-shrink-0 border-l border-gray-200 dark:border-gray-700">
+        <AgentThinkingPanel sessionId={sessionId} />
+      </div>
     </div>
   );
 };
