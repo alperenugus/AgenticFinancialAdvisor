@@ -1,17 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MessageSquare, Briefcase, User, AlertTriangle, LineChart, LogOut } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import ChatComponent from './components/ChatComponent';
 import PortfolioView from './components/PortfolioView';
 import UserProfileForm from './components/UserProfileForm';
+import OnboardingWizard from './components/OnboardingWizard';
+import { userProfileAPI } from './services/api';
 
 function App() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('chat');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+
+  // Check if user needs onboarding
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (!isAuthenticated || loading) {
+        setCheckingOnboarding(false);
+        return;
+      }
+
+      try {
+        const response = await userProfileAPI.get();
+        // If profile doesn't exist or has no goals, show onboarding
+        if (!response.data || !response.data.goals || response.data.goals.length === 0) {
+          setShowOnboarding(true);
+        }
+      } catch (error) {
+        // Profile doesn't exist, show onboarding
+        setShowOnboarding(true);
+      } finally {
+        setCheckingOnboarding(false);
+      }
+    };
+
+    checkOnboarding();
+  }, [isAuthenticated, loading]);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    // Optionally refresh the page or reload data
+    window.location.reload();
+  };
 
   // Show login page if not authenticated
-  if (loading) {
+  if (loading || checkingOnboarding) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center">
         <div className="text-center">
@@ -24,6 +59,11 @@ function App() {
 
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  // Show onboarding wizard for new users
+  if (showOnboarding) {
+    return <OnboardingWizard onComplete={handleOnboardingComplete} />;
   }
 
   const tabs = [
