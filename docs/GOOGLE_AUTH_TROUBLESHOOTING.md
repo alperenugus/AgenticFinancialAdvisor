@@ -57,17 +57,62 @@ By explicitly setting `GOOGLE_REDIRECT_URI`, we force Spring Boot to use the cor
 
 ### Invalid Credentials Error
 
-If you see "Invalid credentials" on the login page:
+If you see "Invalid credentials" on the login page, this usually means the `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` is missing or incorrect.
 
-1. **Check Environment Variables**
-   - `GOOGLE_CLIENT_ID` is set correctly
-   - `GOOGLE_CLIENT_SECRET` is set correctly
-   - No extra spaces or quotes
+#### Step 1: Check Railway Environment Variables
 
-2. **Verify Google Cloud Console**
-   - OAuth consent screen is configured
-   - Client ID and Secret are correct
-   - API is enabled (Google+ API or Google Identity API)
+1. Go to Railway → Your Backend Service → Variables
+2. Verify these variables exist and are set:
+   ```
+   GOOGLE_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=GOCSPX-your-secret-here
+   ```
+3. **Important checks:**
+   - No quotes around the values (Railway sometimes adds quotes automatically)
+   - No leading/trailing spaces
+   - Copy the exact values from Google Cloud Console
+   - Make sure you're using the **Client ID** (not the Client Secret) for `GOOGLE_CLIENT_ID`
+   - Make sure you're using the **Client Secret** (not the Client ID) for `GOOGLE_CLIENT_SECRET`
+
+#### Step 2: Verify in Google Cloud Console
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Navigate to: Your Project → APIs & Services → Credentials
+3. Click your OAuth 2.0 Client ID
+4. **Copy the Client ID** - should look like: `123456789-abc...xyz.apps.googleusercontent.com`
+5. **Click "Show" next to Client Secret** - should look like: `GOCSPX-abc...xyz`
+6. Compare with what's in Railway
+
+#### Step 3: Check Railway Logs
+
+After redeploying, check the startup logs:
+
+```bash
+railway logs --service backend
+```
+
+Look for:
+- ✅ `GOOGLE_CLIENT_ID is set: ...` (means it's configured)
+- ❌ `GOOGLE_CLIENT_ID is not set or is empty!` (means it's missing)
+
+#### Step 4: Common Mistakes
+
+1. **Swapped values**: Client ID in Secret field, or vice versa
+2. **Extra quotes**: Railway might add quotes - remove them
+3. **Wrong project**: Using credentials from a different Google Cloud project
+4. **OAuth consent screen not configured**: Go to OAuth consent screen and complete setup
+5. **API not enabled**: Enable "Google Identity API" or "Google+ API" in Google Cloud Console
+
+#### Step 5: Recreate Credentials (if needed)
+
+If nothing works, create new credentials:
+
+1. In Google Cloud Console → Credentials
+2. Delete the old OAuth 2.0 Client ID
+3. Create a new one
+4. Copy the new Client ID and Secret
+5. Update Railway environment variables
+6. Redeploy
 
 ### Redirect URI Still Shows HTTP
 
