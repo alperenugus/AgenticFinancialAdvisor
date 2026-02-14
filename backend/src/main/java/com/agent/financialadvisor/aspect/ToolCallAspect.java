@@ -42,6 +42,10 @@ public class ToolCallAspect {
         sessionIdHolder.remove();
     }
 
+    public static String getSessionId() {
+        return sessionIdHolder.get();
+    }
+
     @Around("@annotation(tool)")
     public Object interceptToolCall(ProceedingJoinPoint joinPoint, Tool tool) throws Throwable {
         String sessionId = sessionIdHolder.get();

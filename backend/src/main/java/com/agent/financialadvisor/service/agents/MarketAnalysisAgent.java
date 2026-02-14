@@ -1,10 +1,13 @@
 package com.agent.financialadvisor.service.agents;
 
 import com.agent.financialadvisor.service.MarketDataService;
+import com.agent.financialadvisor.service.WebSocketService;
+import com.agent.financialadvisor.aspect.ToolCallAspect;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -16,10 +19,17 @@ public class MarketAnalysisAgent {
     private static final Logger log = LoggerFactory.getLogger(MarketAnalysisAgent.class);
     private final MarketDataService marketDataService;
     private final ObjectMapper objectMapper;
+    private final WebSocketService webSocketService;
 
-    public MarketAnalysisAgent(MarketDataService marketDataService, ObjectMapper objectMapper) {
+    @Autowired
+    public MarketAnalysisAgent(
+            MarketDataService marketDataService, 
+            ObjectMapper objectMapper,
+            WebSocketService webSocketService
+    ) {
         this.marketDataService = marketDataService;
         this.objectMapper = objectMapper;
+        this.webSocketService = webSocketService;
     }
 
     @Tool("Get current stock price for a symbol. Use this to get the LATEST AVAILABLE stock price (fetched fresh from API, no caching). " +
@@ -27,6 +37,17 @@ public class MarketAnalysisAgent {
           "Requires: symbol (string, e.g., 'AAPL', 'MSFT'). Returns current price as a number with timestamp.")
     public String getStockPrice(String symbol) {
         log.info("🔵 getStockPrice CALLED with symbol={} - FETCHING FRESH DATA FROM API", symbol);
+        
+        // Send tool call notification via WebSocket
+        String sessionId = ToolCallAspect.getSessionId();
+        if (sessionId != null) {
+            java.util.Map<String, Object> params = new java.util.HashMap<>();
+            params.put("symbol", symbol);
+            webSocketService.sendToolCall(sessionId, "Get Stock Price", params);
+            webSocketService.sendReasoning(sessionId, "🔧 Fetching current price for " + symbol + " from API...");
+        }
+        
+        long startTime = System.currentTimeMillis();
         try {
             BigDecimal price = marketDataService.getStockPrice(symbol);
             if (price == null) {
@@ -34,13 +55,29 @@ public class MarketAnalysisAgent {
             }
             // Include timestamp to show data freshness
             String timestamp = java.time.LocalDateTime.now().toString();
-            return String.format(
+            String result = String.format(
                 "{\"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"fetchedAt\": \"%s\", " +
                 "\"note\": \"Fresh data fetched from API. Free tier may have 15-minute delay during market hours.\"}",
                 symbol, price, timestamp
             );
+            
+            // Send tool result notification
+            if (sessionId != null) {
+                long duration = System.currentTimeMillis() - startTime;
+                webSocketService.sendToolResult(sessionId, "Get Stock Price", 
+                    String.format("%s: $%s", symbol, price), duration);
+                webSocketService.sendReasoning(sessionId, "✅ Got current price for " + symbol + ": $" + price);
+            }
+            
+            return result;
         } catch (Exception e) {
             log.error("Error getting stock price for {}: {}", symbol, e.getMessage(), e);
+            
+            // Send error notification
+            if (sessionId != null) {
+                webSocketService.sendReasoning(sessionId, "❌ Failed to get price for " + symbol + ": " + e.getMessage());
+            }
+            
             return String.format("{\"symbol\": \"%s\", \"error\": \"Error fetching stock price: %s\"}", symbol, e.getMessage());
         }
     }

@@ -3,6 +3,7 @@ package com.agent.financialadvisor.service.orchestrator;
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
 import com.agent.financialadvisor.aspect.ToolCallAspect;
+import com.agent.financialadvisor.service.ToolWrapper;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
@@ -33,39 +34,42 @@ public class OrchestratorService {
     private final ResearchAgent researchAgent;
     private final RecommendationAgent recommendationAgent;
     private final StockDiscoveryAgent stockDiscoveryAgent;
-    private final WebSearchAgent webSearchAgent; // NEW: Web search capabilities
-    private final FintwitAnalysisAgent fintwitAnalysisAgent; // NEW: Fintwit analysis
-    private final WebSocketService webSocketService;
-    private final int orchestratorTimeoutSeconds;
+           private final WebSearchAgent webSearchAgent; // NEW: Web search capabilities
+           private final FintwitAnalysisAgent fintwitAnalysisAgent; // NEW: Fintwit analysis
+           private final WebSocketService webSocketService;
+           private final ToolWrapper toolWrapper; // For wrapping tools to track calls
+           private final int orchestratorTimeoutSeconds;
     
     // Cache for AI service instances per session
     private final Map<String, FinancialAdvisorAgent> agentCache = new HashMap<>();
 
-    public OrchestratorService(
-            ChatLanguageModel chatLanguageModel,
-            UserProfileAgent userProfileAgent,
-            MarketAnalysisAgent marketAnalysisAgent,
-            RiskAssessmentAgent riskAssessmentAgent,
-            ResearchAgent researchAgent,
-            RecommendationAgent recommendationAgent,
-            StockDiscoveryAgent stockDiscoveryAgent,
-            WebSearchAgent webSearchAgent, // NEW: Web search agent
-            FintwitAnalysisAgent fintwitAnalysisAgent, // NEW: Fintwit analysis agent
-            WebSocketService webSocketService,
-            @Value("${agent.timeout.orchestrator-seconds:60}") int orchestratorTimeoutSeconds
-    ) {
-        this.chatLanguageModel = chatLanguageModel;
-        this.userProfileAgent = userProfileAgent;
-        this.marketAnalysisAgent = marketAnalysisAgent;
-        this.riskAssessmentAgent = riskAssessmentAgent;
-        this.researchAgent = researchAgent;
-        this.recommendationAgent = recommendationAgent;
-        this.stockDiscoveryAgent = stockDiscoveryAgent;
-        this.webSearchAgent = webSearchAgent; // Assign web search agent
-        this.fintwitAnalysisAgent = fintwitAnalysisAgent; // Assign fintwit agent
-        this.webSocketService = webSocketService;
-        this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
-    }
+           public OrchestratorService(
+                   ChatLanguageModel chatLanguageModel,
+                   UserProfileAgent userProfileAgent,
+                   MarketAnalysisAgent marketAnalysisAgent,
+                   RiskAssessmentAgent riskAssessmentAgent,
+                   ResearchAgent researchAgent,
+                   RecommendationAgent recommendationAgent,
+                   StockDiscoveryAgent stockDiscoveryAgent,
+                   WebSearchAgent webSearchAgent, // NEW: Web search agent
+                   FintwitAnalysisAgent fintwitAnalysisAgent, // NEW: Fintwit analysis agent
+                   WebSocketService webSocketService,
+                   ToolWrapper toolWrapper, // Tool wrapper for tracking
+                   @Value("${agent.timeout.orchestrator-seconds:60}") int orchestratorTimeoutSeconds
+           ) {
+               this.chatLanguageModel = chatLanguageModel;
+               this.userProfileAgent = userProfileAgent;
+               this.marketAnalysisAgent = marketAnalysisAgent;
+               this.riskAssessmentAgent = riskAssessmentAgent;
+               this.researchAgent = researchAgent;
+               this.recommendationAgent = recommendationAgent;
+               this.stockDiscoveryAgent = stockDiscoveryAgent;
+               this.webSearchAgent = webSearchAgent; // Assign web search agent
+               this.fintwitAnalysisAgent = fintwitAnalysisAgent; // Assign fintwit agent
+               this.webSocketService = webSocketService;
+               this.toolWrapper = toolWrapper; // Assign tool wrapper
+               this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
+           }
 
     /**
      * Main orchestration method - coordinates all agents to provide financial advice
@@ -90,19 +94,18 @@ public class OrchestratorService {
             // Execute the agent with timeout protection
             // Use CompletableFuture to enforce timeout limit
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
+                // Set session ID in ThreadLocal for tool tracking (used by agents and AOP)
+                ToolCallAspect.setSessionId(sessionId);
+                ToolWrapper.setSessionId(sessionId);
                 try {
-                    // Set session ID in ThreadLocal for AOP aspect to track tool calls
-                    ToolCallAspect.setSessionId(sessionId);
-                    try {
-                        return agent.chat(sessionId, contextualQuery);
-                    } finally {
-                        // Clear session ID after execution
-                        ToolCallAspect.clearSessionId();
-                    }
+                    return agent.chat(sessionId, contextualQuery);
                 } catch (Exception e) {
                     log.error("Error in agent chat execution: {}", e.getMessage(), e);
-                    ToolCallAspect.clearSessionId(); // Ensure cleanup on error
                     throw new RuntimeException("Agent execution failed: " + e.getMessage(), e);
+                } finally {
+                    // Clear session ID after execution
+                    ToolCallAspect.clearSessionId();
+                    ToolWrapper.clearSessionId();
                 }
             });
 
@@ -147,6 +150,9 @@ public class OrchestratorService {
             
             // Create a ChatMemoryProvider that provides MessageWindowChatMemory for each memory ID
             ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(20);
+            
+            // Note: Tool tracking is done directly in tool methods via WebSocketService
+            // Session ID is set in ThreadLocal and accessed by agents via ToolCallAspect.getSessionId()
             
             return AiServices.builder(FinancialAdvisorAgent.class)
                     .chatLanguageModel(chatLanguageModel)
@@ -255,9 +261,17 @@ public class OrchestratorService {
                 "For greetings, say something like: 'Hello! I'm your AI financial advisor. I can help you with investment advice, portfolio analysis, and personalized recommendations. " +
                 "What would you like to know about your investments today?' " +
                 "Only provide investment recommendations when the user asks specific questions about stocks, their portfolio, or investment advice. " +
-                "CRITICAL DATA FRESHNESS: All market data tools fetch FRESH, REAL-TIME data from external APIs. There is NO caching. " +
-                "Every call to getStockPrice(), getStockPriceData(), etc. makes a fresh API request to get the latest available data. " +
-                "Note: Free tier data may have a 15-minute delay during market hours. Premium tier provides real-time data. " +
+                "ABSOLUTELY CRITICAL - DATA FRESHNESS RULES: " +
+                "1. You MUST ALWAYS call tools to get current stock prices. NEVER use prices from your training data or memory. " +
+                "2. Stock prices change constantly - prices from even minutes ago are outdated. " +
+                "3. If you mention ANY stock price, you MUST have called getStockPrice(symbol) FIRST to get the current price. " +
+                "4. If you mention technical indicators, trends, or patterns, you MUST have called getStockPriceData(symbol, timeframe) FIRST. " +
+                "5. NEVER guess prices, NEVER use training data prices, NEVER assume prices. " +
+                "6. Example: If analyzing NVDA, you MUST call getStockPrice('NVDA') first, then use that exact price in your analysis. " +
+                "7. If you don't call the tool first, you are using outdated training data which is WRONG and UNACCEPTABLE. " +
+                "8. All market data tools fetch FRESH, REAL-TIME data from external APIs. There is NO caching. " +
+                "9. Every tool call makes a fresh API request to get the latest available data. " +
+                "10. Note: Free tier data may have a 15-minute delay during market hours. Premium tier provides real-time data. " +
                 "CRITICAL: When providing recommendations, you MUST provide PROFESSIONAL FINANCIAL ANALYST-level analysis including: " +
                 "1. Technical analysis patterns (head and shoulders, double tops/bottoms, triangles, support/resistance levels, etc.) " +
                 "2. Stop loss levels (specific price points where to set stop losses, e.g., 'For this stock, you can have a stop loss at $X') " +
@@ -266,9 +280,13 @@ public class OrchestratorService {
                 "5. Target price with reasoning " +
                 "6. Professional analysis of chart patterns, trends, and technical indicators " +
                 "7. Portfolio management advice considering current holdings " +
-                "MANDATORY: You MUST use the available tools to get REAL, CURRENT data. NEVER use placeholders like [$Current Price], [Stop Loss Price], [Current Date], etc. " +
-                "The system will automatically retrieve current stock prices, price history, and technical analysis data when you need it. " +
-                "You don't need to explicitly request these - just think about what data you need for your analysis, and the system will provide it automatically. " +
+                "MANDATORY WORKFLOW FOR ANY STOCK ANALYSIS: " +
+                "Step 1: ALWAYS call getStockPrice(symbol) FIRST to get current price " +
+                "Step 2: ALWAYS call getStockPriceData(symbol, 'daily') to get price history " +
+                "Step 3: ALWAYS call analyzeTrends(symbol, 'daily') for technical analysis " +
+                "Step 4: ALWAYS call getTechnicalIndicators(symbol) for indicators " +
+                "Step 5: THEN use the actual data from these tool calls in your analysis " +
+                "NEVER skip these steps. NEVER use training data. NEVER guess prices. " +
                 "Format your recommendations like a professional financial analyst would: " +
                 "- 'For [SYMBOL], the current price is $X (fresh data from getStockPrice, fetched just now). I identify a [PATTERN] pattern on [TIMEFRAME] chart...' " +
                 "- 'For [SYMBOL], you can have a stop loss at $Y (calculate Y as X * 0.95 or similar based on actual current price)...' " +

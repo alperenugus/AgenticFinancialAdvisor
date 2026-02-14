@@ -6,9 +6,12 @@ import com.agent.financialadvisor.model.UserProfile;
 import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.repository.UserProfileRepository;
 import com.agent.financialadvisor.service.MarketDataService;
+import com.agent.financialadvisor.service.WebSocketService;
+import com.agent.financialadvisor.aspect.ToolCallAspect;
 import dev.langchain4j.agent.tool.Tool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,15 +28,19 @@ public class UserProfileAgent {
     private final UserProfileRepository userProfileRepository;
     private final PortfolioRepository portfolioRepository;
     private final MarketDataService marketDataService;
+    private final WebSocketService webSocketService;
 
+    @Autowired
     public UserProfileAgent(
             UserProfileRepository userProfileRepository,
             PortfolioRepository portfolioRepository,
-            MarketDataService marketDataService
+            MarketDataService marketDataService,
+            WebSocketService webSocketService
     ) {
         this.userProfileRepository = userProfileRepository;
         this.portfolioRepository = portfolioRepository;
         this.marketDataService = marketDataService;
+        this.webSocketService = webSocketService;
     }
 
     @Tool("Get user's investment profile including risk tolerance, investment horizon, goals, and preferences. " +
@@ -42,6 +49,17 @@ public class UserProfileAgent {
     @Transactional(readOnly = true)
     public String getUserProfile(String userId) {
         log.info("🔵 getUserProfile CALLED with userId={}", userId);
+        
+        // Send tool call notification
+        String sessionId = ToolCallAspect.getSessionId();
+        if (sessionId != null) {
+            java.util.Map<String, Object> params = new java.util.HashMap<>();
+            params.put("userId", userId.length() > 30 ? userId.substring(0, 27) + "..." : userId);
+            webSocketService.sendToolCall(sessionId, "Get User Profile", params);
+            webSocketService.sendReasoning(sessionId, "🔧 Retrieving user profile...");
+        }
+        
+        long startTime = System.currentTimeMillis();
         try {
             Optional<UserProfile> profileOpt = userProfileRepository.findByUserId(userId);
             if (profileOpt.isEmpty()) {
@@ -58,7 +76,7 @@ public class UserProfileAgent {
             List<String> preferredSectors = profile.getPreferredSectors() != null ? new ArrayList<>(profile.getPreferredSectors()) : new ArrayList<>();
             List<String> excludedSectors = profile.getExcludedSectors() != null ? new ArrayList<>(profile.getExcludedSectors()) : new ArrayList<>();
             
-            return String.format(
+            String result = String.format(
                 "{\"userId\": \"%s\", \"exists\": true, \"riskTolerance\": \"%s\", \"horizon\": \"%s\", " +
                 "\"goals\": %s, \"budget\": %s, \"preferredSectors\": %s, \"excludedSectors\": %s, " +
                 "\"ethicalInvesting\": %s, \"message\": \"User profile retrieved\"}",
@@ -71,8 +89,24 @@ public class UserProfileAgent {
                 excludedSectors.toString(),
                 profile.getEthicalInvesting()
             );
+            
+            // Send tool result notification
+            if (sessionId != null) {
+                long duration = System.currentTimeMillis() - startTime;
+                webSocketService.sendToolResult(sessionId, "Get User Profile", 
+                    "Profile retrieved: " + profile.getRiskTolerance() + " risk, " + goals.size() + " goals", duration);
+                webSocketService.sendReasoning(sessionId, "✅ User profile retrieved");
+            }
+            
+            return result;
         } catch (Exception e) {
             log.error("Error getting user profile: {}", e.getMessage(), e);
+            
+            // Send error notification
+            if (sessionId != null) {
+                webSocketService.sendReasoning(sessionId, "❌ Failed to get user profile: " + e.getMessage());
+            }
+            
             return String.format("{\"error\": \"Error getting user profile: %s\"}", e.getMessage());
         }
     }
@@ -178,7 +212,7 @@ public class UserProfileAgent {
                 ))
                 .collect(Collectors.joining(", ", "[", "]"));
 
-            return String.format(
+            String result = String.format(
                 "{\"userId\": \"%s\", \"exists\": true, \"totalValue\": %s, \"totalGainLoss\": %s, " +
                 "\"totalGainLossPercent\": %s, \"holdings\": %s, \"holdingsCount\": %d, " +
                 "\"message\": \"Portfolio retrieved with current prices\"}",
@@ -189,8 +223,25 @@ public class UserProfileAgent {
                 holdingsJson,
                 portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0
             );
+            
+            // Send tool result notification
+            if (sessionId != null) {
+                long duration = System.currentTimeMillis() - startTime;
+                int holdingsCount = portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0;
+                webSocketService.sendToolResult(sessionId, "Get Portfolio", 
+                    holdingsCount + " holdings, Total: $" + (portfolio.getTotalValue() != null ? portfolio.getTotalValue().toString() : "0"), duration);
+                webSocketService.sendReasoning(sessionId, "✅ Portfolio retrieved: " + holdingsCount + " holdings");
+            }
+            
+            return result;
         } catch (Exception e) {
             log.error("Error getting portfolio: {}", e.getMessage(), e);
+            
+            // Send error notification
+            if (sessionId != null) {
+                webSocketService.sendReasoning(sessionId, "❌ Failed to get portfolio: " + e.getMessage());
+            }
+            
             return String.format("{\"error\": \"Error getting portfolio: %s\"}", e.getMessage());
         }
     }
