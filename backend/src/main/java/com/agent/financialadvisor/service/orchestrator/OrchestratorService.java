@@ -194,9 +194,14 @@ public class OrchestratorService {
                 "IMPORTANT: You can access the user's portfolio using UserProfileAgent tools: getPortfolio(userId), getPortfolioHoldings(userId), and getPortfolioSummary(userId). " +
                 "Always check the user's current portfolio before making recommendations to ensure advice is personalized and considers their existing holdings. " +
                 "Always consider the user's risk tolerance, investment goals, and current portfolio when making recommendations. " +
+                "When users greet you (hello, hi, hey, etc.), respond warmly and briefly introduce yourself as their financial advisor. " +
+                "Then guide them to share their financial questions or goals. Do NOT immediately provide stock recommendations for greetings. " +
+                "For greetings, say something like: 'Hello! I'm your AI financial advisor. I can help you with investment advice, portfolio analysis, and personalized recommendations. " +
+                "What would you like to know about your investments today?' " +
+                "Only provide investment recommendations when the user asks specific questions about stocks, their portfolio, or investment advice. " +
                 "Provide clear, well-reasoned recommendations based on data from all agents. " +
                 "If a user profile doesn't exist, guide them to create one first. " +
-                "Always include appropriate disclaimers about investment risks.")
+                "Always include appropriate disclaimers about investment risks, but only when giving actual investment advice.")
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 

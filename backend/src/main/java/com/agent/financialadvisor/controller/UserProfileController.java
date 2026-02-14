@@ -2,6 +2,7 @@ package com.agent.financialadvisor.controller;
 
 import com.agent.financialadvisor.model.UserProfile;
 import com.agent.financialadvisor.repository.UserProfileRepository;
+import com.agent.financialadvisor.service.RecommendationGenerationService;
 import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +21,14 @@ public class UserProfileController {
 
     private static final Logger log = LoggerFactory.getLogger(UserProfileController.class);
     private final UserProfileRepository userProfileRepository;
+    private final RecommendationGenerationService recommendationGenerationService;
 
-    public UserProfileController(UserProfileRepository userProfileRepository) {
+    public UserProfileController(
+            UserProfileRepository userProfileRepository,
+            RecommendationGenerationService recommendationGenerationService
+    ) {
         this.userProfileRepository = userProfileRepository;
+        this.recommendationGenerationService = recommendationGenerationService;
     }
 
     /**
@@ -120,6 +126,10 @@ public class UserProfileController {
 
             UserProfile saved = userProfileRepository.save(profile);
             log.info("Created user profile for userId={}", userId);
+            
+            // Trigger recommendation generation in background
+            recommendationGenerationService.generateRecommendationsForUser(userId);
+            
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             log.error("Error creating user profile: {}", e.getMessage(), e);
@@ -202,6 +212,10 @@ public class UserProfileController {
 
             UserProfile updated = userProfileRepository.save(profile);
             log.info("Updated user profile for userId={}", userId);
+            
+            // Trigger recommendation regeneration in background when profile is updated
+            recommendationGenerationService.generateRecommendationsForUser(userId);
+            
             return ResponseEntity.ok(updated);
         } catch (Exception e) {
             log.error("Error updating user profile: {}", e.getMessage(), e);

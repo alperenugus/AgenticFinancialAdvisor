@@ -2,6 +2,7 @@ package com.agent.financialadvisor.controller;
 
 import com.agent.financialadvisor.model.Recommendation;
 import com.agent.financialadvisor.repository.RecommendationRepository;
+import com.agent.financialadvisor.service.RecommendationGenerationService;
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
 import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
@@ -22,13 +23,16 @@ public class AdvisorController {
     private static final Logger log = LoggerFactory.getLogger(AdvisorController.class);
     private final OrchestratorService orchestratorService;
     private final RecommendationRepository recommendationRepository;
+    private final RecommendationGenerationService recommendationGenerationService;
 
     public AdvisorController(
             OrchestratorService orchestratorService,
-            RecommendationRepository recommendationRepository
+            RecommendationRepository recommendationRepository,
+            RecommendationGenerationService recommendationGenerationService
     ) {
         this.orchestratorService = orchestratorService;
         this.recommendationRepository = recommendationRepository;
+        this.recommendationGenerationService = recommendationGenerationService;
     }
 
     /**
@@ -83,10 +87,42 @@ public class AdvisorController {
             
             List<Recommendation> recommendations = recommendationRepository
                     .findByUserIdOrderByCreatedAtDesc(userId);
+            
+            // If no recommendations exist, trigger generation in background
+            if (recommendations.isEmpty()) {
+                log.info("No recommendations found for user {}, triggering background generation", userId);
+                recommendationGenerationService.generateRecommendationsForUser(userId);
+            }
+            
             return ResponseEntity.ok(recommendations);
         } catch (Exception e) {
             log.error("Error getting recommendations: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Generate recommendations for authenticated user
+     * POST /api/advisor/generate-recommendations
+     */
+    @PostMapping("/generate-recommendations")
+    public ResponseEntity<Map<String, Object>> generateRecommendations() {
+        try {
+            String userId = SecurityUtil.getCurrentUserEmail()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
+            log.info("Triggering recommendation generation for user: {}", userId);
+            recommendationGenerationService.generateRecommendationsForUser(userId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("message", "Recommendation generation started in background");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error triggering recommendation generation: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(createErrorResponse("Error generating recommendations: " + e.getMessage()));
         }
     }
 

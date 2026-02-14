@@ -4,6 +4,7 @@ import com.agent.financialadvisor.model.Portfolio;
 import com.agent.financialadvisor.model.StockHolding;
 import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.service.MarketDataService;
+import com.agent.financialadvisor.service.RecommendationGenerationService;
 import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,13 +24,16 @@ public class PortfolioController {
     private static final Logger log = LoggerFactory.getLogger(PortfolioController.class);
     private final PortfolioRepository portfolioRepository;
     private final MarketDataService marketDataService;
+    private final RecommendationGenerationService recommendationGenerationService;
 
     public PortfolioController(
             PortfolioRepository portfolioRepository,
-            MarketDataService marketDataService
+            MarketDataService marketDataService,
+            RecommendationGenerationService recommendationGenerationService
     ) {
         this.portfolioRepository = portfolioRepository;
         this.marketDataService = marketDataService;
+        this.recommendationGenerationService = recommendationGenerationService;
     }
 
     /**
@@ -215,6 +219,9 @@ public class PortfolioController {
             }
 
             portfolio = portfolioRepository.save(portfolio);
+
+            // Trigger recommendation regeneration in background when portfolio changes
+            recommendationGenerationService.generateRecommendationsForUser(userId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Holding removed successfully");
