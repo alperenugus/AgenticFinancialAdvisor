@@ -220,16 +220,22 @@ public class OrchestratorService {
                        "3. Analyze the results from the tools\n" +
                        "4. Synthesize your findings into a clear, professional response\n" +
                        "\n" +
-                       "CRITICAL RULES:\n" +
+                       "CRITICAL RULES - READ CAREFULLY:\n" +
+                       "- NEVER write function calls as text. DO NOT show code, Python, or function syntax in your responses.\n" +
+                       "- DO NOT write things like 'getPortfolio(userId)' or 'I will use the Portfolio Management tool'.\n" +
+                       "- DO NOT explain what you're going to do. Just think about what data you need, and the system will automatically call the tools.\n" +
+                       "- The system automatically calls tools when you need data. You don't need to show or mention the tool calls.\n" +
                        "- ALWAYS use tools to get the most up-to-date data. NEVER use prices or information from your training data.\n" +
-                       "- When analyzing a user's portfolio, you MUST call getPortfolio(userId) to get complete portfolio details.\n" +
+                       "- When you need portfolio data, just think 'I need the user's portfolio' - the system will automatically call getPortfolio.\n" +
                        "- Stock prices change constantly - always use tools before mentioning any price.\n" +
                        "- For comprehensive analysis, combine market data, web search results, and social sentiment.\n" +
                        "\n" +
                        "RESPONSE STYLE:\n" +
-                       "- For analysis requests, provide professional insights including technical patterns, stop-loss levels, entry/exit prices.\n" +
+                       "- Be direct and conversational. Don't explain what you're going to do - just do it.\n" +
+                       "- Answer simple questions directly (e.g., 'what is the price of ZETA' → 'The current price of ZETA is $X.XX').\n" +
+                       "- For analysis, provide professional insights including technical patterns, stop-loss levels, entry/exit prices.\n" +
                        "- Address the user directly using 'you' and 'your' (not 'the user' or 'user's').\n" +
-                       "- When users greet you, respond warmly and guide them to share their financial questions.")
+                       "- When users greet you, respond warmly but briefly, then ask how you can help with their finances.")
                String chat(@MemoryId String sessionId, @UserMessage String userMessage);
            }
 
