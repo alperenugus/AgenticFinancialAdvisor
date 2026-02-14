@@ -169,6 +169,17 @@ public class UserProfileAgent {
     @Transactional(readOnly = true)
     public String getPortfolio(String userId) {
         log.info("🔵 getPortfolio CALLED with userId={}", userId);
+        
+        // Send tool call notification
+        String sessionId = ToolCallAspect.getSessionId();
+        if (sessionId != null) {
+            java.util.Map<String, Object> params = new java.util.HashMap<>();
+            params.put("userId", userId.length() > 30 ? userId.substring(0, 27) + "..." : userId);
+            webSocketService.sendToolCall(sessionId, "Get Portfolio", params);
+            webSocketService.sendReasoning(sessionId, "🔧 Retrieving portfolio holdings...");
+        }
+        
+        long startTime = System.currentTimeMillis();
         try {
             Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
             if (portfolioOpt.isEmpty()) {

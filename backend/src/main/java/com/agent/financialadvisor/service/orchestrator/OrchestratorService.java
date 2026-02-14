@@ -3,7 +3,6 @@ package com.agent.financialadvisor.service.orchestrator;
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
 import com.agent.financialadvisor.aspect.ToolCallAspect;
-import com.agent.financialadvisor.service.ToolWrapper;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
@@ -37,7 +36,6 @@ public class OrchestratorService {
            private final WebSearchAgent webSearchAgent; // NEW: Web search capabilities
            private final FintwitAnalysisAgent fintwitAnalysisAgent; // NEW: Fintwit analysis
            private final WebSocketService webSocketService;
-           private final ToolWrapper toolWrapper; // For wrapping tools to track calls
            private final int orchestratorTimeoutSeconds;
     
     // Cache for AI service instances per session
@@ -54,7 +52,6 @@ public class OrchestratorService {
                    WebSearchAgent webSearchAgent, // NEW: Web search agent
                    FintwitAnalysisAgent fintwitAnalysisAgent, // NEW: Fintwit analysis agent
                    WebSocketService webSocketService,
-                   ToolWrapper toolWrapper, // Tool wrapper for tracking
                    @Value("${agent.timeout.orchestrator-seconds:60}") int orchestratorTimeoutSeconds
            ) {
                this.chatLanguageModel = chatLanguageModel;
@@ -67,7 +64,6 @@ public class OrchestratorService {
                this.webSearchAgent = webSearchAgent; // Assign web search agent
                this.fintwitAnalysisAgent = fintwitAnalysisAgent; // Assign fintwit agent
                this.webSocketService = webSocketService;
-               this.toolWrapper = toolWrapper; // Assign tool wrapper
                this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
            }
 
@@ -94,9 +90,8 @@ public class OrchestratorService {
             // Execute the agent with timeout protection
             // Use CompletableFuture to enforce timeout limit
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
-                // Set session ID in ThreadLocal for tool tracking (used by agents and AOP)
+                // Set session ID in ThreadLocal for tool tracking (used by agents)
                 ToolCallAspect.setSessionId(sessionId);
-                ToolWrapper.setSessionId(sessionId);
                 try {
                     return agent.chat(sessionId, contextualQuery);
                 } catch (Exception e) {
@@ -105,7 +100,6 @@ public class OrchestratorService {
                 } finally {
                     // Clear session ID after execution
                     ToolCallAspect.clearSessionId();
-                    ToolWrapper.clearSessionId();
                 }
             });
 
