@@ -284,9 +284,8 @@ GET /api/advisor/status
   "agents": {
     "userProfileAgent": true,
     "marketAnalysisAgent": true,
-    "riskAssessmentAgent": true,
-    "researchAgent": true,
-    "recommendationAgent": true,
+    "webSearchAgent": true,
+    "fintwitAnalysisAgent": true,
     "chatLanguageModel": true
   }
 }

@@ -313,14 +313,11 @@ Orchestrator Service
     ├─► Tool 2: MarketAnalysisAgent.getStockPrice()
     │   └─► MarketDataService → Alpha Vantage API
     │
-    ├─► Tool 3: RiskAssessmentAgent.assessStockRisk()
-    │   └─► Uses MarketDataService results
+    ├─► Tool 3: WebSearchAgent.searchFinancialNews()
+    │   └─► Tavily MCP → Web search results
     │
-    ├─► Tool 4: ResearchAgent.getCompanyFundamentals()
-    │   └─► MarketDataService → Alpha Vantage API
-    │
-    └─► Tool 5: RecommendationAgent.generateRecommendation()
-        └─► Synthesizes all previous results
+    └─► Tool 4: FintwitAnalysisAgent.analyzeFintwitSentiment()
+        └─► Twitter API / Web search → Social sentiment
             └─► Repository → Save to Database
     │
     ▼
