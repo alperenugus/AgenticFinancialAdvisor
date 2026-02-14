@@ -22,16 +22,23 @@ public class MarketAnalysisAgent {
         this.objectMapper = objectMapper;
     }
 
-    @Tool("Get current stock price for a symbol. Use this to get real-time or latest available stock price. " +
-          "Requires: symbol (string, e.g., 'AAPL', 'MSFT'). Returns current price as a number.")
+    @Tool("Get current stock price for a symbol. Use this to get the LATEST AVAILABLE stock price (fetched fresh from API, no caching). " +
+          "Note: Free tier may have 15-minute delay during market hours. Premium tier provides real-time data. " +
+          "Requires: symbol (string, e.g., 'AAPL', 'MSFT'). Returns current price as a number with timestamp.")
     public String getStockPrice(String symbol) {
-        log.info("🔵 getStockPrice CALLED with symbol={}", symbol);
+        log.info("🔵 getStockPrice CALLED with symbol={} - FETCHING FRESH DATA FROM API", symbol);
         try {
             BigDecimal price = marketDataService.getStockPrice(symbol);
             if (price == null) {
                 return String.format("{\"symbol\": \"%s\", \"error\": \"Unable to fetch stock price. Symbol may be invalid or API limit reached.\"}", symbol);
             }
-            return String.format("{\"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\"}", symbol, price);
+            // Include timestamp to show data freshness
+            String timestamp = java.time.LocalDateTime.now().toString();
+            return String.format(
+                "{\"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"fetchedAt\": \"%s\", " +
+                "\"note\": \"Fresh data fetched from API. Free tier may have 15-minute delay during market hours.\"}",
+                symbol, price, timestamp
+            );
         } catch (Exception e) {
             log.error("Error getting stock price for {}: {}", symbol, e.getMessage(), e);
             return String.format("{\"symbol\": \"%s\", \"error\": \"Error fetching stock price: %s\"}", symbol, e.getMessage());
