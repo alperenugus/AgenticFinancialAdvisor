@@ -32,9 +32,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             OAuth2User oAuth2User = super.loadUser(userRequest);
             log.info("OAuth2 user loaded successfully, attributes: {}", oAuth2User.getAttributes().keySet());
             return processOAuth2User(oAuth2User);
+        } catch (OAuth2AuthenticationException e) {
+            log.error("OAuth2 authentication error", e);
+            throw e;
         } catch (Exception e) {
             log.error("Error loading OAuth2 user", e);
-            throw new OAuth2AuthenticationException("Failed to load user from Google", e);
+            throw new OAuth2AuthenticationException("Failed to load user from Google");
         }
     }
 
