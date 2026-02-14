@@ -318,8 +318,9 @@ public class UserProfileAgent {
 
     @Tool("Get user's portfolio summary (total value, gain/loss, number of holdings). " +
           "Use this for quick portfolio overview without full details. " +
+          "Note: This returns data from the database. For current prices, use getPortfolio instead. " +
           "Requires: userId (string). Returns portfolio summary statistics.")
-    @Transactional
+    @Transactional(readOnly = true)
     public String getPortfolioSummary(String userId) {
         log.info("🔵 getPortfolioSummary CALLED with userId={}", userId);
         try {
@@ -335,32 +336,6 @@ public class UserProfileAgent {
             
             // Materialize lazy collection to avoid LazyInitializationException
             List<StockHolding> holdings = portfolio.getHoldings() != null 
-                ? new ArrayList<>(portfolio.getHoldings()) 
-                : new ArrayList<>();
-            
-            // Refresh prices if holdings exist
-            if (!holdings.isEmpty()) {
-                for (StockHolding holding : holdings) {
-                    try {
-                        BigDecimal currentPrice = marketDataService.getStockPrice(holding.getSymbol());
-                        if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
-                            holding.setCurrentPrice(currentPrice);
-                            // @PreUpdate will handle value, gainLoss, gainLossPercent calculations
-                        }
-                    } catch (Exception e) {
-                        log.warn("Could not refresh price for {}: {}", holding.getSymbol(), e.getMessage());
-                    }
-                }
-                // Update portfolio with refreshed holdings
-                portfolio.setHoldings(holdings);
-                // Save to trigger @PreUpdate calculations for both holdings and portfolio
-                portfolio = portfolioRepository.save(portfolio);
-                // Refresh from DB to get calculated totals
-                portfolio = portfolioRepository.findByUserId(userId).orElse(portfolio);
-            }
-
-            // Materialize again after save to ensure we have the latest data
-            holdings = portfolio.getHoldings() != null 
                 ? new ArrayList<>(portfolio.getHoldings()) 
                 : new ArrayList<>();
             
