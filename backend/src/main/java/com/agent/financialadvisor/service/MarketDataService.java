@@ -10,6 +10,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,33 +21,43 @@ public class MarketDataService {
     private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
-    private final String alphaVantageApiKey;
-    private final String alphaVantageBaseUrl;
+    private final String finnhubApiKey;
+    private final String finnhubBaseUrl;
     private final Duration timeoutDuration;
 
     public MarketDataService(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
-            @Value("${market-data.alpha-vantage.api-key:demo}") String alphaVantageApiKey,
-            @Value("${market-data.alpha-vantage.base-url:https://www.alphavantage.co/query}") String alphaVantageBaseUrl,
-            @Value("${market-data.alpha-vantage.timeout-seconds:8}") int timeoutSeconds
+            @Value("${market-data.finnhub.api-key:}") String finnhubApiKey,
+            @Value("${market-data.finnhub.base-url:https://finnhub.io/api/v1}") String finnhubBaseUrl,
+            @Value("${market-data.finnhub.timeout-seconds:10}") int timeoutSeconds
     ) {
-        // Build WebClient with increased buffer size for large Alpha Vantage responses
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
-        this.alphaVantageApiKey = alphaVantageApiKey;
-        this.alphaVantageBaseUrl = alphaVantageBaseUrl;
+        this.finnhubApiKey = finnhubApiKey;
+        this.finnhubBaseUrl = finnhubBaseUrl;
         this.timeoutDuration = Duration.ofSeconds(timeoutSeconds);
+        
+        if (finnhubApiKey == null || finnhubApiKey.trim().isEmpty()) {
+            log.warn("⚠️ Finnhub API key is not configured. Set FINNHUB_API_KEY environment variable.");
+        } else {
+            log.info("✅ MarketDataService initialized with Finnhub API");
+        }
     }
 
     /**
-     * Get current stock price
+     * Get current stock price using Finnhub quote endpoint
      * @return Stock price, or null if symbol is invalid or error occurs
      */
     public BigDecimal getStockPrice(String symbol) {
         try {
-            String url = String.format("%s?function=GLOBAL_QUOTE&symbol=%s&apikey=%s",
-                    alphaVantageBaseUrl, symbol, alphaVantageApiKey);
+            if (finnhubApiKey == null || finnhubApiKey.trim().isEmpty()) {
+                log.warn("Finnhub API key not configured");
+                return null;
+            }
+            
+            String url = String.format("%s/quote?symbol=%s&token=%s",
+                    finnhubBaseUrl, symbol.toUpperCase(), finnhubApiKey);
             
             String response = webClient.get()
                     .uri(url)
@@ -56,27 +68,21 @@ public class MarketDataService {
             
             JsonNode json = objectMapper.readTree(response);
             
-            // Check for API errors first (invalid symbol, rate limit, etc.)
-            if (json.has("Error Message")) {
-                String errorMsg = json.get("Error Message").asText();
-                log.warn("Alpha Vantage API error for {}: {}", symbol, errorMsg);
-                return null;
-            }
-            if (json.has("Note")) {
-                String note = json.get("Note").asText();
-                log.warn("Alpha Vantage API note for {}: {}", symbol, note);
+            // Check for API errors
+            if (json.has("error")) {
+                String errorMsg = json.get("error").asText();
+                log.warn("Finnhub API error for {}: {}", symbol, errorMsg);
                 return null;
             }
             
-            JsonNode quote = json.get("Global Quote");
-            if (quote != null && quote.has("05. price")) {
-                String priceStr = quote.get("05. price").asText();
-                if (priceStr != null && !priceStr.trim().isEmpty()) {
-                    return new BigDecimal(priceStr);
+            // Finnhub quote response: {"c": currentPrice, "h": high, "l": low, "o": open, "pc": previousClose, "t": timestamp}
+            if (json.has("c") && !json.get("c").isNull()) {
+                BigDecimal price = json.get("c").decimalValue();
+                if (price.compareTo(BigDecimal.ZERO) > 0) {
+                    return price;
                 }
             }
             
-            // If Global Quote is empty or missing price, symbol might be invalid
             log.warn("No valid price data found for symbol: {}", symbol);
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("timeout")) {
@@ -110,20 +116,34 @@ public class MarketDataService {
     }
 
     /**
-     * Get stock price data for a time period
+     * Get stock price data for a time period using Finnhub candles endpoint
      */
     public Map<String, Object> getStockPriceData(String symbol, String timeframe) {
         Map<String, Object> result = new HashMap<>();
         try {
-            String function = "TIME_SERIES_DAILY";
-            if ("weekly".equalsIgnoreCase(timeframe)) {
-                function = "TIME_SERIES_WEEKLY";
-            } else if ("monthly".equalsIgnoreCase(timeframe)) {
-                function = "TIME_SERIES_MONTHLY";
+            if (finnhubApiKey == null || finnhubApiKey.trim().isEmpty()) {
+                log.warn("Finnhub API key not configured");
+                return result;
             }
             
-            String url = String.format("%s?function=%s&symbol=%s&apikey=%s",
-                    alphaVantageBaseUrl, function, symbol, alphaVantageApiKey);
+            // Map timeframe to Finnhub resolution
+            String resolution = "D"; // Daily by default
+            int daysBack = 30; // Default to 30 days
+            
+            if ("weekly".equalsIgnoreCase(timeframe)) {
+                resolution = "W";
+                daysBack = 52; // 52 weeks
+            } else if ("monthly".equalsIgnoreCase(timeframe)) {
+                resolution = "M";
+                daysBack = 12; // 12 months
+            }
+            
+            // Calculate timestamps (Finnhub uses Unix timestamps)
+            long to = Instant.now().getEpochSecond();
+            long from = to - (daysBack * 24L * 60L * 60L); // daysBack days ago
+            
+            String url = String.format("%s/stock/candle?symbol=%s&resolution=%s&from=%d&to=%d&token=%s",
+                    finnhubBaseUrl, symbol.toUpperCase(), resolution, from, to, finnhubApiKey);
             
             String response = webClient.get()
                     .uri(url)
@@ -134,63 +154,48 @@ public class MarketDataService {
             
             JsonNode json = objectMapper.readTree(response);
             
-            // Check for API errors first
-            if (json.has("Error Message") || json.has("Note")) {
-                String errorMsg = json.has("Error Message") 
-                    ? json.get("Error Message").asText() 
-                    : json.get("Note").asText();
-                log.warn("Alpha Vantage API error for {}: {}", symbol, errorMsg);
-                return result; // Return empty result
+            // Check for API errors
+            if (json.has("error")) {
+                String errorMsg = json.get("error").asText();
+                log.warn("Finnhub API error for {}: {}", symbol, errorMsg);
+                return result;
             }
             
-            // Find the time series key (could be "Time Series (Daily)", "Weekly Time Series", etc.)
-            String timeSeriesKey = null;
-            var fieldNames = json.fieldNames();
-            while (fieldNames.hasNext()) {
-                String key = fieldNames.next();
-                if (key.contains("Time Series") || key.contains("Weekly") || key.contains("Monthly")) {
-                    timeSeriesKey = key;
-                    break;
-                }
-            }
-            
-            if (timeSeriesKey == null) {
-                log.warn("No time series data found in response for {}", symbol);
-                return result; // Return empty result
-            }
-            
-            JsonNode timeSeries = json.get(timeSeriesKey);
-            
-            if (timeSeries != null && timeSeries.isObject()) {
+            // Finnhub candles response: {"c": [close prices], "h": [high prices], "l": [low prices], "o": [open prices], "s": "ok", "t": [timestamps], "v": [volumes]}
+            if (json.has("s") && "ok".equals(json.get("s").asText()) && json.has("c") && json.get("c").isArray()) {
+                JsonNode closePrices = json.get("c");
+                JsonNode highPrices = json.has("h") ? json.get("h") : null;
+                JsonNode lowPrices = json.has("l") ? json.get("l") : null;
+                
                 result.put("symbol", symbol);
-                result.put("data", timeSeries);
+                result.put("data", json);
                 
                 // Calculate basic statistics
-                // timeSeries is an object with date keys, each containing price data
                 BigDecimal high = BigDecimal.ZERO;
                 BigDecimal low = new BigDecimal("999999");
                 BigDecimal total = BigDecimal.ZERO;
                 int count = 0;
                 
-                // Iterate over date keys in the time series object
-                var dateFields = timeSeries.fields();
-                while (dateFields.hasNext()) {
-                    var entry = dateFields.next();
-                    JsonNode dayData = entry.getValue();
-                    
-                    if (dayData.has("2. high") && dayData.has("3. low")) {
-                        BigDecimal dayHigh = new BigDecimal(dayData.get("2. high").asText());
-                        BigDecimal dayLow = new BigDecimal(dayData.get("3. low").asText());
+                if (closePrices.isArray() && closePrices.size() > 0) {
+                    for (int i = 0; i < closePrices.size(); i++) {
+                        BigDecimal close = closePrices.get(i).decimalValue();
+                        BigDecimal dayHigh = highPrices != null && highPrices.isArray() && i < highPrices.size() 
+                            ? highPrices.get(i).decimalValue() : close;
+                        BigDecimal dayLow = lowPrices != null && lowPrices.isArray() && i < lowPrices.size() 
+                            ? lowPrices.get(i).decimalValue() : close;
+                        
                         high = high.max(dayHigh);
                         low = low.min(dayLow);
-                        total = total.add(dayHigh).add(dayLow);
-                        count += 2;
+                        total = total.add(close);
+                        count++;
                     }
                 }
                 
-                result.put("high", high);
-                result.put("low", low);
+                result.put("high", high.compareTo(BigDecimal.ZERO) > 0 ? high : BigDecimal.ZERO);
+                result.put("low", low.compareTo(new BigDecimal("999999")) < 0 ? low : BigDecimal.ZERO);
                 result.put("average", count > 0 ? total.divide(BigDecimal.valueOf(count), 2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO);
+            } else {
+                log.warn("No valid candle data found in response for {}", symbol);
             }
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("timeout")) {
@@ -203,13 +208,18 @@ public class MarketDataService {
     }
 
     /**
-     * Get company overview (fundamentals)
+     * Get company overview (fundamentals) using Finnhub company profile endpoint
      */
     public Map<String, Object> getCompanyOverview(String symbol) {
         Map<String, Object> result = new HashMap<>();
         try {
-            String url = String.format("%s?function=OVERVIEW&symbol=%s&apikey=%s",
-                    alphaVantageBaseUrl, symbol, alphaVantageApiKey);
+            if (finnhubApiKey == null || finnhubApiKey.trim().isEmpty()) {
+                log.warn("Finnhub API key not configured");
+                return result;
+            }
+            
+            String url = String.format("%s/stock/profile2?symbol=%s&token=%s",
+                    finnhubBaseUrl, symbol.toUpperCase(), finnhubApiKey);
             
             String response = webClient.get()
                     .uri(url)
@@ -219,15 +229,31 @@ public class MarketDataService {
                     .block();
             
             JsonNode json = objectMapper.readTree(response);
-            if (json.has("Symbol")) {
-                result.put("symbol", json.get("Symbol").asText());
-                result.put("name", json.has("Name") ? json.get("Name").asText() : "");
-                result.put("sector", json.has("Sector") ? json.get("Sector").asText() : "");
-                result.put("peRatio", json.has("PERatio") ? json.get("PERatio").asText() : "");
-                result.put("pbRatio", json.has("PriceToBookRatio") ? json.get("PriceToBookRatio").asText() : "");
-                result.put("dividendYield", json.has("DividendYield") ? json.get("DividendYield").asText() : "");
-                result.put("revenueGrowth", json.has("QuarterlyRevenueGrowthYOY") ? json.get("QuarterlyRevenueGrowthYOY").asText() : "");
-                result.put("profitMargin", json.has("ProfitMargin") ? json.get("ProfitMargin").asText() : "");
+            
+            // Check for API errors
+            if (json.has("error")) {
+                String errorMsg = json.get("error").asText();
+                log.warn("Finnhub API error for {}: {}", symbol, errorMsg);
+                return result;
+            }
+            
+            // Finnhub profile2 response contains: name, ticker, exchange, finnhubIndustry, logo, weburl, marketCapitalization, etc.
+            if (json.has("ticker")) {
+                result.put("symbol", json.has("ticker") ? json.get("ticker").asText() : symbol);
+                result.put("name", json.has("name") ? json.get("name").asText() : "");
+                result.put("sector", json.has("finnhubIndustry") ? json.get("finnhubIndustry").asText() : "");
+                result.put("exchange", json.has("exchange") ? json.get("exchange").asText() : "");
+                result.put("marketCap", json.has("marketCapitalization") ? json.get("marketCapitalization").asText() : "");
+                result.put("weburl", json.has("weburl") ? json.get("weburl").asText() : "");
+                result.put("logo", json.has("logo") ? json.get("logo").asText() : "");
+                
+                // Note: Finnhub profile2 doesn't include P/E, P/B, dividend yield directly
+                // These would need to be fetched from other endpoints if needed
+                result.put("peRatio", "");
+                result.put("pbRatio", "");
+                result.put("dividendYield", "");
+                result.put("revenueGrowth", "");
+                result.put("profitMargin", "");
             }
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("timeout")) {
@@ -240,12 +266,21 @@ public class MarketDataService {
     }
 
     /**
-     * Get market news (simplified - using Alpha Vantage news sentiment)
+     * Get market news using Finnhub company news endpoint
      */
     public String getMarketNews(String symbol) {
         try {
-            String url = String.format("%s?function=NEWS_SENTIMENT&tickers=%s&apikey=%s&limit=5",
-                    alphaVantageBaseUrl, symbol, alphaVantageApiKey);
+            if (finnhubApiKey == null || finnhubApiKey.trim().isEmpty()) {
+                log.warn("Finnhub API key not configured");
+                return "News data not available - API key not configured.";
+            }
+            
+            // Get news from last 7 days
+            LocalDate toDate = LocalDate.now();
+            LocalDate fromDate = toDate.minusDays(7);
+            
+            String url = String.format("%s/company-news?symbol=%s&from=%s&to=%s&token=%s",
+                    finnhubBaseUrl, symbol.toUpperCase(), fromDate.toString(), toDate.toString(), finnhubApiKey);
             
             String response = webClient.get()
                     .uri(url)
@@ -256,14 +291,39 @@ public class MarketDataService {
             
             // Parse and return summary
             JsonNode json = objectMapper.readTree(response);
-            if (json.has("feed") && json.get("feed").isArray()) {
+            
+            // Check for API errors
+            if (json.has("error")) {
+                String errorMsg = json.get("error").asText();
+                log.warn("Finnhub API error for news {}: {}", symbol, errorMsg);
+                return "No recent news available.";
+            }
+            
+            // Finnhub company-news returns an array of news items
+            if (json.isArray() && json.size() > 0) {
                 StringBuilder news = new StringBuilder();
-                for (JsonNode item : json.get("feed")) {
-                    if (item.has("title")) {
-                        news.append(item.get("title").asText()).append(". ");
+                int count = 0;
+                int maxItems = Math.min(5, json.size()); // Limit to 5 items
+                
+                for (int i = 0; i < maxItems; i++) {
+                    JsonNode item = json.get(i);
+                    if (item.has("headline")) {
+                        news.append(item.get("headline").asText());
+                        if (item.has("summary") && !item.get("summary").isNull()) {
+                            String summary = item.get("summary").asText();
+                            if (summary.length() > 100) {
+                                summary = summary.substring(0, 97) + "...";
+                            }
+                            news.append(" - ").append(summary);
+                        }
+                        news.append(". ");
+                        count++;
                     }
                 }
-                return news.toString();
+                
+                if (count > 0) {
+                    return news.toString();
+                }
             }
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("timeout")) {

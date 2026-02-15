@@ -78,13 +78,13 @@ agent:
 
 # External API Configuration
 market-data:
-  alpha-vantage:
-    api-key: ${ALPHA_VANTAGE_API_KEY:demo}
-    base-url: https://www.alphavantage.co/query
-    timeout-seconds: ${MARKET_DATA_TIMEOUT_SECONDS:8}
-    rate-limit:
-      calls-per-minute: 5
-      calls-per-day: 500
+  # Finnhub API - Get API key from https://finnhub.io/
+  # Free tier: 60 API calls/minute, 1,000,000 calls/month
+  # Set FINNHUB_API_KEY environment variable on Railway
+  finnhub:
+    api-key: ${FINNHUB_API_KEY:}
+    base-url: ${FINNHUB_BASE_URL:https://finnhub.io/api/v1}
+    timeout-seconds: ${MARKET_DATA_TIMEOUT_SECONDS:10}
 
   yahoo-finance:
     base-url: https://query1.finance.yahoo.com/v8/finance/chart
