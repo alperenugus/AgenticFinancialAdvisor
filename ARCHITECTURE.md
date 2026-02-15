@@ -153,23 +153,29 @@ User Query
          │
          ├─► Determine required agents
          │
-         ├─► Coordinate agent execution:
+         ├─► Delegate to agent LLMs:
          │   │
-         │   ├─► UserProfileAgent.getUserProfile()
-         │   │   └─► Get user risk tolerance, goals
+         │   ├─► delegateToUserProfileAgent()
+         │   │   └─► UserProfileAgent LLM reasons and calls tools
+         │   │       ├─► getUserProfile() → Get user risk tolerance, goals
+         │   │       └─► getPortfolioSummary() → Get user's current holdings
          │   │
-         │   ├─► UserProfileAgent.getPortfolioSummary()
-         │   │   └─► Get user's current holdings
+         │   ├─► delegateToMarketAnalysisAgent()
+         │   │   └─► MarketAnalysisAgent LLM reasons and calls tools
+         │   │       ├─► getStockPrice()
+         │   │       ├─► analyzeTrends()
+         │   │       └─► getMarketNews()
          │   │
-         │   ├─► MarketAnalysisAgent.getStockPrice()
-         │   │   ├─► MarketAnalysisAgent.analyzeTrends()
-         │   │   └─► MarketAnalysisAgent.getMarketNews()
+         │   ├─► delegateToWebSearchAgent()
+         │   │   └─► WebSearchAgent LLM reasons and calls tools
+         │   │       ├─► searchFinancialNews()
+         │   │       └─► searchStockAnalysis()
          │   │
-         │   ├─► WebSearchAgent.searchFinancialNews()
-         │   │   └─► WebSearchAgent.searchStockAnalysis()
-         │   │
-         │   └─► FintwitAnalysisAgent.analyzeFintwitSentiment()
-         │       └─► Synthesize all inputs
+         │   └─► delegateToFintwitAnalysisAgent()
+         │       └─► FintwitAnalysisAgent LLM reasons and calls tools
+         │           └─► analyzeFintwitSentiment()
+         │
+         ├─► Synthesize responses from all agent LLMs
          │
          ▼
 ┌─────────────────┐
@@ -182,21 +188,28 @@ User Query
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Orchestrator Agent                        │
-│  (LangChain4j AI with access to all agent tools)           │
+│              Orchestrator Agent (Orchestrator LLM)          │
+│  - Analyzes user query                                      │
+│  - Decides which agent(s) to delegate to                    │
+│  - Synthesizes responses from multiple agents               │
 └───────────────┬─────────────────────────────────────────────┘
                 │
-                │ Tool Calls (via @Tool annotations)
+                │ Delegation Tool Calls
+                │ (delegateToUserProfileAgent, etc.)
                 │
     ┌───────────┼───────────┬───────────┬───────────┐
     │           │           │           │           │
     ▼           ▼           ▼           ▼           ▼
 ┌───────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
-│ User  │  │ Market │  │  Risk  │  │Research│  │Recomm.│
-│Profile│  │Analysis│  │Assessment│ │ Agent  │  │ Agent │
-│ Agent │  │ Agent  │  │  Agent  │  │        │  │       │
+│ User  │  │ Market │  │   Web  │  │Fintwit │  │Security│
+│Profile│  │Analysis│  │ Search │  │Analysis│  │ Agent  │
+│ Agent │  │ Agent  │  │ Agent  │  │ Agent  │  │        │
+│(LLM)  │  │ (LLM)  │  │ (LLM)  │  │ (LLM)  │  │ (LLM)  │
 └───┬───┘  └───┬────┘  └───┬────┘  └───┬────┘  └───┬───┘
     │           │            │           │           │
+    │           │            │           │           │
+    │           │            │           │           │
+    │  Each agent uses its own LLM to reason and call tools  │
     │           │            │           │           │
     └───────────┼────────────┼───────────┼───────────┘
                 │            │           │
@@ -242,37 +255,55 @@ public String discoverStocks(String riskTolerance, String sectors, String exclud
 
 ### 1. Orchestrator Service
 
-**Purpose**: Central coordinator that uses LangChain4j to create an AI agent with access to all specialized agent tools.
+**Purpose**: Central coordinator that uses its own LLM instance to coordinate between specialized agent LLMs. Each agent has its own LLM instance for independent reasoning.
 
 **Key Features**:
 - Maintains conversation context per session
-- Automatically selects which tools to call based on user query
-- Synthesizes responses from multiple agents
+- Uses delegation tools to route queries to appropriate agent LLMs
+- Synthesizes responses from multiple agent LLMs
 - Sends real-time updates via WebSocket
 - **Intelligent greeting handling** - Responds naturally to greetings and guides users to financial questions
 - **Portfolio-aware** - Always checks user portfolio and profile before making recommendations
 - **Contextual queries** - Automatically includes user profile and portfolio context in every query
 
+**Architecture**:
+- **Orchestrator LLM**: Own LLM instance (llama-3.3-70b-versatile) that coordinates between agents
+- **Agent LLMs**: Each agent (UserProfile, MarketAnalysis, WebSearch, Fintwit) has its own LLM instance
+- **Delegation Pattern**: Orchestrator uses tools to delegate queries to agent LLMs:
+  - `delegateToUserProfileAgent(sessionId, query)`
+  - `delegateToMarketAnalysisAgent(sessionId, query)`
+  - `delegateToWebSearchAgent(sessionId, query)`
+  - `delegateToFintwitAnalysisAgent(sessionId, query)`
+
 **Implementation**:
 ```java
-@Bean
-public FinancialAdvisorAgent createAgent() {
-    return AiServices.builder(FinancialAdvisorAgent.class)
-        .chatLanguageModel(chatLanguageModel)
-        .chatMemory(MessageWindowChatMemory.withMaxMessages(20))
-        .tools(
-            userProfileAgent,
-            marketAnalysisAgent,
-            webSearchAgent,
-            fintwitAnalysisAgent
-        )
-        .build();
-}
+// Orchestrator has its own LLM
+OrchestratorAgent orchestrator = AiServices.builder(OrchestratorAgent.class)
+    .chatLanguageModel(chatLanguageModel)  // Orchestrator LLM
+    .chatMemoryProvider(memoryProvider)
+    .tools(new AgentOrchestrationTools(...))  // Delegation tools
+    .build();
+
+// Each agent has its own LLM
+UserProfileAgentService agent = AiServices.builder(UserProfileAgentService.class)
+    .chatLanguageModel(agentChatLanguageModel)  // Agent LLM
+    .chatMemoryProvider(memoryProvider)
+    .tools(this)  // Agent's own tools
+    .build();
 ```
 
-### 2. Agent Tools Pattern
+### 2. Multi-Agent LLM Architecture
 
-Each agent exposes tools via `@Tool` annotations that the LLM can call:
+**Key Innovation**: Each agent has its own LLM instance, enabling independent reasoning and specialized behavior.
+
+**Agent LLM Configuration**:
+- All agents use the same `agentChatLanguageModel` bean (llama-3.3-70b-versatile)
+- Each agent maintains its own conversation memory per session
+- Agents can reason independently before calling their tools
+
+**Agent Tools Pattern**:
+
+Each agent exposes tools via `@Tool` annotations that its own LLM can call:
 
 ```java
 @Tool("Get user's investment profile...")
@@ -281,11 +312,11 @@ public String getUserProfile(String userId) {
 }
 ```
 
-The LLM automatically:
-- Understands when to call each tool
+Each agent's LLM:
+- Understands when to call its own tools
 - Passes correct parameters
 - Handles tool responses
-- Combines multiple tool results
+- Can reason about tool results before responding
 
 **Portfolio Access Tools** (UserProfileAgent):
 - `getPortfolio(userId)` - Full portfolio with holdings, values, gain/loss
@@ -293,6 +324,12 @@ The LLM automatically:
 - `getPortfolioSummary(userId)` - Quick portfolio overview
 
 These tools automatically refresh current stock prices when called, ensuring the AI always has up-to-date portfolio data.
+
+**Benefits of Multi-Agent LLM Architecture**:
+- **Separation of Concerns**: Each agent is independent with its own reasoning
+- **Scalability**: Agents can be optimized or replaced independently
+- **Modularity**: Easier to add new agents or modify existing ones
+- **Better Coordination**: Orchestrator decides which agent(s) to use based on query
 
 ### 3. Data Flow
 
@@ -303,22 +340,33 @@ User Request
 Controller (REST/WebSocket)
     │
     ▼
-Orchestrator Service
+Orchestrator Service (Orchestrator LLM)
     │
-    ├─► LLM decides which tools to call
+    ├─► Orchestrator LLM analyzes query
     │
-    ├─► Tool 1: UserProfileAgent.getUserProfile()
-    │   └─► Repository → Database
+    ├─► Orchestrator decides which agent(s) to delegate to
     │
-    ├─► Tool 2: MarketAnalysisAgent.getStockPrice()
-    │   └─► MarketDataService → Alpha Vantage API
+    ├─► Delegation 1: delegateToUserProfileAgent()
+    │   └─► UserProfileAgent LLM reasons about query
+    │       └─► Calls tools: getUserProfile(), getPortfolio()
+    │           └─► Repository → Database
     │
-    ├─► Tool 3: WebSearchAgent.searchFinancialNews()
-    │   └─► Tavily MCP → Web search results
+    ├─► Delegation 2: delegateToMarketAnalysisAgent()
+    │   └─► MarketAnalysisAgent LLM reasons about query
+    │       └─► Calls tools: getStockPrice(), analyzeTrends()
+    │           └─► MarketDataService → Alpha Vantage API
     │
-    └─► Tool 4: FintwitAnalysisAgent.analyzeFintwitSentiment()
-        └─► Twitter API / Web search → Social sentiment
-            └─► Repository → Save to Database
+    ├─► Delegation 3: delegateToWebSearchAgent()
+    │   └─► WebSearchAgent LLM reasons about query
+    │       └─► Calls tools: searchFinancialNews(), searchStockAnalysis()
+    │           └─► Tavily MCP → Web search results
+    │
+    └─► Delegation 4: delegateToFintwitAnalysisAgent()
+        └─► FintwitAnalysisAgent LLM reasons about query
+            └─► Calls tools: getFintwitSentiment()
+                └─► Twitter API / Web search → Social sentiment
+    │
+    ├─► Orchestrator LLM synthesizes responses from all agents
     │
     ▼
 Final Response (via WebSocket + REST)
@@ -334,7 +382,10 @@ Final Response (via WebSocket + REST)
 
 ### LLM Integration
 - **LangChain4j 0.34.0**: Java LLM framework
-- **Groq API**: Fast LLM inference (llama-3.3-70b-versatile for orchestrator, llama-3.1-8b-instant for tool agents)
+- **Groq API**: Fast LLM inference
+  - **Orchestrator LLM**: llama-3.3-70b-versatile (coordination and synthesis)
+  - **Agent LLMs**: llama-3.3-70b-versatile (each agent has its own instance)
+  - **Tool Agent LLM**: llama-3.1-8b-instant (available for future optimization)
 
 ### Authentication & Security
 - **Spring Security OAuth2**: Google Sign-In integration

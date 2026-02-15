@@ -4,7 +4,7 @@ A multi-agent financial advisory system powered by Groq API that provides person
 
 ## 🎯 Overview
 
-This system uses a multi-agent architecture where specialized AI agents work together to provide comprehensive financial advice. Each agent has specific expertise and tools, coordinated by an Orchestrator Agent that manages the workflow. The AI Advisor has full access to user portfolio and profile data for personalized recommendations.
+This system uses a **multi-agent architecture with individual LLM instances** where specialized AI agents work together to provide comprehensive financial advice. Each agent has its own LLM instance for independent reasoning, coordinated by an Orchestrator Agent that delegates queries and synthesizes responses. The AI Advisor has full access to user portfolio and profile data for personalized recommendations.
 
 ## ✨ Features
 
@@ -17,7 +17,7 @@ This system uses a multi-agent architecture where specialized AI agents work tog
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and analysis
 - **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b-versatile (orchestrator) and llama-3.1-8b-instant (tool agents)
-- **Professional UI**: Modern, responsive design with stock price graph branding
+- **Professional UI**: Modern, responsive light theme design with stock price graph branding
 
 ## 🏗️ System Architecture
 
@@ -191,10 +191,10 @@ The frontend will start on `http://localhost:5173`
 ## 🤖 Agents
 
 ### 1. Orchestrator Agent
-Coordinates all other agents, manages workflows, and synthesizes final responses.
+Coordinates all other agent LLMs using its own LLM instance. Delegates queries to specialized agent LLMs and synthesizes their responses into final recommendations.
 
 ### 2. User Profile Agent
-Manages user investment preferences, risk tolerance, goals, and constraints. **Also provides portfolio access tools.**
+Has its own LLM instance for reasoning about user profiles and portfolios. Manages user investment preferences, risk tolerance, goals, and constraints. **Also provides portfolio access tools.**
 
 **Tools:**
 - `getUserProfile(userId)` - Get user profile (risk tolerance, goals, preferences)
@@ -205,7 +205,7 @@ Manages user investment preferences, risk tolerance, goals, and constraints. **A
 - `getPortfolioSummary(userId)` - Get portfolio summary (total value, gain/loss, holdings count)
 
 ### 3. Market Analysis Agent
-Analyzes market data, price trends, and technical indicators.
+Has its own LLM instance for reasoning about market data. Analyzes stock prices, price trends, and technical indicators.
 
 **Tools:**
 - `getStockPrice(symbol, timeframe)` - Get stock price data
@@ -214,7 +214,7 @@ Analyzes market data, price trends, and technical indicators.
 - `getTechnicalIndicators(symbol)` - Calculate technical indicators
 
 ### 4. Web Search Agent
-Searches the web for financial news, analysis, and market insights using Tavily MCP.
+Has its own LLM instance for reasoning about web search queries. Searches the web for financial news, analysis, and market insights using Tavily MCP.
 
 **Tools:**
 - `searchFinancialNews(query)` - Search for financial news and market insights
@@ -223,7 +223,7 @@ Searches the web for financial news, analysis, and market insights using Tavily 
 - `searchCompanyInfo(symbol)` - Search for company information and earnings
 
 ### 5. Fintwit Analysis Agent
-Analyzes social sentiment from financial Twitter (fintwit) for market insights.
+Has its own LLM instance for reasoning about social sentiment. Analyzes social sentiment from financial Twitter (fintwit) for market insights.
 
 **Tools:**
 - `analyzeFintwitSentiment(symbol)` - Analyze social sentiment for a stock
@@ -275,13 +275,13 @@ mvn test jacoco:report
 - **Spring Security OAuth2** - Google Sign-In authentication
 - **JWT** - Token-based authentication
 - **LangChain4j 0.34.0** - LLM integration
-- **Groq API** - Fast LLM inference (llama-3.3-70b for orchestrator, llama-3.1-8b for tool agents)
+- **Groq API** - Fast LLM inference (llama-3.3-70b for orchestrator and all agent LLMs)
 - **PostgreSQL** - Database
 - **WebSocket** - Real-time communication
 
 ### Frontend
 - **React + Vite** - UI framework
-- **Tailwind CSS** - Professional styling with financial advisor theme
+- **Tailwind CSS** - Professional light theme styling with financial advisor theme
 - **Recharts** - Data visualization (portfolio charts, allocation graphs)
 - **WebSocket Client** - Real-time updates
 - **Google OAuth Client Library** - Authentication

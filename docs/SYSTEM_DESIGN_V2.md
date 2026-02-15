@@ -18,26 +18,31 @@ This document outlines the improved agent architecture for the Financial Advisor
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Orchestrator Agent                        │
+│              Orchestrator Agent (Orchestrator LLM)           │
 │              (llama-3.3-70b-versatile)                      │
-│         Coordinates all agents, synthesizes responses         │
+│    Delegates to agent LLMs, synthesizes responses            │
 └───────────────┬─────────────────────────────────────────────┘
+                │
+                │ Delegation Tools
                 │
     ┌───────────┼───────────┬───────────┬───────────┐
     │           │           │           │           │
     ▼           ▼           ▼           ▼           ▼
 ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
-│ User   │ │Market │ │  Web   │ │Fintwit │ │  Risk  │
-│Profile │ │ Data  │ │ Search │ │Analysis│ │Assessment│
-│ Agent  │ │ Agent │ │ Agent  │ │ Agent  │ │ Agent  │
+│ User   │ │Market │ │  Web   │ │Fintwit │ │Security│
+│Profile │ │ Data  │ │ Search │ │Analysis│ │ Agent  │
+│ Agent  │ │ Agent │ │ Agent  │ │ Agent  │ │        │
+│ (LLM)  │ │ (LLM) │ │ (LLM)  │ │ (LLM)  │ │ (LLM)  │
 └────────┘ └────────┘ └────────┘ └────────┘ └────────┘
+    │           │           │           │           │
+    │  Each agent has its own LLM instance for reasoning      │
     │           │           │           │           │
     └───────────┼───────────┼───────────┼───────────┘
                 │           │           │
                 ▼           ▼           ▼
          ┌──────────────────────────────┐
-         │    Research Agent             │
-         │  (Synthesizes all data)       │
+         │    MarketDataService         │
+         │  (External API calls)        │
          └──────────────────────────────┘
 ```
 
