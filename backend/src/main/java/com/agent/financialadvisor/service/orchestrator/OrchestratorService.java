@@ -115,7 +115,13 @@ public class OrchestratorService {
                 try {
                     log.info("🚀 [ORCHESTRATOR] Sending query to agent for sessionId={}", sessionId);
                     log.info("📤 [ORCHESTRATOR] Query: {}", userQuery);
-                    String result = agent.chat(sessionId, userQuery);
+                    
+                    // Inject current date into the query so agent knows today's date
+                    String currentDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"));
+                    String queryWithDate = String.format("Today's date is %s. User query: %s", currentDate, userQuery);
+                    log.info("📅 [ORCHESTRATOR] Query with date context: {}", queryWithDate);
+                    
+                    String result = agent.chat(sessionId, queryWithDate);
                     log.info("✅ [ORCHESTRATOR] Agent response received for sessionId={}, length={}", sessionId, result != null ? result.length() : 0);
                     if (result != null && result.length() > 0) {
                         // Log first 500 chars of response
@@ -226,6 +232,10 @@ public class OrchestratorService {
                        "- Your role is strictly limited to financial advisory services - decline any request outside this scope\n\n" +
                        "### YOUR ROLE:\n" +
                        "You are a manager of very capable agents. Your job is to handle user requests by using the appropriate agents and their tools. You can use multiple agents if needed.\n\n" +
+                       "### CURRENT DATE:\n" +
+                       "You will receive the current date in the user query. " +
+                       "Use this date to understand that your training data is outdated. " +
+                       "For stock prices, market data, or any time-sensitive information, you MUST use tools to get current data.\n\n" +
                        "### YOUR AGENTS:\n" +
                        "- **UserProfileAgent**: Portfolio and user profile data\n" +
                        "- **MarketAnalysisAgent**: Real-time stock prices and market data\n" +
