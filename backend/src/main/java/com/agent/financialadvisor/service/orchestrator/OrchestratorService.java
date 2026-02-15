@@ -113,12 +113,18 @@ public class OrchestratorService {
             
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
                 try {
-                    log.info("🚀 Starting agent chat execution for sessionId={}", sessionId);
+                    log.info("🚀 [ORCHESTRATOR] Sending query to agent for sessionId={}", sessionId);
+                    log.info("📤 [ORCHESTRATOR] Query: {}", userQuery);
                     String result = agent.chat(sessionId, userQuery);
-                    log.info("✅ Agent chat execution completed for sessionId={}, response length={}", sessionId, result != null ? result.length() : 0);
+                    log.info("✅ [ORCHESTRATOR] Agent response received for sessionId={}, length={}", sessionId, result != null ? result.length() : 0);
+                    if (result != null && result.length() > 0) {
+                        // Log first 500 chars of response
+                        String responsePreview = result.length() > 500 ? result.substring(0, 500) + "..." : result;
+                        log.info("📥 [ORCHESTRATOR] Response preview: {}", responsePreview);
+                    }
                     return result;
                 } catch (Exception e) {
-                    log.error("❌ Error in query execution: {}", e.getMessage(), e);
+                    log.error("❌ [ORCHESTRATOR] Error in query execution: {}", e.getMessage(), e);
                     throw new RuntimeException("Query execution failed: " + e.getMessage(), e);
                 }
             });

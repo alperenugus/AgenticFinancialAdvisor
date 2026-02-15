@@ -208,7 +208,7 @@ const OnboardingWizard = ({ onComplete }) => {
           {/* Step 1: Welcome */}
           {currentStep === 1 && (
             <div className="text-center space-y-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black rounded-3xl flex items-center justify-center mx-auto mb-6">
                 <Sparkles className="w-12 h-12 text-primary-600 dark:text-primary-400" />
               </div>
               <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -270,7 +270,7 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => setProfileData({ ...profileData, riskTolerance: risk })}
                       className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                         profileData.riskTolerance === risk
-                          ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 text-primary-700 dark:text-primary-300 shadow-soft scale-105'
+                          ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft scale-105'
                           : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                       }`}
                     >
@@ -294,7 +294,7 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => setProfileData({ ...profileData, horizon })}
                       className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                         profileData.horizon === horizon
-                          ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 text-primary-700 dark:text-primary-300 shadow-soft scale-105'
+                          ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft scale-105'
                           : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                       }`}
                     >
@@ -318,7 +318,7 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => toggleGoal(goal)}
                       className={`py-3 px-5 rounded-xl border-2 transition-all duration-200 font-semibold flex items-center gap-2 ${
                         profileData.goals.includes(goal)
-                          ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 text-primary-700 dark:text-primary-300 shadow-soft'
+                          ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft'
                           : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                       }`}
                     >
@@ -362,7 +362,7 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => toggleSector(sector, 'preferred')}
                       className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                         profileData.preferredSectors.includes(sector)
-                          ? 'border-success-600 bg-gradient-to-br from-success-50 to-success-100 dark:from-success-900 dark:to-success-800 text-success-700 dark:text-success-300 shadow-soft'
+                          ? 'border-success-600 bg-gradient-to-br from-success-50 to-success-100 dark:bg-black text-success-700 dark:text-success-300 shadow-soft'
                           : 'border-gray-300 dark:border-gray-600 hover:border-success-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                       }`}
                     >
@@ -389,7 +389,7 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => toggleSector(sector, 'excluded')}
                       className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                         profileData.excludedSectors.includes(sector)
-                          ? 'border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100 dark:from-danger-900 dark:to-danger-800 text-danger-700 dark:text-danger-300 shadow-soft'
+                          ? 'border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100 dark:bg-black text-danger-700 dark:text-danger-300 shadow-soft'
                           : 'border-gray-300 dark:border-gray-600 hover:border-danger-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
                       }`}
                     >
@@ -497,7 +497,7 @@ const OnboardingWizard = ({ onComplete }) => {
                         className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-xl flex items-center justify-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black rounded-xl flex items-center justify-center">
                             <TrendingUp className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                           </div>
                           <div>
@@ -532,7 +532,7 @@ const OnboardingWizard = ({ onComplete }) => {
           {/* Step 4: Complete */}
           {currentStep === 4 && (
             <div className="text-center space-y-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-success-100 to-success-200 dark:from-success-900 dark:to-success-800 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <div className="w-24 h-24 bg-gradient-to-br from-success-100 to-success-200 dark:bg-black rounded-3xl flex items-center justify-center mx-auto mb-6">
                 <Check className="w-12 h-12 text-success-600 dark:text-success-400" />
               </div>
               <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -542,7 +542,7 @@ const OnboardingWizard = ({ onComplete }) => {
                 Your profile and portfolio have been set up successfully. You can now start using the AI Financial Advisor
                 to get personalized investment advice and recommendations.
               </p>
-              <div className="mt-8 p-6 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/30 rounded-2xl">
+              <div className="mt-8 p-6 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black rounded-2xl">
                 <p className="text-sm text-gray-700 dark:text-gray-300">
                   💡 <strong>Tip:</strong> You can always update your profile and portfolio from their respective tabs.
                 </p>

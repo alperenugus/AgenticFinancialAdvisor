@@ -1,5 +1,6 @@
 package com.agent.financialadvisor.service.agents;
 
+import com.agent.financialadvisor.aspect.ToolCallAspect;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.Tool;
@@ -48,17 +49,31 @@ public class FintwitAnalysisAgent {
     @Tool("Get financial Twitter sentiment for a stock. Returns sentiment analysis and trending discussions. " +
           "Requires: symbol (string, e.g., 'AAPL', 'NVDA').")
     public String getFintwitSentiment(String symbol) {
-        log.info("🔵 getFintwitSentiment CALLED with symbol={}", symbol);
+        log.info("🔵 [FINTWIT_AGENT] getFintwitSentiment CALLED with symbol={}", symbol);
+        String sessionId = ToolCallAspect.getSessionId();
+        long startTime = System.currentTimeMillis();
         try {
+            String result;
             if (useTwitterApi) {
-                return getTwitterSentiment(symbol);
+                result = getTwitterSentiment(symbol);
             } else {
                 // Fallback: Use web search to find fintwit content
-                return getFintwitSentimentViaWebSearch(symbol);
+                result = getFintwitSentimentViaWebSearch(symbol);
             }
+            if (sessionId != null) {
+                long duration = System.currentTimeMillis() - startTime;
+                log.info("✅ [FINTWIT_AGENT] getFintwitSentiment completed in {}ms", duration);
+                String responsePreview = result.length() > 500 ? result.substring(0, 500) + "..." : result;
+                log.info("📥 [FINTWIT_AGENT] Response preview: {}", responsePreview);
+            }
+            return result;
         } catch (Exception e) {
-            log.error("Error getting fintwit sentiment: {}", e.getMessage(), e);
-            return String.format("{\"symbol\": \"%s\", \"error\": \"Error getting fintwit sentiment: %s\"}", symbol, e.getMessage());
+            log.error("❌ [FINTWIT_AGENT] Error getting fintwit sentiment: {}", e.getMessage(), e);
+            String errorResponse = String.format("{\"symbol\": \"%s\", \"error\": \"Error getting fintwit sentiment: %s\"}", symbol, e.getMessage());
+            if (sessionId != null) {
+                log.info("📥 [FINTWIT_AGENT] Error response: {}", errorResponse);
+            }
+            return errorResponse;
         }
     }
 

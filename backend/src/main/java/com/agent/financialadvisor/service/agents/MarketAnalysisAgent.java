@@ -54,10 +54,11 @@ public class MarketAnalysisAgent {
                 symbol, price, timestamp
             );
             
-            // Tool execution completed (logged only)
+            // Log response
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                log.debug("✅ getStockPrice completed in {}ms for {}", duration, symbol);
+                log.info("✅ [MARKET_AGENT] getStockPrice completed in {}ms for {}", duration, symbol);
+                log.info("📥 [MARKET_AGENT] Response: {}", result);
             }
             
             return result;
@@ -65,11 +66,13 @@ public class MarketAnalysisAgent {
             log.error("Error getting stock price for {}: {}", symbol, e.getMessage(), e);
             
             // Error logged
+            String errorResponse = String.format("{\"symbol\": \"%s\", \"error\": \"Error fetching stock price: %s\"}", symbol, e.getMessage());
             if (sessionId != null) {
-                log.debug("❌ getStockPrice failed for {}: {}", symbol, e.getMessage());
+                log.error("❌ [MARKET_AGENT] getStockPrice failed for {}: {}", symbol, e.getMessage());
+                log.info("📥 [MARKET_AGENT] Error response: {}", errorResponse);
             }
             
-            return String.format("{\"symbol\": \"%s\", \"error\": \"Error fetching stock price: %s\"}", symbol, e.getMessage());
+            return errorResponse;
         }
     }
 

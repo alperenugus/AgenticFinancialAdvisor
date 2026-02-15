@@ -117,7 +117,7 @@ const AgentThinkingPanel = ({ sessionId }) => {
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:bg-black">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-primary-100 dark:bg-primary-900 rounded-lg">
             <Brain className="w-4 h-4 text-primary-600 dark:text-primary-400" />

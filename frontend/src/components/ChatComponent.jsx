@@ -189,7 +189,7 @@ const ChatComponent = () => {
                 msg.role === 'user'
                   ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white'
                   : msg.role === 'error'
-                  ? 'bg-gradient-to-br from-danger-50 to-danger-100 dark:from-danger-900/50 dark:to-danger-800/50 text-danger-800 dark:text-danger-200 border border-danger-200 dark:border-danger-800'
+                  ? 'bg-gradient-to-br from-danger-50 to-danger-100 dark:bg-black text-danger-800 dark:text-danger-200 border border-danger-200 dark:border-danger-800'
                   : 'bg-white dark:bg-black text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800'
               }`}
             >

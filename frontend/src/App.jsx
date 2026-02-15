@@ -197,7 +197,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col gap-6">
             {/* Disclaimer */}
-            <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 dark:from-amber-900/20 dark:via-yellow-900/20 dark:to-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 rounded-xl p-4">
+            <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 dark:bg-black border border-amber-200/50 dark:border-amber-800/50 rounded-xl p-4">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">

@@ -60,8 +60,9 @@ public class ToolCallAspect {
         String toolName = getToolName(joinPoint, tool);
         Map<String, Object> parameters = extractParameters(joinPoint);
         
-        log.info("🔧 AOP intercepted tool call: {} for sessionId={} on thread={}", 
-                toolName, sessionId, Thread.currentThread().getName());
+        String paramsStr = formatParameters(parameters);
+        log.info("🔧 [AGENT] Tool call: {} with params: {} for sessionId={}", 
+                toolName, paramsStr, sessionId);
         
         long startTime = System.currentTimeMillis();
         
@@ -78,11 +79,13 @@ public class ToolCallAspect {
             
             long duration = System.currentTimeMillis() - startTime;
             
-            // Send tool result notification
-            webSocketService.sendToolResult(sessionId, toolName, 
-                formatResult(result), duration);
+            // Format result for logging
+            String resultStr = formatResult(result);
+            log.info("✅ [AGENT] Tool response: {} returned in {}ms for sessionId={}", toolName, duration, sessionId);
+            log.info("📥 [AGENT] Response data: {}", resultStr);
             
-            log.info("✅ Tool call completed: {} in {}ms for sessionId={}", toolName, duration, sessionId);
+            // Send tool result notification
+            webSocketService.sendToolResult(sessionId, toolName, resultStr, duration);
             
             return result;
         } catch (Exception e) {
@@ -182,10 +185,30 @@ public class ToolCallAspect {
     private String formatResult(Object result) {
         if (result == null) return "null";
         String str = result.toString();
-        if (str.length() > 200) {
-            return str.substring(0, 197) + "...";
+        if (str.length() > 500) {
+            return str.substring(0, 497) + "...";
         }
         return str;
+    }
+    
+    private String formatParameters(Map<String, Object> parameters) {
+        if (parameters == null || parameters.isEmpty()) {
+            return "none";
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, Object> entry : parameters.entrySet()) {
+            if (!first) sb.append(", ");
+            sb.append(entry.getKey()).append("=");
+            Object value = entry.getValue();
+            if (value instanceof String && ((String) value).length() > 50) {
+                sb.append("\"").append(((String) value).substring(0, 47)).append("...\"");
+            } else {
+                sb.append(value);
+            }
+            first = false;
+        }
+        return sb.toString();
     }
 }
 

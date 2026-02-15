@@ -129,7 +129,7 @@ const UserProfileForm = ({ onSave }) => {
   return (
     <form onSubmit={handleSubmit} className="card-elevated space-y-8">
       <div className="flex items-center gap-4 mb-2">
-        <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-2xl">
+        <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black rounded-2xl">
           <User className="w-7 h-7 text-primary-600 dark:text-primary-400" />
         </div>
         <div>
@@ -152,7 +152,7 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => setFormData({ ...formData, riskTolerance: risk })}
               className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                 formData.riskTolerance === risk
-                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 text-primary-700 dark:text-primary-300 shadow-soft scale-105'
+                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft scale-105'
                   : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
               }`}
             >
@@ -176,7 +176,7 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => setFormData({ ...formData, horizon })}
               className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                 formData.horizon === horizon
-                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 text-primary-700 dark:text-primary-300 shadow-soft scale-105'
+                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft scale-105'
                   : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
               }`}
             >
@@ -200,7 +200,7 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => toggleGoal(goal)}
               className={`py-3 px-5 rounded-xl border-2 transition-all duration-200 font-semibold flex items-center gap-2 ${
                 formData.goals.includes(goal)
-                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 text-primary-700 dark:text-primary-300 shadow-soft'
+                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft'
                   : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
               }`}
             >
@@ -244,7 +244,7 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => toggleSector(sector, 'preferred')}
               className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                 formData.preferredSectors.includes(sector)
-                  ? 'border-success-600 bg-gradient-to-br from-success-50 to-success-100 dark:from-success-900 dark:to-success-800 text-success-700 dark:text-success-300 shadow-soft'
+                  ? 'border-success-600 bg-gradient-to-br from-success-50 to-success-100 dark:bg-black text-success-700 dark:text-success-300 shadow-soft'
                   : 'border-gray-300 dark:border-gray-600 hover:border-success-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
               }`}
             >
@@ -271,7 +271,7 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => toggleSector(sector, 'excluded')}
               className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                 formData.excludedSectors.includes(sector)
-                  ? 'border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100 dark:from-danger-900 dark:to-danger-800 text-danger-700 dark:text-danger-300 shadow-soft'
+                  ? 'border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100 dark:bg-black text-danger-700 dark:text-danger-300 shadow-soft'
                   : 'border-gray-300 dark:border-gray-600 hover:border-danger-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
               }`}
             >
@@ -285,7 +285,7 @@ const UserProfileForm = ({ onSave }) => {
       </div>
 
       {/* Ethical Investing */}
-      <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-600">
+      <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black rounded-xl border border-gray-200 dark:border-gray-600">
         <input
           type="checkbox"
           id="ethicalInvesting"

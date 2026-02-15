@@ -82,16 +82,20 @@ public class WebSearchAgent {
             
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                log.debug("✅ searchFinancialNews completed in {}ms", duration);
+                log.info("✅ [WEBSEARCH_AGENT] searchFinancialNews completed in {}ms", duration);
+                String responsePreview = result.length() > 500 ? result.substring(0, 500) + "..." : result;
+                log.info("📥 [WEBSEARCH_AGENT] Response preview: {}", responsePreview);
             }
             
             return result;
         } catch (Exception e) {
             log.error("Error searching financial news: {}", e.getMessage(), e);
+            String errorResponse = String.format("{\"error\": \"Error searching financial news: %s\"}", e.getMessage());
             if (sessionId != null) {
-                log.debug("❌ searchFinancialNews failed: {}", e.getMessage());
+                log.error("❌ [WEBSEARCH_AGENT] searchFinancialNews failed: {}", e.getMessage());
+                log.info("📥 [WEBSEARCH_AGENT] Error response: {}", errorResponse);
             }
-            return String.format("{\"error\": \"Error searching financial news: %s\"}", e.getMessage());
+            return errorResponse;
         }
     }
 

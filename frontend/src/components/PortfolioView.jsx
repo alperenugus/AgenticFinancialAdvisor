@@ -100,7 +100,7 @@ const PortfolioView = () => {
     return (
       <div className="card-elevated">
         <div className="text-center py-16">
-          <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Briefcase className="w-10 h-10 text-primary-600 dark:text-primary-400" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Your Portfolio is Empty</h3>
@@ -198,7 +198,7 @@ const PortfolioView = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="stat-card">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 rounded-xl">
+            <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black rounded-xl">
               <DollarSign className="w-6 h-6 text-primary-600 dark:text-primary-400" />
             </div>
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Value</span>
@@ -212,8 +212,8 @@ const PortfolioView = () => {
           <div className="flex items-center justify-between mb-4">
             <div className={`p-3 rounded-xl ${
               totalGainLoss >= 0 
-                ? 'bg-gradient-to-br from-success-100 to-success-200 dark:from-success-900 dark:to-success-800' 
-                : 'bg-gradient-to-br from-danger-100 to-danger-200 dark:from-danger-900 dark:to-danger-800'
+                ? 'bg-gradient-to-br from-success-100 to-success-200 dark:bg-black' 
+                : 'bg-gradient-to-br from-danger-100 to-danger-200 dark:bg-black'
             }`}>
               {totalGainLoss >= 0 ? (
                 <ArrowUpRight className="w-6 h-6 text-success-600 dark:text-success-400" />
@@ -234,8 +234,8 @@ const PortfolioView = () => {
           <div className="flex items-center justify-between mb-4">
             <div className={`p-3 rounded-xl ${
               totalGainLossPercent >= 0 
-                ? 'bg-gradient-to-br from-success-100 to-success-200 dark:from-success-900 dark:to-success-800' 
-                : 'bg-gradient-to-br from-danger-100 to-danger-200 dark:from-danger-900 dark:to-danger-800'
+                ? 'bg-gradient-to-br from-success-100 to-success-200 dark:bg-black' 
+                : 'bg-gradient-to-br from-danger-100 to-danger-200 dark:bg-black'
             }`}>
               <Percent className={`w-6 h-6 ${
                 totalGainLossPercent >= 0 ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'

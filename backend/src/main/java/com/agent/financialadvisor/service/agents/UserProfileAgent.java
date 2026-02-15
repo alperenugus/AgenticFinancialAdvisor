@@ -83,10 +83,11 @@ public class UserProfileAgent {
                 profile.getEthicalInvesting()
             );
             
-            // Tool execution completed (logged only)
+            // Log response
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                log.debug("✅ getUserProfile completed in {}ms", duration);
+                log.info("✅ [PROFILE_AGENT] getUserProfile completed in {}ms", duration);
+                log.info("📥 [PROFILE_AGENT] Response: {}", result);
             }
             
             return result;
@@ -94,11 +95,13 @@ public class UserProfileAgent {
             log.error("Error getting user profile: {}", e.getMessage(), e);
             
             // Error logged
+            String errorResponse = String.format("{\"error\": \"Error getting user profile: %s\"}", e.getMessage());
             if (sessionId != null) {
-                log.debug("❌ getUserProfile failed: {}", e.getMessage());
+                log.error("❌ [PROFILE_AGENT] getUserProfile failed: {}", e.getMessage());
+                log.info("📥 [PROFILE_AGENT] Error response: {}", errorResponse);
             }
             
-            return String.format("{\"error\": \"Error getting user profile: %s\"}", e.getMessage());
+            return errorResponse;
         }
     }
 
@@ -233,10 +236,13 @@ public class UserProfileAgent {
                 portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0
             );
             
-            // Tool execution completed (logged only)
+            // Log response
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                log.debug("✅ getPortfolio completed in {}ms", duration);
+                log.info("✅ [PROFILE_AGENT] getPortfolio completed in {}ms", duration);
+                // Log truncated response if too long
+                String responsePreview = result.length() > 500 ? result.substring(0, 500) + "..." : result;
+                log.info("📥 [PROFILE_AGENT] Response preview: {}", responsePreview);
             }
             
             return result;
@@ -244,11 +250,13 @@ public class UserProfileAgent {
             log.error("Error getting portfolio: {}", e.getMessage(), e);
             
             // Error logged
+            String errorResponse = String.format("{\"error\": \"Error getting portfolio: %s\"}", e.getMessage());
             if (sessionId != null) {
-                log.debug("❌ getPortfolio failed: {}", e.getMessage());
+                log.error("❌ [PROFILE_AGENT] getPortfolio failed: {}", e.getMessage());
+                log.info("📥 [PROFILE_AGENT] Error response: {}", errorResponse);
             }
             
-            return String.format("{\"error\": \"Error getting portfolio: %s\"}", e.getMessage());
+            return errorResponse;
         }
     }
 
