@@ -4,7 +4,6 @@ import com.agent.financialadvisor.model.Portfolio;
 import com.agent.financialadvisor.model.StockHolding;
 import com.agent.financialadvisor.repository.PortfolioRepository;
 import com.agent.financialadvisor.service.MarketDataService;
-import com.agent.financialadvisor.service.PortfolioRecommendationService;
 import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,16 +23,13 @@ public class PortfolioController {
     private static final Logger log = LoggerFactory.getLogger(PortfolioController.class);
     private final PortfolioRepository portfolioRepository;
     private final MarketDataService marketDataService;
-    private final PortfolioRecommendationService portfolioRecommendationService;
 
     public PortfolioController(
             PortfolioRepository portfolioRepository,
-            MarketDataService marketDataService,
-            PortfolioRecommendationService portfolioRecommendationService
+            MarketDataService marketDataService
     ) {
         this.portfolioRepository = portfolioRepository;
         this.marketDataService = marketDataService;
-        this.portfolioRecommendationService = portfolioRecommendationService;
     }
 
     /**
@@ -183,9 +179,6 @@ public class PortfolioController {
             log.info("Holding saved successfully: {} - Value: {}, Gain/Loss: {}", 
                 symbol, holding.getValue(), holding.getGainLoss());
 
-            // Trigger portfolio recommendation regeneration in background when portfolio changes
-            portfolioRecommendationService.generatePortfolioRecommendations(userId);
-
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Holding added successfully");
             response.put("holding", holding);
@@ -222,9 +215,6 @@ public class PortfolioController {
             }
 
             portfolio = portfolioRepository.save(portfolio);
-
-            // Trigger portfolio recommendation regeneration in background when portfolio changes
-            portfolioRecommendationService.generatePortfolioRecommendations(userId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Holding removed successfully");

@@ -2,7 +2,6 @@ package com.agent.financialadvisor.controller;
 
 import com.agent.financialadvisor.model.UserProfile;
 import com.agent.financialadvisor.repository.UserProfileRepository;
-import com.agent.financialadvisor.service.PortfolioRecommendationService;
 import com.agent.financialadvisor.util.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,14 +20,11 @@ public class UserProfileController {
 
     private static final Logger log = LoggerFactory.getLogger(UserProfileController.class);
     private final UserProfileRepository userProfileRepository;
-    private final PortfolioRecommendationService portfolioRecommendationService;
 
     public UserProfileController(
-            UserProfileRepository userProfileRepository,
-            PortfolioRecommendationService portfolioRecommendationService
+            UserProfileRepository userProfileRepository
     ) {
         this.userProfileRepository = userProfileRepository;
-        this.portfolioRecommendationService = portfolioRecommendationService;
     }
 
     /**
@@ -127,9 +123,6 @@ public class UserProfileController {
             UserProfile saved = userProfileRepository.save(profile);
             log.info("Created user profile for userId={}", userId);
             
-            // Trigger portfolio recommendation generation in background
-            portfolioRecommendationService.generatePortfolioRecommendations(userId);
-            
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             log.error("Error creating user profile: {}", e.getMessage(), e);
@@ -212,9 +205,6 @@ public class UserProfileController {
 
             UserProfile updated = userProfileRepository.save(profile);
             log.info("Updated user profile for userId={}", userId);
-            
-            // Trigger portfolio recommendation regeneration in background when profile is updated
-            portfolioRecommendationService.generatePortfolioRecommendations(userId);
             
             return ResponseEntity.ok(updated);
         } catch (Exception e) {

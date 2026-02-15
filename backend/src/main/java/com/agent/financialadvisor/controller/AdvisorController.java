@@ -1,11 +1,6 @@
 package com.agent.financialadvisor.controller;
 
 import com.agent.financialadvisor.exception.RateLimitExceededException;
-import com.agent.financialadvisor.model.Portfolio;
-import com.agent.financialadvisor.model.Recommendation;
-import com.agent.financialadvisor.repository.PortfolioRepository;
-import com.agent.financialadvisor.repository.RecommendationRepository;
-import com.agent.financialadvisor.service.PortfolioRecommendationService;
 import com.agent.financialadvisor.service.RateLimitService;
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
 import com.agent.financialadvisor.util.SecurityUtil;
@@ -16,11 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -30,22 +22,13 @@ public class AdvisorController {
 
     private static final Logger log = LoggerFactory.getLogger(AdvisorController.class);
     private final OrchestratorService orchestratorService;
-    private final RecommendationRepository recommendationRepository;
-    private final PortfolioRecommendationService portfolioRecommendationService;
-    private final PortfolioRepository portfolioRepository;
     private final RateLimitService rateLimitService;
 
     public AdvisorController(
             OrchestratorService orchestratorService,
-            RecommendationRepository recommendationRepository,
-            PortfolioRecommendationService portfolioRecommendationService,
-            PortfolioRepository portfolioRepository,
             RateLimitService rateLimitService
     ) {
         this.orchestratorService = orchestratorService;
-        this.recommendationRepository = recommendationRepository;
-        this.portfolioRecommendationService = portfolioRecommendationService;
-        this.portfolioRepository = portfolioRepository;
         this.rateLimitService = rateLimitService;
     }
 
@@ -104,150 +87,6 @@ public class AdvisorController {
             log.error("Error in analyze endpoint: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(createErrorResponse("Error processing request: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * Get all recommendations for authenticated user
-     * GET /api/advisor/recommendations
-     * 
-     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
-     */
-    // @GetMapping("/recommendations")
-    // @Deprecated
-    public ResponseEntity<List<Recommendation>> getRecommendations() {
-        try {
-            String userId = SecurityUtil.getCurrentUserEmail()
-                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
-            
-            List<Recommendation> recommendations = recommendationRepository
-                    .findByUserIdOrderByCreatedAtDesc(userId);
-            
-            // If no recommendations exist, trigger portfolio recommendation generation in background
-            if (recommendations.isEmpty()) {
-                log.info("No portfolio recommendations found for user {}, triggering background generation", userId);
-                portfolioRecommendationService.generatePortfolioRecommendations(userId);
-            }
-            
-            return ResponseEntity.ok(recommendations);
-        } catch (Exception e) {
-            log.error("Error getting recommendations: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * Generate recommendations for authenticated user
-     * POST /api/advisor/generate-recommendations
-     * 
-     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
-     */
-    // @PostMapping("/generate-recommendations")
-    // @Deprecated
-    public ResponseEntity<Map<String, Object>> generateRecommendations() {
-        try {
-            String userId = SecurityUtil.getCurrentUserEmail()
-                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
-            
-            log.info("🚀 Triggering portfolio recommendation generation for user: {}", userId);
-            
-            // First, delete ALL existing recommendations to start fresh
-            List<Recommendation> existing = recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            if (!existing.isEmpty()) {
-                log.info("🗑️ Deleting {} existing recommendations for user {} to start fresh", existing.size(), userId);
-                recommendationRepository.deleteAll(existing);
-            }
-            
-            // Trigger generation
-            portfolioRecommendationService.generatePortfolioRecommendations(userId);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "success");
-            response.put("message", "Portfolio recommendation generation started in background. This may take a few minutes.");
-            response.put("userId", userId);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Error triggering recommendation generation: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(createErrorResponse("Error generating recommendations: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * Debug endpoint to check portfolio and recommendations status
-     * GET /api/advisor/debug-recommendations
-     * 
-     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
-     */
-    // @GetMapping("/debug-recommendations")
-    // @Deprecated
-    public ResponseEntity<Map<String, Object>> debugRecommendations() {
-        try {
-            String userId = SecurityUtil.getCurrentUserEmail()
-                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
-            
-            Map<String, Object> debug = new HashMap<>();
-            
-            // Get portfolio
-            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
-            if (portfolioOpt.isPresent() && portfolioOpt.get().getHoldings() != null) {
-                List<String> holdings = portfolioOpt.get().getHoldings().stream()
-                    .map(h -> h.getSymbol().toUpperCase())
-                    .distinct()
-                    .toList();
-                debug.put("portfolioHoldings", holdings);
-                debug.put("portfolioHoldingsCount", holdings.size());
-            } else {
-                debug.put("portfolioHoldings", List.of());
-                debug.put("portfolioHoldingsCount", 0);
-            }
-            
-            // Get recommendations
-            List<Recommendation> recommendations = recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            Map<String, List<String>> recommendationsBySymbol = new HashMap<>();
-            for (Recommendation rec : recommendations) {
-                recommendationsBySymbol.computeIfAbsent(rec.getSymbol(), k -> new ArrayList<>()).add(rec.getAction().toString());
-            }
-            
-            debug.put("recommendationsCount", recommendations.size());
-            debug.put("recommendationsBySymbol", recommendationsBySymbol);
-            debug.put("recommendations", recommendations.stream()
-                .map(r -> Map.of(
-                    "id", r.getId(),
-                    "symbol", r.getSymbol(),
-                    "action", r.getAction().toString(),
-                    "createdAt", r.getCreatedAt().toString()
-                ))
-                .toList());
-            
-            return ResponseEntity.ok(debug);
-        } catch (Exception e) {
-            log.error("Error in debug endpoint: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(createErrorResponse("Error: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * Get specific recommendation
-     * GET /api/advisor/recommendations/{symbol}
-     * 
-     * NOTE: Recommendations feature is currently disabled. Will be re-enabled in a future iteration.
-     */
-    // @GetMapping("/recommendations/{symbol}")
-    // @Deprecated
-    public ResponseEntity<Recommendation> getRecommendation(@PathVariable String symbol) {
-        try {
-            String userId = SecurityUtil.getCurrentUserEmail()
-                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
-            
-            return recommendationRepository.findByUserIdAndSymbol(userId, symbol)
-                    .map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-        } catch (Exception e) {
-            log.error("Error getting recommendation: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
         }
     }
 
