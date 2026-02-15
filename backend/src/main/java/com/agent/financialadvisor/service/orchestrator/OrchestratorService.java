@@ -239,12 +239,14 @@ public class OrchestratorService {
                        "### TOOL USAGE (MANDATORY):\n" +
                        "- You do NOT have internal knowledge of current stock prices, news, or market data.\n" +
                        "- You MUST use the provided tools to fetch this information.\n" +
-                       "- If asked for a stock price, you MUST call `getStockPrice`.\n" +
-                       "- If asked for news, you MUST call `getMarketNews` or `searchFinancialNews`.\n" +
+                       "- When you need data, execute the tool natively. Do NOT write the tool name or function call as text in your response.\n" +
+                       "- Example: To get Apple's price, do not write 'getStockPrice(AAPL)'. Instead, trigger the tool execution.\n" +
+                       "- If asked for a stock price, use the `getStockPrice` tool.\n" +
+                       "- If asked for news, use `getMarketNews` or `searchFinancialNews`.\n" +
                        "- DO NOT guess or hallucinate data. If a tool fails, admit you cannot find the data.\n" +
                        "- You may need to call multiple tools to answer a complex query.\n" +
-                       "- **CRITICAL: DO NOT explain your plan. DO NOT say 'I will use the tool'. DO NOT output placeholders like '(awaiting response)'.**\n" +
-                       "- **Just call the tool immediately.**\n\n" +
+                       "- **CRITICAL: DO NOT explain your plan. DO NOT say 'I will use the tool'.**\n" +
+                       "- **Just use the tool.**\n\n" +
                        "### HOW TO WORK:\n" +
                        "- Handle user requests directly by using the appropriate agents and tools\n" +
                        "- For complex queries, you can use multiple agents to gather comprehensive information\n" +
