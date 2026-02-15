@@ -45,16 +45,20 @@ This system uses a **multi-agent architecture with individual LLM instances** wh
 │                 │                                               │
 │         ┌───────▼──────────────────────────────┐               │
 │         │     Orchestrator Service             │               │
-│         │  (Coordinates all agents via LLM)    │               │
+│         │  (Orchestrator LLM - Coordinates     │               │
+│         │   between agent LLMs via delegation)│               │
 │         └───────┬──────────────────────────────┘               │
 │                 │                                               │
 │    ┌────────────┼────────────┬──────────────┬─────────────┐   │
 │    │            │            │              │             │   │
 │ ┌──▼──┐    ┌────▼────┐  ┌────▼────┐  ┌────▼────┐  ┌────▼──┐ │
-│ │User │    │ Market  │  │  Risk   │  │Research │  │Recomm.│ │
-│ │Prof.│    │Analysis │  │Assessment│  │  Agent  │  │ Agent │ │
-│ │Agent│    │  Agent  │  │  Agent  │  │         │  │       │ │
+│ │User │    │ Market  │  │   Web  │  │Fintwit │  │Security│ │
+│ │Prof.│    │Analysis │  │ Search │  │Analysis │  │ Agent  │ │
+│ │Agent│    │  Agent  │  │ Agent  │  │ Agent   │  │        │ │
+│ │(LLM)│    │  (LLM)  │  │ (LLM)  │  │  (LLM)  │  │  (LLM) │ │
 │ └──┬──┘    └────┬────┘  └────┬────┘  └────┬────┘  └───┬───┘ │
+│    │            │            │              │            │     │
+│    │  Each agent has its own LLM instance for reasoning │     │
 │    │            │            │              │            │     │
 │    └────────────┼────────────┼──────────────┼──────────┘     │
 │                 │            │              │                  │
@@ -73,7 +77,7 @@ This system uses a **multi-agent architecture with individual LLM instances** wh
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
 │         │      LangChain4j + Groq API                │        │
-│         │  (LLM for Agent Coordination)            │        │
+│         │  (Orchestrator LLM + Individual Agent LLMs)│        │
 │         └───────────────────────────────────────────┘        │
 └───────────────────────────────────────────────────────────────┘
 ```
