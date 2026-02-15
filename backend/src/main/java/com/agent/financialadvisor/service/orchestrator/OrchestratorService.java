@@ -242,7 +242,9 @@ public class OrchestratorService {
                        "- If asked for a stock price, you MUST call `getStockPrice`.\n" +
                        "- If asked for news, you MUST call `getMarketNews` or `searchFinancialNews`.\n" +
                        "- DO NOT guess or hallucinate data. If a tool fails, admit you cannot find the data.\n" +
-                       "- You may need to call multiple tools to answer a complex query.\n\n" +
+                       "- You may need to call multiple tools to answer a complex query.\n" +
+                       "- **CRITICAL: DO NOT explain your plan. DO NOT say 'I will use the tool'. DO NOT output placeholders like '(awaiting response)'.**\n" +
+                       "- **Just call the tool immediately.**\n\n" +
                        "### HOW TO WORK:\n" +
                        "- Handle user requests directly by using the appropriate agents and tools\n" +
                        "- For complex queries, you can use multiple agents to gather comprehensive information\n" +

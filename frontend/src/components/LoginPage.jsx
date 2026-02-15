@@ -1,11 +1,11 @@
-import { LogIn, LineChart, TrendingUp } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { LogIn, LineChart, TrendingUp } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 const LoginPage = () => {
   const { login } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black dark:bg-none flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Logo and Header */}
         <div className="text-center mb-8">
@@ -66,8 +66,11 @@ const LoginPage = () => {
             <div className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
               <TrendingUp className="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
               <p>
-                <strong className="text-gray-900 dark:text-white">Secure Authentication:</strong> We use Google OAuth2 
-                for secure, passwordless authentication. Your data is protected and private.
+                <strong className="text-gray-900 dark:text-white">
+                  Secure Authentication:
+                </strong>{" "}
+                We use Google OAuth2 for secure, passwordless authentication.
+                Your data is protected and private.
               </p>
             </div>
           </div>
@@ -83,4 +86,3 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
-
