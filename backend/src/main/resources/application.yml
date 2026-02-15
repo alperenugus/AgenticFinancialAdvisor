@@ -106,14 +106,13 @@ rate-limit:
     refill-period-seconds: ${RATE_LIMIT_REFILL_PERIOD:60}
 
 # Web Search Configuration
-# Tavily MCP (Model Context Protocol) - Recommended for LLM agents
+# Tavily Direct API - Recommended for LLM agents
 # Get API key from https://tavily.com
 # Free tier: 1,000 searches/month, Paid: $20/month for 10,000 searches
-# MCP URL format: https://mcp.tavily.com/mcp/?tavilyApiKey=YOUR_KEY
 web-search:
   tavily:
     api-key: ${TAVILY_API_KEY:}
-    mcp-url: ${TAVILY_MCP_URL:https://mcp.tavily.com/mcp/}
+    base-url: ${TAVILY_BASE_URL:https://api.tavily.com}
   # Serper API (Google Search) - Alternative to Tavily
   # Free tier: 2,500 searches/month, Paid: $50/month for 10,000 searches
   serper:

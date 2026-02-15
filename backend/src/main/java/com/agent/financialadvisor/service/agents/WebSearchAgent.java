@@ -26,7 +26,7 @@ import java.util.Map;
 
 /**
  * Web Search Agent - Provides web search capabilities for financial data
- * Uses Tavily MCP (Model Context Protocol) or Serper API as fallback
+ * Uses Tavily Direct API or Serper API as fallback
  */
 @Service
 public class WebSearchAgent {
@@ -37,7 +37,7 @@ public class WebSearchAgent {
     private final WebSocketService webSocketService;
     private final ChatLanguageModel chatLanguageModel;
     private final String tavilyApiKey;
-    private final String tavilyMcpUrl;
+    private final String tavilyBaseUrl;
     private final String serperApiKey;
     private final String serperBaseUrl;
     private final boolean useTavily;
@@ -50,7 +50,7 @@ public class WebSearchAgent {
             WebSocketService webSocketService,
             @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel,
             @Value("${web-search.tavily.api-key:}") String tavilyApiKey,
-            @Value("${web-search.tavily.mcp-url:https://mcp.tavily.com/mcp/}") String tavilyMcpUrl,
+            @Value("${web-search.tavily.base-url:https://api.tavily.com}") String tavilyBaseUrl,
             @Value("${web-search.serper.api-key:}") String serperApiKey,
             @Value("${web-search.serper.base-url:https://google.serper.dev}") String serperBaseUrl
     ) {
@@ -59,19 +59,14 @@ public class WebSearchAgent {
         this.webSocketService = webSocketService;
         this.chatLanguageModel = chatLanguageModel;
         this.tavilyApiKey = tavilyApiKey;
-        // Build MCP URL with API key if provided
-        if (tavilyApiKey != null && !tavilyApiKey.trim().isEmpty()) {
-            this.tavilyMcpUrl = tavilyMcpUrl + "?tavilyApiKey=" + tavilyApiKey;
-        } else {
-            this.tavilyMcpUrl = tavilyMcpUrl;
-        }
+        this.tavilyBaseUrl = tavilyBaseUrl;
         this.serperApiKey = serperApiKey;
         this.serperBaseUrl = serperBaseUrl;
         // Prefer Tavily if API key is available, otherwise use Serper
         this.useTavily = tavilyApiKey != null && !tavilyApiKey.trim().isEmpty();
         
         if (useTavily) {
-            log.info("✅ Using Tavily MCP at: {}", this.tavilyMcpUrl);
+            log.info("✅ Using Tavily Direct API at: {}", this.tavilyBaseUrl);
         }
         log.info("✅ WebSearchAgent initialized with its own LLM instance");
     }
@@ -199,76 +194,46 @@ public class WebSearchAgent {
     }
 
     /**
-     * Search using Tavily MCP (Model Context Protocol)
-     * MCP uses JSON-RPC 2.0 protocol
+     * Search using Tavily Direct API
+     * POST https://api.tavily.com/search
      */
     private String searchWithTavily(String query, int maxResults) {
         try {
-            // MCP uses JSON-RPC 2.0 format
-            Map<String, Object> rpcRequest = new HashMap<>();
-            rpcRequest.put("jsonrpc", "2.0");
-            rpcRequest.put("id", System.currentTimeMillis());
-            rpcRequest.put("method", "tools/call");
-            
-            // Build parameters for Tavily search
-            Map<String, Object> params = new HashMap<>();
-            params.put("name", "tavily_search_results_json");
-            
-            Map<String, Object> arguments = new HashMap<>();
-            arguments.put("query", query);
-            arguments.put("max_results", maxResults);
-            arguments.put("search_depth", "basic");
-            arguments.put("include_answer", true);
-            arguments.put("include_images", false);
-            arguments.put("include_raw_content", false);
-            
-            params.put("arguments", arguments);
-            rpcRequest.put("params", params);
+            // Build request body for Tavily Direct API
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("api_key", tavilyApiKey);
+            requestBody.put("query", query);
+            requestBody.put("max_results", maxResults);
+            requestBody.put("search_depth", "basic");
+            requestBody.put("include_answer", true);
+            requestBody.put("include_images", false);
+            requestBody.put("include_raw_content", false);
 
-            log.info("🔍 Calling Tavily MCP with query: {}", query);
+            log.info("🔍 Calling Tavily Direct API with query: {}", query);
             
             String response = webClient.post()
-                    .uri(tavilyMcpUrl)
+                    .uri(tavilyBaseUrl + "/search")
                     .header("Content-Type", "application/json")
-                    .bodyValue(rpcRequest)
+                    .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofSeconds(15))
                     .block();
 
-            log.debug("Tavily MCP response: {}", response);
+            log.debug("Tavily API response: {}", response);
             JsonNode json = objectMapper.readTree(response);
 
-            // Handle JSON-RPC response
+            // Handle API errors
             if (json.has("error")) {
-                JsonNode errorNode = json.get("error");
-                String errorMsg = errorNode.has("message") ? errorNode.get("message").asText() : errorNode.toString();
-                log.error("Tavily MCP error: {}", errorMsg);
-                return String.format("{\"error\": \"Tavily MCP error: %s\"}", errorMsg);
+                String errorMsg = json.get("error").asText();
+                log.error("Tavily API error: {}", errorMsg);
+                return String.format("{\"error\": \"Tavily API error: %s\"}", errorMsg);
             }
 
-            // Extract result from JSON-RPC response
-            JsonNode resultNode = json.has("result") ? json.get("result") : null;
-            if (resultNode == null) {
-                log.warn("Tavily MCP response missing 'result' field: {}", response);
-                return String.format("{\"error\": \"Tavily MCP response missing result field\"}");
-            }
-
-            // MCP response format: result.content[0].text contains the JSON string
-            JsonNode contentArray = resultNode.has("content") ? resultNode.get("content") : null;
-            if (contentArray == null || !contentArray.isArray() || contentArray.size() == 0) {
-                log.warn("Tavily MCP response missing content array: {}", response);
-                return String.format("{\"error\": \"Tavily MCP response missing content\"}");
-            }
-
-            // Parse the content (which should be a JSON string)
-            String contentStr = contentArray.get(0).get("text").asText();
-            JsonNode contentJson = objectMapper.readTree(contentStr);
-
-            // Extract results
+            // Extract results from direct API response
             List<Map<String, Object>> results = new ArrayList<>();
-            if (contentJson.has("results")) {
-                for (JsonNode result : contentJson.get("results")) {
+            if (json.has("results") && json.get("results").isArray()) {
+                for (JsonNode result : json.get("results")) {
                     Map<String, Object> resultMap = new HashMap<>();
                     resultMap.put("title", result.has("title") ? result.get("title").asText() : "");
                     resultMap.put("url", result.has("url") ? result.get("url").asText() : "");
@@ -278,19 +243,19 @@ public class WebSearchAgent {
             }
 
             // Extract answer if available
-            String answer = contentJson.has("answer") ? contentJson.get("answer").asText() : "";
+            String answer = json.has("answer") ? json.get("answer").asText() : "";
 
             Map<String, Object> responseMap = new HashMap<>();
             responseMap.put("query", query);
             responseMap.put("answer", answer);
             responseMap.put("results", results);
             responseMap.put("count", results.size());
-            responseMap.put("source", "Tavily MCP");
+            responseMap.put("source", "Tavily Direct API");
 
             return objectMapper.writeValueAsString(responseMap);
         } catch (Exception e) {
-            log.error("Error searching with Tavily MCP: {}", e.getMessage(), e);
-            return String.format("{\"error\": \"Error searching with Tavily MCP: %s\"}", e.getMessage());
+            log.error("Error searching with Tavily API: {}", e.getMessage(), e);
+            return String.format("{\"error\": \"Error searching with Tavily API: %s\"}", e.getMessage());
         }
     }
 
