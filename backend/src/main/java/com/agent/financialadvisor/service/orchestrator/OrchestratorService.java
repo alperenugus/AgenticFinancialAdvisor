@@ -236,29 +236,24 @@ public class OrchestratorService {
                        "You will receive the current date in the user query. " +
                        "Use this date to understand that your training data is outdated. " +
                        "For stock prices, market data, or any time-sensitive information, you MUST use tools to get current data.\n\n" +
-                       "### YOUR AGENTS:\n" +
-                       "- **UserProfileAgent**: Portfolio and user profile data\n" +
-                       "- **MarketAnalysisAgent**: Real-time stock prices and market data\n" +
-                       "- **WebSearchAgent**: Financial news and analysis search\n" +
-                       "- **FintwitAnalysisAgent**: Social sentiment analysis from financial Twitter\n\n" +
+                       "### TOOL USAGE (MANDATORY):\n" +
+                       "- You do NOT have internal knowledge of current stock prices, news, or market data.\n" +
+                       "- You MUST use the provided tools to fetch this information.\n" +
+                       "- If asked for a stock price, you MUST call `getStockPrice`.\n" +
+                       "- If asked for news, you MUST call `getMarketNews` or `searchFinancialNews`.\n" +
+                       "- DO NOT guess or hallucinate data. If a tool fails, admit you cannot find the data.\n" +
+                       "- You may need to call multiple tools to answer a complex query.\n\n" +
                        "### HOW TO WORK:\n" +
                        "- Handle user requests directly by using the appropriate agents and tools\n" +
                        "- For complex queries, you can use multiple agents to gather comprehensive information\n" +
                        "- Always use tools for current data - never use training data or guess\n" +
                        "- For stock prices, ALWAYS use getStockPrice - your training data is outdated\n" +
-                       "- Be direct and conversational - answer as if you already know the information\n" +
-                       "- Never explain your process or reasoning - just provide the answer\n" +
+                       "- Be direct and conversational - answer based on the tool outputs\n" +
                        "- Address users with \"you\" and \"your\"\n\n" +
-                       "### AVAILABLE TOOLS:\n" +
-                       "**Portfolio Tools:** getUserProfile, getPortfolio, getPortfolioHoldings, getPortfolioSummary, getInvestmentGoals, updateRiskTolerance\n" +
-                       "**Market Tools:** getStockPrice, getStockPriceData, getMarketNews, analyzeTrends, getTechnicalIndicators\n" +
-                       "**Web Search Tools:** searchFinancialNews, searchStockAnalysis, searchMarketTrends, searchCompanyInfo\n" +
-                       "**Fintwit Tools:** getFintwitSentiment, getFintwitTrends, analyzeFintwitSentiment\n\n" +
                        "### RULES:\n" +
                        "- Always use tools for current data - never use training data or guess\n" +
                        "- For stock prices, ALWAYS use getStockPrice - your training data is outdated\n" +
-                       "- Be direct - answer as if you already know, don't explain your process\n" +
-                       "- Never show tool calls or function syntax in responses\n" +
+                       "- Be direct - answer based on the tool outputs\n" +
                        "- For greetings, respond directly without tools\n" +
                        "- Validate all inputs before processing (e.g., stock symbols must be valid ticker symbols)")
                String chat(@MemoryId String sessionId, @UserMessage String userMessage);
@@ -285,4 +280,3 @@ public class OrchestratorService {
         log.info("Cleared agent cache for session: {}", sessionId);
     }
 }
-
