@@ -159,7 +159,7 @@ const OnboardingWizard = ({ onComplete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         {/* Progress Bar */}
         <div className="mb-8">
@@ -219,21 +219,21 @@ const OnboardingWizard = ({ onComplete }) => {
                 and we'll use this information to provide you with tailored financial advice.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl">
+                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:bg-black rounded-2xl">
                   <User className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
                   <h3 className="font-bold text-gray-900 dark:text-white mb-2">Your Profile</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Tell us about your risk tolerance and investment goals
                   </p>
                 </div>
-                <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 rounded-2xl">
+                <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:bg-black rounded-2xl">
                   <Briefcase className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-3" />
                   <h3 className="font-bold text-gray-900 dark:text-white mb-2">Your Portfolio</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Add your current investments to track performance
                   </p>
                 </div>
-                <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 rounded-2xl">
+                <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:bg-black rounded-2xl">
                   <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto mb-3" />
                   <h3 className="font-bold text-gray-900 dark:text-white mb-2">Get Started</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -403,7 +403,7 @@ const OnboardingWizard = ({ onComplete }) => {
               </div>
 
               {/* Ethical Investing */}
-              <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black rounded-xl border border-gray-200 dark:border-gray-600">
                 <input
                   type="checkbox"
                   id="ethicalInvesting"
@@ -431,7 +431,7 @@ const OnboardingWizard = ({ onComplete }) => {
               </div>
 
               {/* Add Holding Form */}
-              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-600">
+              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black rounded-2xl border border-gray-200 dark:border-gray-600">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add Holding</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>

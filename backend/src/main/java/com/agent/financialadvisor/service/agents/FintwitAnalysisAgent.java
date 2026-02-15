@@ -45,10 +45,8 @@ public class FintwitAnalysisAgent {
         this.useTwitterApi = twitterBearerToken != null && !twitterBearerToken.trim().isEmpty();
     }
 
-    @Tool("Get financial Twitter sentiment for a stock symbol. " +
-          "Use this to understand social media sentiment and trending discussions about a stock. " +
-          "Requires: symbol (string, e.g., 'AAPL', 'NVDA'). " +
-          "Returns sentiment analysis, trending topics, and key discussions.")
+    @Tool("Get financial Twitter sentiment for a stock. Returns sentiment analysis and trending discussions. " +
+          "Requires: symbol (string, e.g., 'AAPL', 'NVDA').")
     public String getFintwitSentiment(String symbol) {
         log.info("🔵 getFintwitSentiment CALLED with symbol={}", symbol);
         try {
@@ -64,10 +62,8 @@ public class FintwitAnalysisAgent {
         }
     }
 
-    @Tool("Get trending financial topics on Twitter. " +
-          "Use this to understand what's trending in financial Twitter and market discussions. " +
-          "Requires: query (string, e.g., 'AI stocks' or 'market outlook'). " +
-          "Returns trending topics, hashtags, and discussion summaries.")
+    @Tool("Get trending financial topics on Twitter. Returns trending topics and discussion summaries. " +
+          "Requires: query (string, e.g., 'AI stocks' or 'market outlook').")
     public String getFintwitTrends(String query) {
         log.info("🔵 getFintwitTrends CALLED with query={}", query);
         try {
@@ -83,10 +79,8 @@ public class FintwitAnalysisAgent {
         }
     }
 
-    @Tool("Analyze Twitter mentions and sentiment for a stock. " +
-          "Use this to get detailed analysis of how a stock is being discussed on financial Twitter. " +
-          "Requires: symbol (string, e.g., 'AAPL', 'NVDA'). " +
-          "Returns mention count, sentiment breakdown, key influencers, and discussion themes.")
+    @Tool("Analyze Twitter mentions and sentiment for a stock. Returns detailed sentiment analysis. " +
+          "Requires: symbol (string, e.g., 'AAPL', 'NVDA').")
     public String analyzeFintwitMentions(String symbol) {
         log.info("🔵 analyzeFintwitMentions CALLED with symbol={}", symbol);
         try {

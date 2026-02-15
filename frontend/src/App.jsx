@@ -125,7 +125,7 @@ function App() {
                   className="w-10 h-10 rounded-full border-2 border-primary-200 dark:border-primary-800"
                 />
               )}
-              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-gray-900 rounded-xl">
+              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-black rounded-xl">
                 <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {user?.name || user?.email}

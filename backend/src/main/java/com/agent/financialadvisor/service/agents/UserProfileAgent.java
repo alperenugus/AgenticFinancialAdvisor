@@ -43,8 +43,7 @@ public class UserProfileAgent {
         this.webSocketService = webSocketService;
     }
 
-    @Tool("Get user's investment profile including risk tolerance, investment horizon, goals, and preferences. " +
-          "Use this to understand the user's investment preferences before making recommendations. " +
+    @Tool("Get user's investment profile including risk tolerance, goals, and preferences. " +
           "Requires: userId (string). Returns user profile information.")
     @Transactional(readOnly = true)
     public String getUserProfile(String userId) {
@@ -103,9 +102,8 @@ public class UserProfileAgent {
         }
     }
 
-    @Tool("Update user's risk tolerance level. Use this when the user wants to change their risk tolerance. " +
-          "Requires: userId (string), riskTolerance (CONSERVATIVE, MODERATE, or AGGRESSIVE). " +
-          "Returns updated profile.")
+    @Tool("Update user's risk tolerance level. " +
+          "Requires: userId (string), riskTolerance (CONSERVATIVE, MODERATE, or AGGRESSIVE). Returns updated profile.")
     public String updateRiskTolerance(String userId, String riskTolerance) {
         log.info("🔵 updateRiskTolerance CALLED with userId={}, riskTolerance={}", userId, riskTolerance);
         try {
@@ -132,7 +130,7 @@ public class UserProfileAgent {
         }
     }
 
-    @Tool("Get user's investment goals. Returns list of goals like RETIREMENT, GROWTH, INCOME. " +
+    @Tool("Get user's investment goals. Returns list of goals (RETIREMENT, GROWTH, INCOME). " +
           "Requires: userId (string).")
     @Transactional(readOnly = true)
     public String getInvestmentGoals(String userId) {
@@ -155,8 +153,8 @@ public class UserProfileAgent {
         }
     }
 
-    @Tool("Get user's complete portfolio including all holdings, total value, and gain/loss. " +
-          "Use this to understand what stocks the user currently owns before making recommendations. " +
+    @Tool("Get user's complete portfolio with all holdings, current values, and gain/loss. " +
+          "ALWAYS refreshes current stock prices for accurate values. " +
           "Requires: userId (string). Returns portfolio with all holdings and summary.")
     @Transactional(readOnly = true)
     public String getPortfolio(String userId) {
@@ -254,9 +252,8 @@ public class UserProfileAgent {
         }
     }
 
-    @Tool("Get user's portfolio holdings list. Returns just the list of stocks the user owns. " +
-          "Use this when you need to know what stocks are in the portfolio. " +
-          "Requires: userId (string). Returns list of holdings with symbols and quantities.")
+    @Tool("Get user's portfolio holdings list. Returns list of stocks the user owns. " +
+          "Requires: userId (string). Returns holdings with symbols and quantities.")
     @Transactional(readOnly = true)
     public String getPortfolioHoldings(String userId) {
         log.info("🔵 getPortfolioHoldings CALLED with userId={}", userId);
@@ -299,8 +296,7 @@ public class UserProfileAgent {
     }
 
     @Tool("Get user's portfolio summary (total value, gain/loss, number of holdings). " +
-          "Use this for quick portfolio overview without full details. " +
-          "Note: This returns data from the database. For current prices, use getPortfolio instead. " +
+          "Note: For current prices, use getPortfolio instead. " +
           "Requires: userId (string). Returns portfolio summary statistics.")
     @Transactional(readOnly = true)
     public String getPortfolioSummary(String userId) {

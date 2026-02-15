@@ -32,12 +32,8 @@ public class MarketAnalysisAgent {
         this.webSocketService = webSocketService;
     }
 
-    @Tool("Get current stock price for a symbol. **MANDATORY**: You MUST call this tool whenever the user asks about a stock price, asks 'what is the price of X', asks 'X stock price', or mentions any stock symbol. " +
-          "This tool fetches the LATEST AVAILABLE stock price from the API (no caching, always fresh). " +
-          "**CRITICAL**: Do NOT use training data prices - they are outdated. You MUST call this tool to get current prices. " +
-          "Note: Free tier may have 15-minute delay during market hours. Premium tier provides real-time data. " +
-          "Requires: symbol (string, e.g., 'AAPL' for Apple, 'MSFT' for Microsoft). Returns current price as a number with timestamp. " +
-          "**When to use**: ANY time you need to mention a stock price, even if you think you know it from training data.")
+    @Tool("Get current stock price for a symbol. ALWAYS use this tool for stock prices - your training data is outdated. " +
+          "Requires: symbol (string, e.g., 'AAPL', 'TSLA'). Returns current price with timestamp.")
     public String getStockPrice(String symbol) {
         log.info("🔵 getStockPrice CALLED with symbol={} - FETCHING FRESH DATA FROM API", symbol);
         
@@ -77,9 +73,8 @@ public class MarketAnalysisAgent {
         }
     }
 
-    @Tool("Get stock price data for a time period. Use this to analyze price trends over time. " +
-          "Requires: symbol (string), timeframe (string: 'daily', 'weekly', or 'monthly'). " +
-          "Returns price data with high, low, average, and time series data.")
+    @Tool("Get stock price data for a time period. Use this to analyze price trends. " +
+          "Requires: symbol (string), timeframe ('daily', 'weekly', or 'monthly'). Returns price data with high, low, average.")
     public String getStockPriceData(String symbol, String timeframe) {
         log.info("🔵 getStockPriceData CALLED with symbol={}, timeframe={}", symbol, timeframe);
         try {
@@ -97,8 +92,8 @@ public class MarketAnalysisAgent {
         }
     }
 
-    @Tool("Get market news and sentiment for a stock symbol. Use this to understand recent news, events, and market sentiment. " +
-          "Requires: symbol (string). Returns recent news headlines and sentiment information.")
+    @Tool("Get market news and sentiment for a stock. Returns recent news headlines and sentiment. " +
+          "Requires: symbol (string).")
     public String getMarketNews(String symbol) {
         log.info("🔵 getMarketNews CALLED with symbol={}", symbol);
         try {
@@ -110,9 +105,8 @@ public class MarketAnalysisAgent {
         }
     }
 
-    @Tool("Analyze price trends for a stock. Use this to determine if the stock is in an uptrend, downtrend, or sideways. " +
-          "Requires: symbol (string), timeframe (string: 'daily', 'weekly', or 'monthly'). " +
-          "Returns trend analysis with direction, strength, and key price levels.")
+    @Tool("Analyze price trends for a stock. Determines uptrend, downtrend, or sideways movement. " +
+          "Requires: symbol (string), timeframe ('daily', 'weekly', or 'monthly'). Returns trend direction and key levels.")
     public String analyzeTrends(String symbol, String timeframe) {
         log.info("🔵 analyzeTrends CALLED with symbol={}, timeframe={}", symbol, timeframe);
         try {
@@ -160,8 +154,8 @@ public class MarketAnalysisAgent {
         }
     }
 
-    @Tool("Get technical indicators for a stock. Use this to get technical analysis metrics like moving averages, RSI, etc. " +
-          "Requires: symbol (string). Returns technical indicators and their interpretations.")
+    @Tool("Get technical indicators for a stock. Returns technical analysis metrics. " +
+          "Requires: symbol (string).")
     public String getTechnicalIndicators(String symbol) {
         log.info("🔵 getTechnicalIndicators CALLED with symbol={}", symbol);
         try {

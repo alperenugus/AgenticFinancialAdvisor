@@ -66,9 +66,8 @@ public class WebSearchAgent {
     }
 
     @Tool("Search the web for financial news, analysis, and market insights. " +
-          "Use this to get the latest information about stocks, companies, or market trends. " +
-          "Requires: query (string, e.g., 'NVDA stock analysis 2024' or 'Apple earnings report'). " +
-          "Returns relevant search results with summaries and sources.")
+          "Returns latest information with summaries and sources. " +
+          "Requires: query (string, e.g., 'NVDA stock analysis' or 'Apple earnings').")
     public String searchFinancialNews(String query) {
         log.info("🔵 searchFinancialNews CALLED with query={}", query);
         
@@ -96,10 +95,8 @@ public class WebSearchAgent {
         }
     }
 
-    @Tool("Search for stock analysis and research reports. " +
-          "Use this to find professional analysis, price targets, and investment research for a stock. " +
-          "Requires: symbol (string, e.g., 'AAPL', 'NVDA'). " +
-          "Returns analysis, price targets, and research summaries.")
+    @Tool("Search for stock analysis and research reports. Returns professional analysis and price targets. " +
+          "Requires: symbol (string, e.g., 'AAPL', 'NVDA').")
     public String searchStockAnalysis(String symbol) {
         log.info("🔵 searchStockAnalysis CALLED with symbol={}", symbol);
         try {
@@ -111,10 +108,8 @@ public class WebSearchAgent {
         }
     }
 
-    @Tool("Search for market trends and sector analysis. " +
-          "Use this to understand broader market trends, sector performance, or economic indicators. " +
-          "Requires: query (string, e.g., 'AI sector trends 2024' or 'market outlook January 2024'). " +
-          "Returns market trend analysis and insights.")
+    @Tool("Search for market trends and sector analysis. Returns market trend insights. " +
+          "Requires: query (string, e.g., 'AI sector trends' or 'market outlook').")
     public String searchMarketTrends(String query) {
         log.info("🔵 searchMarketTrends CALLED with query={}", query);
         try {
@@ -126,10 +121,8 @@ public class WebSearchAgent {
         }
     }
 
-    @Tool("Search for company information, earnings, and corporate news. " +
-          "Use this to find latest company news, earnings reports, and corporate developments. " +
-          "Requires: symbol (string, e.g., 'AAPL', 'MSFT'). " +
-          "Returns company information, earnings, and corporate news.")
+    @Tool("Search for company information, earnings, and corporate news. Returns latest company news and earnings. " +
+          "Requires: symbol (string, e.g., 'AAPL', 'MSFT').")
     public String searchCompanyInfo(String symbol) {
         log.info("🔵 searchCompanyInfo CALLED with symbol={}", symbol);
         try {

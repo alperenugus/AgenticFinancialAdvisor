@@ -117,7 +117,7 @@ const PortfolioView = () => {
         </div>
 
         {showAddForm && (
-          <div className="mt-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-600">
+          <div className="mt-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black rounded-2xl border border-gray-200 dark:border-gray-600">
             <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Holding</h4>
             <form onSubmit={handleAddHolding} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -346,7 +346,7 @@ const PortfolioView = () => {
         </div>
 
         {showAddForm && (
-          <div className="mb-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-600">
+          <div className="mb-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black rounded-2xl border border-gray-200 dark:border-gray-600">
             <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Holding</h4>
             <form onSubmit={handleAddHolding} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -144,7 +144,7 @@ const ChatComponent = () => {
   };
 
   return (
-    <div className="flex h-full bg-gradient-to-b from-white to-gray-50/50 dark:from-black dark:to-black">
+    <div className="flex h-full bg-gradient-to-b from-white to-gray-50/50 dark:bg-black">
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
       {/* Chat Header */}
@@ -190,7 +190,7 @@ const ChatComponent = () => {
                   ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white'
                   : msg.role === 'error'
                   ? 'bg-gradient-to-br from-danger-50 to-danger-100 dark:from-danger-900/50 dark:to-danger-800/50 text-danger-800 dark:text-danger-200 border border-danger-200 dark:border-danger-800'
-                  : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800'
+                  : 'bg-white dark:bg-black text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800'
               }`}
             >
               <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">{msg.content}</p>
@@ -217,7 +217,7 @@ const ChatComponent = () => {
                 <Loader2 className="w-5 h-5 text-white animate-spin" />
               </div>
             </div>
-            <div className="max-w-[75%] rounded-2xl px-5 py-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800 shadow-soft">
+            <div className="max-w-[75%] rounded-2xl px-5 py-4 bg-white dark:bg-black text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800 shadow-soft">
               <p className="text-sm font-medium">Processing your request...</p>
             </div>
           </div>
