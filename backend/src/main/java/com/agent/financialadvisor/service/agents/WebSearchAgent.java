@@ -5,9 +5,17 @@ import com.agent.financialadvisor.service.WebSocketService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.MemoryId;
+import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -29,17 +37,20 @@ public class WebSearchAgent {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final WebSocketService webSocketService;
+    private final ChatLanguageModel chatLanguageModel;
     private final String tavilyApiKey;
     private final String tavilyMcpUrl;
     private final String serperApiKey;
     private final String serperBaseUrl;
     private final boolean useTavily;
+    private final Map<String, WebSearchAgentService> agentCache = new HashMap<>();
 
     @Autowired
     public WebSearchAgent(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
             WebSocketService webSocketService,
+            @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel,
             @Value("${web-search.tavily.api-key:}") String tavilyApiKey,
             @Value("${web-search.tavily.mcp-url:https://mcp.tavily.com/mcp/}") String tavilyMcpUrl,
             @Value("${web-search.serper.api-key:}") String serperApiKey,
@@ -48,6 +59,7 @@ public class WebSearchAgent {
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
         this.webSocketService = webSocketService;
+        this.chatLanguageModel = chatLanguageModel;
         this.tavilyApiKey = tavilyApiKey;
         // Build MCP URL with API key if provided
         if (tavilyApiKey != null && !tavilyApiKey.trim().isEmpty()) {
@@ -63,6 +75,43 @@ public class WebSearchAgent {
         if (useTavily) {
             log.info("✅ Using Tavily MCP at: {}", this.tavilyMcpUrl);
         }
+        log.info("✅ WebSearchAgent initialized with its own LLM instance");
+    }
+
+    /**
+     * Get or create an AI agent service instance for a session
+     */
+    private WebSearchAgentService getOrCreateAgentService(String sessionId) {
+        return agentCache.computeIfAbsent(sessionId, sid -> {
+            log.info("Creating new WebSearchAgent AI service for session: {}", sid);
+            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(10);
+            
+            return AiServices.builder(WebSearchAgentService.class)
+                    .chatLanguageModel(chatLanguageModel)
+                    .chatMemoryProvider(memoryProvider)
+                    .tools(this)  // This agent's tools
+                    .build();
+        });
+    }
+
+    /**
+     * Process a query using this agent's LLM
+     */
+    public String processQuery(String sessionId, String query) {
+        WebSearchAgentService agent = getOrCreateAgentService(sessionId);
+        return agent.chat(sessionId, query);
+    }
+
+    /**
+     * AI Agent Service interface for WebSearchAgent
+     */
+    private interface WebSearchAgentService {
+        @SystemMessage("You are a Web Search Agent for financial information. " +
+                "Your role is to search the web for financial news, stock analysis, market trends, and company information. " +
+                "You have access to tools for searching financial news, stock analysis, market trends, and company info. " +
+                "When asked about recent news, market trends, or company information, use the appropriate search tools. " +
+                "Provide comprehensive, up-to-date information from web sources.")
+        String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
     @Tool("Search the web for financial news, analysis, and market insights. " +

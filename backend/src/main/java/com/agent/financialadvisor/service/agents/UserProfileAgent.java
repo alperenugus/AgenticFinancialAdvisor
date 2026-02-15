@@ -9,15 +9,25 @@ import com.agent.financialadvisor.service.MarketDataService;
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.aspect.ToolCallAspect;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.MemoryId;
+import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -29,18 +39,60 @@ public class UserProfileAgent {
     private final PortfolioRepository portfolioRepository;
     private final MarketDataService marketDataService;
     private final WebSocketService webSocketService;
+    private final ChatLanguageModel chatLanguageModel;
+    private final Map<String, UserProfileAgentService> agentCache = new HashMap<>();
 
     @Autowired
     public UserProfileAgent(
             UserProfileRepository userProfileRepository,
             PortfolioRepository portfolioRepository,
             MarketDataService marketDataService,
-            WebSocketService webSocketService
+            WebSocketService webSocketService,
+            @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel
     ) {
         this.userProfileRepository = userProfileRepository;
         this.portfolioRepository = portfolioRepository;
         this.marketDataService = marketDataService;
         this.webSocketService = webSocketService;
+        this.chatLanguageModel = chatLanguageModel;
+        log.info("✅ UserProfileAgent initialized with its own LLM instance");
+    }
+
+    /**
+     * Get or create an AI agent service instance for a session
+     */
+    private UserProfileAgentService getOrCreateAgentService(String sessionId) {
+        return agentCache.computeIfAbsent(sessionId, sid -> {
+            log.info("Creating new UserProfileAgent AI service for session: {}", sid);
+            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(10);
+            
+            return AiServices.builder(UserProfileAgentService.class)
+                    .chatLanguageModel(chatLanguageModel)
+                    .chatMemoryProvider(memoryProvider)
+                    .tools(this)  // This agent's tools
+                    .build();
+        });
+    }
+
+    /**
+     * Process a query using this agent's LLM
+     */
+    public String processQuery(String sessionId, String query) {
+        UserProfileAgentService agent = getOrCreateAgentService(sessionId);
+        return agent.chat(sessionId, query);
+    }
+
+    /**
+     * AI Agent Service interface for UserProfileAgent
+     */
+    private interface UserProfileAgentService {
+        @SystemMessage("You are a User Profile and Portfolio Management Agent. " +
+                "Your role is to manage user investment profiles, risk tolerance, goals, and portfolio data. " +
+                "You have access to tools for retrieving and updating user profiles and portfolios. " +
+                "When asked about user data, portfolio holdings, or investment preferences, use the appropriate tools. " +
+                "Always provide accurate, up-to-date information from the database. " +
+                "Be concise and professional in your responses.")
+        String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
     @Tool("Get user's investment profile including risk tolerance, goals, and preferences. " +

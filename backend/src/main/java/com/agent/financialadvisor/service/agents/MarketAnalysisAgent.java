@@ -5,12 +5,21 @@ import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.aspect.ToolCallAspect;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.MemoryId;
+import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -20,16 +29,58 @@ public class MarketAnalysisAgent {
     private final MarketDataService marketDataService;
     private final ObjectMapper objectMapper;
     private final WebSocketService webSocketService;
+    private final ChatLanguageModel chatLanguageModel;
+    private final Map<String, MarketAnalysisAgentService> agentCache = new HashMap<>();
 
     @Autowired
     public MarketAnalysisAgent(
             MarketDataService marketDataService, 
             ObjectMapper objectMapper,
-            WebSocketService webSocketService
+            WebSocketService webSocketService,
+            @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel
     ) {
         this.marketDataService = marketDataService;
         this.objectMapper = objectMapper;
         this.webSocketService = webSocketService;
+        this.chatLanguageModel = chatLanguageModel;
+        log.info("✅ MarketAnalysisAgent initialized with its own LLM instance");
+    }
+
+    /**
+     * Get or create an AI agent service instance for a session
+     */
+    private MarketAnalysisAgentService getOrCreateAgentService(String sessionId) {
+        return agentCache.computeIfAbsent(sessionId, sid -> {
+            log.info("Creating new MarketAnalysisAgent AI service for session: {}", sid);
+            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(10);
+            
+            return AiServices.builder(MarketAnalysisAgentService.class)
+                    .chatLanguageModel(chatLanguageModel)
+                    .chatMemoryProvider(memoryProvider)
+                    .tools(this)  // This agent's tools
+                    .build();
+        });
+    }
+
+    /**
+     * Process a query using this agent's LLM
+     */
+    public String processQuery(String sessionId, String query) {
+        MarketAnalysisAgentService agent = getOrCreateAgentService(sessionId);
+        return agent.chat(sessionId, query);
+    }
+
+    /**
+     * AI Agent Service interface for MarketAnalysisAgent
+     */
+    private interface MarketAnalysisAgentService {
+        @SystemMessage("You are a Market Analysis Agent. " +
+                "Your role is to analyze stock prices, market data, technical indicators, and price trends. " +
+                "You have access to tools for getting stock prices, price data, market news, technical indicators, and trend analysis. " +
+                "When asked about stock prices, market data, or technical analysis, use the appropriate tools. " +
+                "ALWAYS use tools to get current data - your training data is outdated. " +
+                "Provide accurate, data-driven analysis based on real-time market information.")
+        String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
     @Tool("Get current stock price for a symbol. ALWAYS use this tool for stock prices - your training data is outdated. " +

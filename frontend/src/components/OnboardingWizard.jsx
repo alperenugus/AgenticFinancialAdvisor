@@ -188,7 +188,7 @@ const OnboardingWizard = ({ onComplete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black dark:bg-none flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50bg-blackbg-none flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         {/* Progress Bar */}
         <div className="mb-8">
@@ -207,7 +207,7 @@ const OnboardingWizard = ({ onComplete }) => {
                           ? "bg-success-600 text-white"
                           : isActive
                             ? "bg-primary-600 text-white scale-110"
-                            : "bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                            : "bg-gray-300bg-gray-700 text-gray-600text-gray-400"
                       }`}
                     >
                       {isCompleted ? <Check className="w-6 h-6" /> : step}
@@ -215,8 +215,8 @@ const OnboardingWizard = ({ onComplete }) => {
                     <span
                       className={`text-xs mt-2 font-medium ${
                         isActive
-                          ? "text-primary-600 dark:text-primary-400"
-                          : "text-gray-500 dark:text-gray-400"
+                          ? "text-primary-600text-primary-400"
+                          : "text-gray-500text-gray-400"
                       }`}
                     >
                       {step === 1 && "Welcome"}
@@ -230,7 +230,7 @@ const OnboardingWizard = ({ onComplete }) => {
                       className={`flex-1 h-1 mx-2 rounded ${
                         isCompleted
                           ? "bg-success-600"
-                          : "bg-gray-300 dark:bg-gray-700"
+                          : "bg-gray-300bg-gray-700"
                       }`}
                     />
                   )}
@@ -245,42 +245,42 @@ const OnboardingWizard = ({ onComplete }) => {
           {/* Step 1: Welcome */}
           {currentStep === 1 && (
             <div className="text-center space-y-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black dark:bg-none rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-12 h-12 text-primary-600 dark:text-primary-400" />
+              <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-primary-200bg-blackbg-none rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <Sparkles className="w-12 h-12 text-primary-600text-primary-400" />
               </div>
-              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-4xl font-bold text-gray-900text-white mb-4">
                 Welcome to Financial Advisor AI
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-lg text-gray-600text-gray-400 max-w-2xl mx-auto leading-relaxed">
                 Let's set up your personalized investment profile and portfolio.
                 This will only take a few minutes, and we'll use this
                 information to provide you with tailored financial advice.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:bg-black dark:bg-none rounded-2xl">
-                  <User className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-3" />
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">
+                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100bg-blackbg-none rounded-2xl">
+                  <User className="w-8 h-8 text-blue-600text-blue-400 mx-auto mb-3" />
+                  <h3 className="font-bold text-gray-900text-white mb-2">
                     Your Profile
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600text-gray-400">
                     Tell us about your risk tolerance and investment goals
                   </p>
                 </div>
-                <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:bg-black dark:bg-none rounded-2xl">
-                  <Briefcase className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-3" />
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">
+                <div className="p-6 bg-gradient-to-br from-green-50 to-green-100bg-blackbg-none rounded-2xl">
+                  <Briefcase className="w-8 h-8 text-green-600text-green-400 mx-auto mb-3" />
+                  <h3 className="font-bold text-gray-900text-white mb-2">
                     Your Portfolio
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600text-gray-400">
                     Add your current investments to track performance
                   </p>
                 </div>
-                <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:bg-black dark:bg-none rounded-2xl">
-                  <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto mb-3" />
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">
+                <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100bg-blackbg-none rounded-2xl">
+                  <TrendingUp className="w-8 h-8 text-purple-600text-purple-400 mx-auto mb-3" />
+                  <h3 className="font-bold text-gray-900text-white mb-2">
                     Get Started
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600text-gray-400">
                     Start receiving personalized AI-powered advice
                   </p>
                 </div>
@@ -292,18 +292,18 @@ const OnboardingWizard = ({ onComplete }) => {
           {currentStep === 2 && (
             <div className="space-y-8">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-3xl font-bold text-gray-900text-white mb-2">
                   Investment Profile
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-600text-gray-400">
                   Help us understand your investment preferences
                 </p>
               </div>
 
               {/* Risk Tolerance */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-                  <Shield className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700text-gray-300">
+                  <Shield className="w-5 h-5 text-primary-600text-primary-400" />
                   Risk Tolerance
                 </label>
                 <div className="grid grid-cols-3 gap-4">
@@ -316,8 +316,8 @@ const OnboardingWizard = ({ onComplete }) => {
                       }
                       className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                         profileData.riskTolerance === risk
-                          ? "border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black dark:bg-none text-primary-700 dark:text-primary-300 shadow-soft scale-105"
-                          : "border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                          ? "border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100bg-blackbg-none text-primary-700text-primary-300 shadow-soft scale-105"
+                          : "border-gray-300border-gray-600 hover:border-primary-400 hover:bg-gray-50hover:bg-gray-700 text-gray-700text-gray-300"
                       }`}
                     >
                       {risk}
@@ -328,8 +328,8 @@ const OnboardingWizard = ({ onComplete }) => {
 
               {/* Investment Horizon */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-                  <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700text-gray-300">
+                  <Target className="w-5 h-5 text-primary-600text-primary-400" />
                   Investment Horizon
                 </label>
                 <div className="grid grid-cols-3 gap-4">
@@ -342,8 +342,8 @@ const OnboardingWizard = ({ onComplete }) => {
                       }
                       className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                         profileData.horizon === horizon
-                          ? "border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black dark:bg-none text-primary-700 dark:text-primary-300 shadow-soft scale-105"
-                          : "border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                          ? "border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100bg-blackbg-none text-primary-700text-primary-300 shadow-soft scale-105"
+                          : "border-gray-300border-gray-600 hover:border-primary-400 hover:bg-gray-50hover:bg-gray-700 text-gray-700text-gray-300"
                       }`}
                     >
                       {horizon}
@@ -354,8 +354,8 @@ const OnboardingWizard = ({ onComplete }) => {
 
               {/* Investment Goals */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-                  <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700text-gray-300">
+                  <Target className="w-5 h-5 text-primary-600text-primary-400" />
                   Investment Goals <span className="text-danger-600">*</span>
                 </label>
                 <div className="flex flex-wrap gap-3">
@@ -366,8 +366,8 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => toggleGoal(goal)}
                       className={`py-3 px-5 rounded-xl border-2 transition-all duration-200 font-semibold flex items-center gap-2 ${
                         profileData.goals.includes(goal)
-                          ? "border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black dark:bg-none text-primary-700 dark:text-primary-300 shadow-soft"
-                          : "border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                          ? "border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100bg-blackbg-none text-primary-700text-primary-300 shadow-soft"
+                          : "border-gray-300border-gray-600 hover:border-primary-400 hover:bg-gray-50hover:bg-gray-700 text-gray-700text-gray-300"
                       }`}
                     >
                       {profileData.goals.includes(goal) && (
@@ -381,8 +381,8 @@ const OnboardingWizard = ({ onComplete }) => {
 
               {/* Budget */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-                  <DollarSign className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700text-gray-300">
+                  <DollarSign className="w-5 h-5 text-primary-600text-primary-400" />
                   Investment Budget ($)
                 </label>
                 <input
@@ -400,8 +400,8 @@ const OnboardingWizard = ({ onComplete }) => {
 
               {/* Preferred Sectors */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-                  <Building2 className="w-5 h-5 text-success-600 dark:text-success-400" />
+                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700text-gray-300">
+                  <Building2 className="w-5 h-5 text-success-600text-success-400" />
                   Preferred Sectors
                 </label>
                 <div className="flex flex-wrap gap-3">
@@ -412,8 +412,8 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => toggleSector(sector, "preferred")}
                       className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                         profileData.preferredSectors.includes(sector)
-                          ? "border-success-600 bg-gradient-to-br from-success-50 to-success-100 dark:bg-black dark:bg-none text-success-700 dark:text-success-300 shadow-soft"
-                          : "border-gray-300 dark:border-gray-600 hover:border-success-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                          ? "border-success-600 bg-gradient-to-br from-success-50 to-success-100bg-blackbg-none text-success-700text-success-300 shadow-soft"
+                          : "border-gray-300border-gray-600 hover:border-success-400 hover:bg-gray-50hover:bg-gray-700 text-gray-700text-gray-300"
                       }`}
                     >
                       {profileData.preferredSectors.includes(sector) && (
@@ -427,8 +427,8 @@ const OnboardingWizard = ({ onComplete }) => {
 
               {/* Excluded Sectors */}
               <div>
-                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-                  <X className="w-5 h-5 text-danger-600 dark:text-danger-400" />
+                <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700text-gray-300">
+                  <X className="w-5 h-5 text-danger-600text-danger-400" />
                   Excluded Sectors
                 </label>
                 <div className="flex flex-wrap gap-3">
@@ -439,8 +439,8 @@ const OnboardingWizard = ({ onComplete }) => {
                       onClick={() => toggleSector(sector, "excluded")}
                       className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                         profileData.excludedSectors.includes(sector)
-                          ? "border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100 dark:bg-black dark:bg-none text-danger-700 dark:text-danger-300 shadow-soft"
-                          : "border-gray-300 dark:border-gray-600 hover:border-danger-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                          ? "border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100bg-blackbg-none text-danger-700text-danger-300 shadow-soft"
+                          : "border-gray-300border-gray-600 hover:border-danger-400 hover:bg-gray-50hover:bg-gray-700 text-gray-700text-gray-300"
                       }`}
                     >
                       {profileData.excludedSectors.includes(sector) && (
@@ -453,7 +453,7 @@ const OnboardingWizard = ({ onComplete }) => {
               </div>
 
               {/* Ethical Investing */}
-              <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black dark:bg-none rounded-xl border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100bg-blackbg-none rounded-xl border border-gray-200border-gray-600">
                 <input
                   type="checkbox"
                   id="ethicalInvesting"
@@ -468,7 +468,7 @@ const OnboardingWizard = ({ onComplete }) => {
                 />
                 <label
                   htmlFor="ethicalInvesting"
-                  className="text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
+                  className="text-sm font-semibold text-gray-700text-gray-300 cursor-pointer flex-1"
                 >
                   Ethical/ESG Investing Preferences
                 </label>
@@ -480,23 +480,23 @@ const OnboardingWizard = ({ onComplete }) => {
           {currentStep === 3 && (
             <div className="space-y-8">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-3xl font-bold text-gray-900text-white mb-2">
                   Your Portfolio
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-600text-gray-400">
                   Add your current stock holdings (optional - you can add more
                   later)
                 </p>
               </div>
 
               {/* Add Holding Form */}
-              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black dark:bg-none rounded-2xl border border-gray-200 dark:border-gray-600">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100bg-blackbg-none rounded-2xl border border-gray-200border-gray-600">
+                <h3 className="text-lg font-bold text-gray-900text-white mb-4">
                   Add Holding
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                       Stock Symbol
                     </label>
                     <input
@@ -513,7 +513,7 @@ const OnboardingWizard = ({ onComplete }) => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                       Quantity
                     </label>
                     <input
@@ -531,7 +531,7 @@ const OnboardingWizard = ({ onComplete }) => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                       Average Price ($)
                     </label>
                     <input
@@ -565,24 +565,24 @@ const OnboardingWizard = ({ onComplete }) => {
               {/* Holdings List */}
               {holdings.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-bold text-gray-900text-white mb-4">
                     Your Holdings
                   </h3>
                   <div className="space-y-3">
                     {holdings.map((holding, index) => (
                       <div
                         key={index}
-                        className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between"
+                        className="p-4 bg-whitebg-gray-800 rounded-xl border border-gray-200border-gray-700 flex items-center justify-between"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black dark:bg-none rounded-xl flex items-center justify-center">
-                            <TrendingUp className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-primary-200bg-blackbg-none rounded-xl flex items-center justify-center">
+                            <TrendingUp className="w-6 h-6 text-primary-600text-primary-400" />
                           </div>
                           <div>
-                            <p className="font-bold text-gray-900 dark:text-white">
+                            <p className="font-bold text-gray-900text-white">
                               {holding.symbol}
                             </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-sm text-gray-600text-gray-400">
                               {holding.quantity} shares @ $
                               {parseFloat(holding.averagePrice).toFixed(2)}
                             </p>
@@ -591,7 +591,7 @@ const OnboardingWizard = ({ onComplete }) => {
                         <button
                           type="button"
                           onClick={() => handleRemoveHolding(index)}
-                          className="p-2 text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded-lg transition-colors"
+                          className="p-2 text-danger-600 hover:bg-danger-50hover:bg-danger-900/20 rounded-lg transition-colors"
                         >
                           <X className="w-5 h-5" />
                         </button>
@@ -602,7 +602,7 @@ const OnboardingWizard = ({ onComplete }) => {
               )}
 
               {holdings.length === 0 && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <div className="text-center py-8 text-gray-500text-gray-400">
                   <Briefcase className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>
                     No holdings added yet. You can add them later from the
@@ -616,19 +616,19 @@ const OnboardingWizard = ({ onComplete }) => {
           {/* Step 4: Complete */}
           {currentStep === 4 && (
             <div className="text-center space-y-6">
-              <div className="w-24 h-24 bg-gradient-to-br from-success-100 to-success-200 dark:bg-black dark:bg-none rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <Check className="w-12 h-12 text-success-600 dark:text-success-400" />
+              <div className="w-24 h-24 bg-gradient-to-br from-success-100 to-success-200bg-blackbg-none rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <Check className="w-12 h-12 text-success-600text-success-400" />
               </div>
-              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-4xl font-bold text-gray-900text-white mb-4">
                 You're All Set!
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-lg text-gray-600text-gray-400 max-w-2xl mx-auto leading-relaxed">
                 Your profile and portfolio have been set up successfully. You
                 can now start using the AI Financial Advisor to get personalized
                 investment advice and recommendations.
               </p>
-              <div className="mt-8 p-6 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black dark:bg-none rounded-2xl">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
+              <div className="mt-8 p-6 bg-gradient-to-br from-primary-50 to-primary-100bg-blackbg-none rounded-2xl">
+                <p className="text-sm text-gray-700text-gray-300">
                   💡 <strong>Tip:</strong> You can always update your profile
                   and portfolio from their respective tabs.
                 </p>
@@ -637,7 +637,7 @@ const OnboardingWizard = ({ onComplete }) => {
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200border-gray-700">
             <button
               type="button"
               onClick={handleBack}

@@ -7,6 +7,7 @@ import dev.langchain4j.service.UserMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,14 +28,14 @@ public class SecurityAgent {
 
     @Autowired
     public SecurityAgent(
-            ChatLanguageModel chatLanguageModel,
+            @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel,
             @Value("${agent.timeout.security-seconds:5}") int securityTimeoutSeconds
     ) {
         this.securityValidator = AiServices.builder(SecurityValidator.class)
                 .chatLanguageModel(chatLanguageModel)
                 .build();
         this.securityTimeoutSeconds = securityTimeoutSeconds;
-        log.info("✅ SecurityAgent initialized");
+        log.info("✅ SecurityAgent initialized with its own LLM instance");
     }
 
     /**

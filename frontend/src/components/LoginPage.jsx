@@ -5,7 +5,7 @@ const LoginPage = () => {
   const { login } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black dark:bg-none flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         {/* Logo and Header */}
         <div className="text-center mb-8">
@@ -17,10 +17,10 @@ const LoginPage = () => {
               </div>
             </div>
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-2">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2">
             Financial Advisor AI
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">
+          <p className="text-gray-600 font-medium">
             Sign in to access your personalized investment advisor
           </p>
         </div>
@@ -28,10 +28,10 @@ const LoginPage = () => {
         {/* Login Card */}
         <div className="card-elevated p-8">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Welcome Back
             </h2>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600">
               Sign in with your Google account to continue
             </p>
           </div>
@@ -62,11 +62,11 @@ const LoginPage = () => {
             <LogIn className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
 
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-              <TrendingUp className="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="flex items-start gap-3 text-sm text-gray-600">
+              <TrendingUp className="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" />
               <p>
-                <strong className="text-gray-900 dark:text-white">
+                <strong className="text-gray-900">
                   Secure Authentication:
                 </strong>{" "}
                 We use Google OAuth2 for secure, passwordless authentication.
@@ -77,7 +77,7 @@ const LoginPage = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
+        <p className="text-center text-sm text-gray-500 mt-6">
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>

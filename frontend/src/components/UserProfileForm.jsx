@@ -120,7 +120,7 @@ const UserProfileForm = ({ onSave }) => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading profile...</p>
+          <p className="text-gray-600 font-medium">Loading profile...</p>
         </div>
       </div>
     );
@@ -129,19 +129,19 @@ const UserProfileForm = ({ onSave }) => {
   return (
     <form onSubmit={handleSubmit} className="card-elevated space-y-8">
       <div className="flex items-center gap-4 mb-2">
-        <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black rounded-2xl">
-          <User className="w-7 h-7 text-primary-600 dark:text-primary-400" />
+        <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl">
+          <User className="w-7 h-7 text-primary-600" />
         </div>
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Investment Profile</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Customize your preferences for personalized recommendations</p>
+          <h2 className="text-3xl font-bold text-gray-900">Investment Profile</h2>
+          <p className="text-gray-600 mt-1">Customize your preferences for personalized recommendations</p>
         </div>
       </div>
 
       {/* Risk Tolerance */}
       <div>
-        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-          <Shield className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700">
+          <Shield className="w-5 h-5 text-primary-600" />
           Risk Tolerance
         </label>
         <div className="grid grid-cols-3 gap-4">
@@ -152,8 +152,8 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => setFormData({ ...formData, riskTolerance: risk })}
               className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                 formData.riskTolerance === risk
-                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft scale-105'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 text-primary-700 shadow-soft scale-105'
+                  : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50 text-gray-700'
               }`}
             >
               {risk}
@@ -164,8 +164,8 @@ const UserProfileForm = ({ onSave }) => {
 
       {/* Investment Horizon */}
       <div>
-        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-          <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700">
+          <Target className="w-5 h-5 text-primary-600" />
           Investment Horizon
         </label>
         <div className="grid grid-cols-3 gap-4">
@@ -176,8 +176,8 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => setFormData({ ...formData, horizon })}
               className={`py-4 px-6 rounded-xl border-2 transition-all duration-200 font-semibold ${
                 formData.horizon === horizon
-                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft scale-105'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 text-primary-700 shadow-soft scale-105'
+                  : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50 text-gray-700'
               }`}
             >
               {horizon}
@@ -188,8 +188,8 @@ const UserProfileForm = ({ onSave }) => {
 
       {/* Investment Goals */}
       <div>
-        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-          <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700">
+          <Target className="w-5 h-5 text-primary-600" />
           Investment Goals
         </label>
         <div className="flex flex-wrap gap-3">
@@ -200,8 +200,8 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => toggleGoal(goal)}
               className={`py-3 px-5 rounded-xl border-2 transition-all duration-200 font-semibold flex items-center gap-2 ${
                 formData.goals.includes(goal)
-                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:bg-black text-primary-700 dark:text-primary-300 shadow-soft'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  ? 'border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 text-primary-700 shadow-soft'
+                  : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50 text-gray-700'
               }`}
             >
               {formData.goals.includes(goal) && (
@@ -215,8 +215,8 @@ const UserProfileForm = ({ onSave }) => {
 
       {/* Budget */}
       <div>
-        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-          <DollarSign className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700">
+          <DollarSign className="w-5 h-5 text-primary-600" />
           Investment Budget ($)
         </label>
         <input
@@ -232,8 +232,8 @@ const UserProfileForm = ({ onSave }) => {
 
       {/* Preferred Sectors */}
       <div>
-        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-          <Building2 className="w-5 h-5 text-success-600 dark:text-success-400" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700">
+          <Building2 className="w-5 h-5 text-success-600" />
           Preferred Sectors
         </label>
         <div className="flex flex-wrap gap-3">
@@ -244,8 +244,8 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => toggleSector(sector, 'preferred')}
               className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                 formData.preferredSectors.includes(sector)
-                  ? 'border-success-600 bg-gradient-to-br from-success-50 to-success-100 dark:bg-black text-success-700 dark:text-success-300 shadow-soft'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-success-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  ? 'border-success-600 bg-gradient-to-br from-success-50 to-success-100 text-success-700 shadow-soft'
+                  : 'border-gray-300 hover:border-success-400 hover:bg-gray-50 text-gray-700'
               }`}
             >
               {formData.preferredSectors.includes(sector) && (
@@ -259,8 +259,8 @@ const UserProfileForm = ({ onSave }) => {
 
       {/* Excluded Sectors */}
       <div>
-        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700 dark:text-gray-300">
-          <X className="w-5 h-5 text-danger-600 dark:text-danger-400" />
+        <label className="flex items-center gap-2 text-sm font-bold mb-4 text-gray-700">
+          <X className="w-5 h-5 text-danger-600" />
           Excluded Sectors
         </label>
         <div className="flex flex-wrap gap-3">
@@ -271,8 +271,8 @@ const UserProfileForm = ({ onSave }) => {
               onClick={() => toggleSector(sector, 'excluded')}
               className={`py-2.5 px-4 rounded-xl border-2 transition-all duration-200 font-medium text-sm flex items-center gap-2 ${
                 formData.excludedSectors.includes(sector)
-                  ? 'border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100 dark:bg-black text-danger-700 dark:text-danger-300 shadow-soft'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-danger-400 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  ? 'border-danger-600 bg-gradient-to-br from-danger-50 to-danger-100 text-danger-700 shadow-soft'
+                  : 'border-gray-300 hover:border-danger-400 hover:bg-gray-50 text-gray-700'
               }`}
             >
               {formData.excludedSectors.includes(sector) && (
@@ -285,7 +285,7 @@ const UserProfileForm = ({ onSave }) => {
       </div>
 
       {/* Ethical Investing */}
-      <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black rounded-xl border border-gray-200 dark:border-gray-600">
+      <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
         <input
           type="checkbox"
           id="ethicalInvesting"
@@ -293,7 +293,7 @@ const UserProfileForm = ({ onSave }) => {
           onChange={(e) => setFormData({ ...formData, ethicalInvesting: e.target.checked })}
           className="w-6 h-6 text-primary-600 rounded-lg focus:ring-primary-500 focus:ring-2 cursor-pointer"
         />
-        <label htmlFor="ethicalInvesting" className="text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer flex-1">
+        <label htmlFor="ethicalInvesting" className="text-sm font-semibold text-gray-700 cursor-pointer flex-1">
           Ethical/ESG Investing Preferences
         </label>
       </div>

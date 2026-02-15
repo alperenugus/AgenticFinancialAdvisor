@@ -111,7 +111,7 @@ const PortfolioView = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">
+          <p className="text-gray-600text-gray-400 font-medium">
             Loading portfolio...
           </p>
         </div>
@@ -123,13 +123,13 @@ const PortfolioView = () => {
     return (
       <div className="card-elevated">
         <div className="text-center py-16">
-          <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black dark:bg-none rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Briefcase className="w-10 h-10 text-primary-600 dark:text-primary-400" />
+          <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200bg-blackbg-none rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Briefcase className="w-10 h-10 text-primary-600text-primary-400" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <h3 className="text-2xl font-bold text-gray-900text-white mb-2">
             Your Portfolio is Empty
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+          <p className="text-gray-600text-gray-400 mb-8 max-w-md mx-auto">
             Start building your investment portfolio by adding your first
             holding.
           </p>
@@ -143,14 +143,14 @@ const PortfolioView = () => {
         </div>
 
         {showAddForm && (
-          <div className="mt-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black dark:bg-none rounded-2xl border border-gray-200 dark:border-gray-600">
-            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+          <div className="mt-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100bg-blackbg-none rounded-2xl border border-gray-200border-gray-600">
+            <h4 className="text-lg font-bold text-gray-900text-white mb-4">
               Add New Holding
             </h4>
             <form onSubmit={handleAddHolding} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                     Stock Symbol
                   </label>
                   <input
@@ -165,7 +165,7 @@ const PortfolioView = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                     Quantity
                   </label>
                   <input
@@ -181,7 +181,7 @@ const PortfolioView = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                     Average Price ($)
                   </label>
                   <input
@@ -238,14 +238,14 @@ const PortfolioView = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="stat-card">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200 dark:bg-black dark:bg-none rounded-xl">
-              <DollarSign className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+            <div className="p-3 bg-gradient-to-br from-primary-100 to-primary-200bg-blackbg-none rounded-xl">
+              <DollarSign className="w-6 h-6 text-primary-600text-primary-400" />
             </div>
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            <span className="text-xs font-semibold text-gray-500text-gray-400 uppercase tracking-wide">
               Total Value
             </span>
           </div>
-          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+          <div className="text-3xl font-bold text-gray-900text-white mb-1">
             $
             {totalValue.toLocaleString("en-US", {
               minimumFractionDigits: 2,
@@ -259,25 +259,25 @@ const PortfolioView = () => {
             <div
               className={`p-3 rounded-xl ${
                 totalGainLoss >= 0
-                  ? "bg-gradient-to-br from-success-100 to-success-200 dark:bg-black dark:bg-none"
-                  : "bg-gradient-to-br from-danger-100 to-danger-200 dark:bg-black dark:bg-none"
+                  ? "bg-gradient-to-br from-success-100 to-success-200bg-blackbg-none"
+                  : "bg-gradient-to-br from-danger-100 to-danger-200bg-blackbg-none"
               }`}
             >
               {totalGainLoss >= 0 ? (
-                <ArrowUpRight className="w-6 h-6 text-success-600 dark:text-success-400" />
+                <ArrowUpRight className="w-6 h-6 text-success-600text-success-400" />
               ) : (
-                <ArrowDownRight className="w-6 h-6 text-danger-600 dark:text-danger-400" />
+                <ArrowDownRight className="w-6 h-6 text-danger-600text-danger-400" />
               )}
             </div>
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            <span className="text-xs font-semibold text-gray-500text-gray-400 uppercase tracking-wide">
               Total Gain/Loss
             </span>
           </div>
           <div
             className={`text-3xl font-bold flex items-center gap-2 ${
               totalGainLoss >= 0
-                ? "text-success-600 dark:text-success-400"
-                : "text-danger-600 dark:text-danger-400"
+                ? "text-success-600text-success-400"
+                : "text-danger-600text-danger-400"
             }`}
           >
             {totalGainLoss >= 0 ? "+" : ""}$
@@ -293,27 +293,27 @@ const PortfolioView = () => {
             <div
               className={`p-3 rounded-xl ${
                 totalGainLossPercent >= 0
-                  ? "bg-gradient-to-br from-success-100 to-success-200 dark:bg-black dark:bg-none"
-                  : "bg-gradient-to-br from-danger-100 to-danger-200 dark:bg-black dark:bg-none"
+                  ? "bg-gradient-to-br from-success-100 to-success-200bg-blackbg-none"
+                  : "bg-gradient-to-br from-danger-100 to-danger-200bg-blackbg-none"
               }`}
             >
               <Percent
                 className={`w-6 h-6 ${
                   totalGainLossPercent >= 0
-                    ? "text-success-600 dark:text-success-400"
-                    : "text-danger-600 dark:text-danger-400"
+                    ? "text-success-600text-success-400"
+                    : "text-danger-600text-danger-400"
                 }`}
               />
             </div>
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            <span className="text-xs font-semibold text-gray-500text-gray-400 uppercase tracking-wide">
               Gain/Loss %
             </span>
           </div>
           <div
             className={`text-3xl font-bold ${
               totalGainLossPercent >= 0
-                ? "text-success-600 dark:text-success-400"
-                : "text-danger-600 dark:text-danger-400"
+                ? "text-success-600text-success-400"
+                : "text-danger-600text-danger-400"
             }`}
           >
             {totalGainLossPercent >= 0 ? "+" : ""}
@@ -326,7 +326,7 @@ const PortfolioView = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card-elevated">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h3 className="text-xl font-bold text-gray-900text-white">
               Portfolio Allocation
             </h3>
           </div>
@@ -368,7 +368,7 @@ const PortfolioView = () => {
 
         <div className="card-elevated">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h3 className="text-xl font-bold text-gray-900text-white">
               Performance by Stock
             </h3>
           </div>
@@ -409,7 +409,7 @@ const PortfolioView = () => {
       {/* Professional Holdings Table */}
       <div className="card-elevated">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+          <h3 className="text-xl font-bold text-gray-900text-white">
             Holdings
           </h3>
           <div className="flex gap-3">
@@ -434,14 +434,14 @@ const PortfolioView = () => {
         </div>
 
         {showAddForm && (
-          <div className="mb-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:bg-black dark:bg-none rounded-2xl border border-gray-200 dark:border-gray-600">
-            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+          <div className="mb-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100bg-blackbg-none rounded-2xl border border-gray-200border-gray-600">
+            <h4 className="text-lg font-bold text-gray-900text-white mb-4">
               Add New Holding
             </h4>
             <form onSubmit={handleAddHolding} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                     Stock Symbol
                   </label>
                   <input
@@ -456,7 +456,7 @@ const PortfolioView = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                     Quantity
                   </label>
                   <input
@@ -472,7 +472,7 @@ const PortfolioView = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700text-gray-300">
                     Average Price ($)
                   </label>
                   <input
@@ -508,29 +508,29 @@ const PortfolioView = () => {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b-2 border-gray-200 dark:border-gray-700">
-                <th className="text-left py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+              <tr className="border-b-2 border-gray-200border-gray-700">
+                <th className="text-left py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   Symbol
                 </th>
-                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   Quantity
                 </th>
-                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   Avg Price
                 </th>
-                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   Current
                 </th>
-                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   Value
                 </th>
-                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   Gain/Loss
                 </th>
-                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   %
                 </th>
-                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="text-right py-4 px-4 font-bold text-sm text-gray-700text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -544,23 +544,23 @@ const PortfolioView = () => {
                 return (
                   <tr
                     key={holding.id}
-                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="border-b border-gray-100border-gray-800 hover:bg-gray-50hover:bg-gray-700/50 transition-colors"
                   >
                     <td className="py-4 px-4">
-                      <span className="font-bold text-lg text-gray-900 dark:text-white">
+                      <span className="font-bold text-lg text-gray-900text-white">
                         {holding.symbol}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-right font-semibold text-gray-900 dark:text-white">
+                    <td className="py-4 px-4 text-right font-semibold text-gray-900text-white">
                       {holding.quantity}
                     </td>
-                    <td className="py-4 px-4 text-right font-medium text-gray-700 dark:text-gray-300">
+                    <td className="py-4 px-4 text-right font-medium text-gray-700text-gray-300">
                       ${parseFloat(holding.averagePrice || 0).toFixed(2)}
                     </td>
-                    <td className="py-4 px-4 text-right font-medium text-gray-700 dark:text-gray-300">
+                    <td className="py-4 px-4 text-right font-medium text-gray-700text-gray-300">
                       ${parseFloat(holding.currentPrice || 0).toFixed(2)}
                     </td>
-                    <td className="py-4 px-4 text-right font-semibold text-gray-900 dark:text-white">
+                    <td className="py-4 px-4 text-right font-semibold text-gray-900text-white">
                       $
                       {parseFloat(holding.value || 0).toLocaleString("en-US", {
                         minimumFractionDigits: 2,
@@ -570,8 +570,8 @@ const PortfolioView = () => {
                     <td
                       className={`py-4 px-4 text-right font-bold ${
                         gainLoss >= 0
-                          ? "text-success-600 dark:text-success-400"
-                          : "text-danger-600 dark:text-danger-400"
+                          ? "text-success-600text-success-400"
+                          : "text-danger-600text-danger-400"
                       }`}
                     >
                       <div className="flex items-center justify-end gap-1">
@@ -592,8 +592,8 @@ const PortfolioView = () => {
                     <td
                       className={`py-4 px-4 text-right font-bold ${
                         gainLossPercent >= 0
-                          ? "text-success-600 dark:text-success-400"
-                          : "text-danger-600 dark:text-danger-400"
+                          ? "text-success-600text-success-400"
+                          : "text-danger-600text-danger-400"
                       }`}
                     >
                       {gainLossPercent >= 0 ? "+" : ""}
@@ -602,7 +602,7 @@ const PortfolioView = () => {
                     <td className="py-4 px-4 text-right">
                       <button
                         onClick={() => handleRemoveHolding(holding.id)}
-                        className="text-danger-600 hover:text-danger-800 dark:text-danger-400 dark:hover:text-danger-300 p-2 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded-lg transition-colors"
+                        className="text-danger-600 hover:text-danger-800text-danger-400hover:text-danger-300 p-2 hover:bg-danger-50hover:bg-danger-900/20 rounded-lg transition-colors"
                         title="Remove holding"
                       >
                         <Trash2 className="w-4 h-4" />

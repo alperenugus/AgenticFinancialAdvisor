@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Briefcase, User, AlertTriangle, LineChart, LogOut, Moon, Sun } from 'lucide-react';
+import { MessageSquare, Briefcase, User, AlertTriangle, LineChart, LogOut } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import ChatComponent from './components/ChatComponent';
@@ -13,23 +13,6 @@ function App() {
   const [activeTab, setActiveTab] = useState('chat');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode');
-    return stored ? stored === 'true' : false;
-  });
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('darkMode', darkMode.toString());
-  }, [darkMode]);
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
 
   // Check if user needs onboarding
   useEffect(() => {
@@ -65,10 +48,10 @@ function App() {
   // Show login page if not authenticated
   if (loading || checkingOnboarding) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-200 border-t-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading...</p>
+          <p className="text-gray-600 font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -90,9 +73,9 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:bg-black">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
       {/* Professional Header */}
-      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 sticky top-0 z-50 shadow-sm">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-4">
@@ -103,31 +86,23 @@ function App() {
                 </div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                   Financial Advisor AI
                 </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Powered by Groq</p>
+                <p className="text-xs text-gray-500 font-medium">Powered by Groq</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={toggleDarkMode}
-                className="btn-ghost flex items-center gap-2 text-sm"
-                title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              >
-                {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                <span className="hidden md:inline">{darkMode ? "Light" : "Dark"}</span>
-              </button>
               {user?.pictureUrl && (
                 <img 
                   src={user.pictureUrl} 
                   alt={user.name}
-                  className="w-10 h-10 rounded-full border-2 border-primary-200 dark:border-primary-800"
+                  className="w-10 h-10 rounded-full border-2 border-primary-200"
                 />
               )}
-              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-black rounded-xl">
+              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-100 rounded-xl">
                 <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className="text-sm font-medium text-gray-700">
                   {user?.name || user?.email}
                 </span>
               </div>
@@ -145,7 +120,7 @@ function App() {
       </header>
 
       {/* Modern Navigation Tabs */}
-      <nav className="bg-white/60 dark:bg-black/60 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-800/50">
+      <nav className="bg-white/60 backdrop-blur-sm border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 overflow-x-auto">
             {tabs.map((tab) => {
@@ -157,8 +132,8 @@ function App() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`group relative flex items-center gap-3 px-6 py-4 border-b-2 font-semibold text-sm transition-all duration-200 min-w-fit ${
                     isActive
-                      ? 'border-primary-600 text-primary-600 dark:text-primary-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                      ? 'border-primary-600 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`} />
@@ -193,14 +168,14 @@ function App() {
       </main>
 
       {/* Professional Footer */}
-      <footer className="bg-white/60 dark:bg-black/60 backdrop-blur-sm border-t border-gray-200/50 dark:border-gray-800/50 mt-16">
+      <footer className="bg-white/60 backdrop-blur-sm border-t border-gray-200/50 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col gap-6">
             {/* Disclaimer */}
-            <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 dark:bg-black border border-amber-200/50 dark:border-amber-800/50 rounded-xl p-4">
+            <div className="bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border border-amber-200/50 rounded-xl p-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800 leading-relaxed">
                   <strong className="font-semibold">Disclaimer:</strong> This is a demonstration system for educational purposes only. 
                   Not a licensed financial advisor. Consult a professional for actual investment decisions. 
                   Past performance does not guarantee future results. Investments carry risk of loss.
@@ -210,10 +185,10 @@ function App() {
             
             {/* Footer Content */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                Financial Advisor AI - Powered by <span className="text-primary-600 dark:text-primary-400 font-semibold">Groq</span> & LangChain4j
+              <p className="text-sm text-gray-600 font-medium">
+                Financial Advisor AI - Powered by <span className="text-primary-600 font-semibold">Groq</span> & LangChain4j
               </p>
-              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
                 <div className="w-2 h-2 bg-success-500 rounded-full"></div>
                 <span>System Operational</span>
               </div>

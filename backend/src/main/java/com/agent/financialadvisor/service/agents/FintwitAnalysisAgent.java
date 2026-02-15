@@ -4,9 +4,17 @@ import com.agent.financialadvisor.aspect.ToolCallAspect;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.Tool;
+import dev.langchain4j.memory.chat.ChatMemoryProvider;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.MemoryId;
+import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -26,24 +34,65 @@ public class FintwitAnalysisAgent {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final WebSearchAgent webSearchAgent; // Fallback for finding fintwit content
+    private final ChatLanguageModel chatLanguageModel;
     private final String twitterBearerToken;
     private final String twitterApiBaseUrl;
     private final boolean useTwitterApi;
+    private final Map<String, FintwitAnalysisAgentService> agentCache = new HashMap<>();
 
     @Autowired
     public FintwitAnalysisAgent(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
             WebSearchAgent webSearchAgent,
+            @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel,
             @Value("${fintwit.twitter.bearer-token:}") String twitterBearerToken,
             @Value("${fintwit.twitter.base-url:https://api.twitter.com/2}") String twitterApiBaseUrl
     ) {
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
         this.webSearchAgent = webSearchAgent;
+        this.chatLanguageModel = chatLanguageModel;
         this.twitterBearerToken = twitterBearerToken;
         this.twitterApiBaseUrl = twitterApiBaseUrl;
         this.useTwitterApi = twitterBearerToken != null && !twitterBearerToken.trim().isEmpty();
+        log.info("✅ FintwitAnalysisAgent initialized with its own LLM instance");
+    }
+
+    /**
+     * Get or create an AI agent service instance for a session
+     */
+    private FintwitAnalysisAgentService getOrCreateAgentService(String sessionId) {
+        return agentCache.computeIfAbsent(sessionId, sid -> {
+            log.info("Creating new FintwitAnalysisAgent AI service for session: {}", sid);
+            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(10);
+            
+            return AiServices.builder(FintwitAnalysisAgentService.class)
+                    .chatLanguageModel(chatLanguageModel)
+                    .chatMemoryProvider(memoryProvider)
+                    .tools(this)  // This agent's tools
+                    .build();
+        });
+    }
+
+    /**
+     * Process a query using this agent's LLM
+     */
+    public String processQuery(String sessionId, String query) {
+        FintwitAnalysisAgentService agent = getOrCreateAgentService(sessionId);
+        return agent.chat(sessionId, query);
+    }
+
+    /**
+     * AI Agent Service interface for FintwitAnalysisAgent
+     */
+    private interface FintwitAnalysisAgentService {
+        @SystemMessage("You are a Fintwit (Financial Twitter) Analysis Agent. " +
+                "Your role is to analyze social sentiment from financial Twitter for market insights. " +
+                "You have access to tools for getting fintwit sentiment, trends, and mentions. " +
+                "When asked about social sentiment, Twitter discussions, or fintwit trends, use the appropriate tools. " +
+                "Provide sentiment analysis and insights based on social media discussions.")
+        String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
     @Tool("Get financial Twitter sentiment for a stock. Returns sentiment analysis and trending discussions. " +

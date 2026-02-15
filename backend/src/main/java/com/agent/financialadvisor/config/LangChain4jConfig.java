@@ -99,6 +99,31 @@ public class LangChain4jConfig {
                 .timeout(java.time.Duration.ofSeconds(toolAgentTimeoutSeconds))
                 .build();
     }
+
+    /**
+     * Agent ChatLanguageModel - used by individual agents (UserProfile, MarketAnalysis, WebSearch, Fintwit)
+     * Each agent has its own LLM instance using this model configuration
+     * Uses the same configuration as the orchestrator for consistency
+     */
+    @Bean(name = "agentChatLanguageModel")
+    public ChatLanguageModel agentChatLanguageModel() {
+        if (orchestratorApiKey == null || orchestratorApiKey.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "GROQ_API_KEY environment variable is required. " +
+                "Please set it in Railway environment variables or application.yml"
+            );
+        }
+
+        return OpenAiChatModel.builder()
+                .apiKey(orchestratorApiKey)
+                .baseUrl(orchestratorBaseUrl)
+                .modelName(orchestratorModel)
+                .temperature(orchestratorTemperature)
+                .timeout(java.time.Duration.ofSeconds(orchestratorTimeoutSeconds))
+                .logRequests(true)
+                .logResponses(true)
+                .build();
+    }
 }
 
 

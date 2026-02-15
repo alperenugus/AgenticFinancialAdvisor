@@ -115,16 +115,16 @@ const AgentThinkingPanel = ({ sessionId }) => {
   ].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
+    <div className="h-full flex flex-col bg-whitebg-gray-800 border-l border-gray-200border-gray-700">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:bg-black">
+      <div className="px-4 py-3 border-b border-gray-200border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50bg-black">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-primary-100 dark:bg-primary-900 rounded-lg">
-            <Brain className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+          <div className="p-1.5 bg-primary-100bg-primary-900 rounded-lg">
+            <Brain className="w-4 h-4 text-primary-600text-primary-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Agent Thinking</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Planning & tool usage</p>
+            <h3 className="font-semibold text-sm text-gray-900text-white">Agent Thinking</h3>
+            <p className="text-xs text-gray-500text-gray-400">Planning & tool usage</p>
           </div>
         </div>
       </div>
@@ -132,7 +132,7 @@ const AgentThinkingPanel = ({ sessionId }) => {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {allSteps.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 dark:text-gray-500">
+          <div className="text-center py-8 text-gray-400text-gray-500">
             <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">Agent thinking will appear here</p>
           </div>
@@ -142,50 +142,50 @@ const AgentThinkingPanel = ({ sessionId }) => {
               key={step.id}
               className={`rounded-lg p-3 border transition-all ${
                 step.type === 'reasoning'
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                  ? 'bg-blue-50bg-blue-900/20 border-blue-200border-blue-800'
                   : step.status === 'calling'
-                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                  ? 'bg-yellow-50bg-yellow-900/20 border-yellow-200border-yellow-800'
                   : step.status === 'completed'
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                  ? 'bg-green-50bg-green-900/20 border-green-200border-green-800'
+                  : 'bg-red-50bg-red-900/20 border-red-200border-red-800'
               }`}
             >
               {step.type === 'reasoning' ? (
                 <div className="flex items-start gap-2">
-                  <Brain className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <Brain className="w-4 h-4 text-blue-600text-blue-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-1">Reasoning</p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300">{step.content}</p>
+                    <p className="text-xs font-medium text-blue-900text-blue-200 mb-1">Reasoning</p>
+                    <p className="text-xs text-blue-700text-blue-300">{step.content}</p>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-start gap-2">
                   {step.status === 'calling' ? (
-                    <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0 animate-spin" />
+                    <Clock className="w-4 h-4 text-yellow-600text-yellow-400 mt-0.5 flex-shrink-0 animate-spin" />
                   ) : step.status === 'completed' ? (
-                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-green-600text-green-400 mt-0.5 flex-shrink-0" />
                   ) : (
-                    <XCircle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                    <XCircle className="w-4 h-4 text-red-600text-red-400 mt-0.5 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <Wrench className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                      <p className="text-xs font-semibold text-gray-900 dark:text-white">
+                      <Wrench className="w-3 h-3 text-gray-600text-gray-400" />
+                      <p className="text-xs font-semibold text-gray-900text-white">
                         {formatToolName(step.toolName)}
                       </p>
                       {step.duration && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-gray-500text-gray-400">
                           ({step.duration}ms)
                         </span>
                       )}
                     </div>
                     {formatParameters(step.parameters) && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-gray-600text-gray-400 mb-1">
                         {formatParameters(step.parameters)}
                       </p>
                     )}
                     {step.status === 'completed' && step.result && (
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 italic">
+                      <p className="text-xs text-gray-500text-gray-500 mt-1 italic">
                         Result: {typeof step.result === 'string' && step.result.length > 100
                           ? step.result.substring(0, 97) + '...'
                           : String(step.result)}
@@ -194,7 +194,7 @@ const AgentThinkingPanel = ({ sessionId }) => {
                   </div>
                 </div>
               )}
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
+              <p className="text-xs text-gray-400text-gray-500 mt-1.5">
                 {step.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
             </div>

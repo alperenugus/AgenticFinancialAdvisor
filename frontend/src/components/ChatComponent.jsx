@@ -154,11 +154,11 @@ const ChatComponent = () => {
   };
 
   return (
-    <div className="flex h-full bg-gradient-to-b from-white to-gray-50/50 dark:bg-black dark:bg-none">
+    <div className="flex h-full bg-gradient-to-b from-white to-gray-50/50">
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Chat Header */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-black/80 backdrop-blur-sm">
+        <div className="px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl blur opacity-50"></div>
@@ -167,10 +167,10 @@ const ChatComponent = () => {
               </div>
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 dark:text-white">
+              <h3 className="font-bold text-gray-900">
                 AI Financial Advisor
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-500">
                 Always here to help
               </p>
             </div>
@@ -178,7 +178,7 @@ const ChatComponent = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-transparent to-gray-50/30 dark:bg-black dark:bg-none">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-transparent to-gray-50/30">
           {messages.map((msg, idx) => (
             <div
               key={idx}
@@ -203,8 +203,8 @@ const ChatComponent = () => {
                   msg.role === "user"
                     ? "bg-gradient-to-br from-primary-600 to-primary-700 text-white"
                     : msg.role === "error"
-                      ? "bg-gradient-to-br from-danger-50 to-danger-100 dark:bg-black dark:bg-none text-danger-800 dark:text-danger-200 border border-danger-200 dark:border-danger-800"
-                      : "bg-white dark:bg-black dark:bg-none text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800"
+                      ? "bg-gradient-to-br from-danger-50 to-danger-100 text-danger-800 border border-danger-200"
+                      : "bg-white text-gray-900 border border-gray-200"
                 }`}
               >
                 <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">
@@ -214,7 +214,7 @@ const ChatComponent = () => {
                   className={`text-xs mt-2 ${
                     msg.role === "user"
                       ? "text-primary-100"
-                      : "text-gray-400 dark:text-gray-500"
+                      : "text-gray-400"
                   }`}
                 >
                   {msg.timestamp.toLocaleTimeString([], {
@@ -240,7 +240,7 @@ const ChatComponent = () => {
                   <Loader2 className="w-5 h-5 text-white animate-spin" />
                 </div>
               </div>
-              <div className="max-w-[75%] rounded-2xl px-5 py-4 bg-white dark:bg-black text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800 shadow-soft">
+              <div className="max-w-[75%] rounded-2xl px-5 py-4 bg-white text-gray-900 border border-gray-200 shadow-soft">
                 <p className="text-sm font-medium">
                   Processing your request...
                 </p>
@@ -254,7 +254,7 @@ const ChatComponent = () => {
         {/* Professional Input Area */}
         <form
           onSubmit={handleSubmit}
-          className="border-t border-gray-200 dark:border-gray-800 p-5 bg-white/80 dark:bg-black/80 backdrop-blur-sm"
+          className="border-t border-gray-200 p-5 bg-white/80 backdrop-blur-sm"
         >
           <div className="flex gap-3">
             <div className="flex-1 relative">
@@ -288,7 +288,7 @@ const ChatComponent = () => {
               )}
             </button>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-1">
+          <p className="text-xs text-gray-500 mt-2 ml-1">
             Press Enter to send • AI responses may take a few moments
           </p>
         </form>
