@@ -5,8 +5,6 @@ import com.agent.financialadvisor.service.WebSocketService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.memory.chat.ChatMemoryProvider;
-import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.MemoryId;
@@ -80,15 +78,14 @@ public class WebSearchAgent {
 
     /**
      * Get or create an AI agent service instance for a session
+     * Note: No chat memory - each query is independent
      */
     private WebSearchAgentService getOrCreateAgentService(String sessionId) {
         return agentCache.computeIfAbsent(sessionId, sid -> {
             log.info("Creating new WebSearchAgent AI service for session: {}", sid);
-            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(10);
             
             return AiServices.builder(WebSearchAgentService.class)
                     .chatLanguageModel(chatLanguageModel)
-                    .chatMemoryProvider(memoryProvider)
                     .tools(this)  // This agent's tools
                     .build();
         });

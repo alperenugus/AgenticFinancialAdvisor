@@ -173,13 +173,16 @@ public class OrchestratorService {
     /**
      * Get or create an orchestrator agent instance for a session
      * The orchestrator coordinates between different agent LLMs
+     * Maintains limited conversation history: last 5 exchanges (10 messages total)
+     * This provides context for follow-up questions while keeping token usage reasonable
      */
     private OrchestratorAgent getOrCreateOrchestrator(String sessionId) {
         return orchestratorCache.computeIfAbsent(sessionId, sid -> {
             log.info("Creating new orchestrator agent for session: {}", sid);
             
-            // Create a ChatMemoryProvider that provides MessageWindowChatMemory for each memory ID
-            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(20);
+            // Maintain last 5 exchanges (10 messages: 5 user prompts + 5 LLM answers)
+            // This provides context for follow-up questions while keeping token usage reasonable
+            ChatMemoryProvider memoryProvider = memoryId -> MessageWindowChatMemory.withMaxMessages(10);
             
             return AiServices.builder(OrchestratorAgent.class)
                     .chatLanguageModel(chatLanguageModel)
