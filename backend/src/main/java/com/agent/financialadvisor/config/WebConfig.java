@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.Arrays;
+
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
@@ -13,44 +15,41 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // Always use allowedOriginPatterns to avoid conflicts with allowCredentials
-        // This works for both wildcard and specific origins
-        
-        if (corsOrigins.equals("*") || corsOrigins.contains("*")) {
-            // Wildcard - don't allow credentials (browser security restriction)
-            registry.addMapping("/api/**")
-                    .allowedOriginPatterns("*")
-                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                    .allowedHeaders("*")
-                    .maxAge(3600);
-        } else {
-            // Specific origins - use allowedOriginPatterns (not allowedOrigins) to avoid conflicts
-            // allowedOriginPatterns supports multiple patterns and works with allowCredentials
-            String[] origins = corsOrigins.split(",");
-            String[] trimmedOrigins = new String[origins.length];
-            for (int i = 0; i < origins.length; i++) {
-                trimmedOrigins[i] = origins[i].trim();
-            }
-            registry.addMapping("/api/**")
-                    .allowedOriginPatterns(trimmedOrigins)
-                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                    .allowedHeaders("*")
-                    .maxAge(3600);
+        String[] allowedOrigins = Arrays.stream(corsOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toArray(String[]::new);
+
+        if (allowedOrigins.length == 0) {
+            throw new IllegalStateException("CORS_ORIGINS must contain at least one origin.");
         }
-        
-        // WebSocket CORS - always use wildcard patterns (no credentials needed)
+
+        for (String origin : allowedOrigins) {
+            if (origin.contains("*")) {
+                throw new IllegalStateException("Wildcard CORS origins are not allowed. Set explicit origins in CORS_ORIGINS.");
+            }
+        }
+
+        registry.addMapping("/api/**")
+                .allowedOriginPatterns(allowedOrigins)
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("Authorization", "Content-Type", "X-Requested-With")
+                .allowCredentials(true)
+                .maxAge(3600);
+
+        // WebSocket CORS should also be restricted to trusted frontend origins.
         registry.addMapping("/ws/**")
-                .allowedOriginPatterns("*")
+                .allowedOriginPatterns(allowedOrigins)
                 .allowedMethods("GET", "POST", "OPTIONS", "HEAD")
-                .allowedHeaders("*")
+                .allowedHeaders("Authorization", "Content-Type", "X-Requested-With")
                 .allowCredentials(false)
                 .maxAge(3600);
         
         // SockJS info endpoint
         registry.addMapping("/ws/info/**")
-                .allowedOriginPatterns("*")
+                .allowedOriginPatterns(allowedOrigins)
                 .allowedMethods("GET", "POST", "OPTIONS", "HEAD")
-                .allowedHeaders("*")
+                .allowedHeaders("Authorization", "Content-Type", "X-Requested-With")
                 .allowCredentials(false)
                 .maxAge(3600);
     }

@@ -60,7 +60,7 @@ VITE_API_BASE_URL=https://your-backend.railway.app/api
 1. User clicks "Sign in with Google"
 2. Redirects to backend: `/oauth2/authorization/google`
 3. Backend handles Google OAuth2 flow
-4. On success, redirects to frontend: `/auth/callback?token=JWT_TOKEN`
+4. On success, redirects to frontend: `/auth/callback#token=JWT_TOKEN` (URL fragment, not query parameter)
 5. Frontend stores token and loads user data
 
 ## API Changes

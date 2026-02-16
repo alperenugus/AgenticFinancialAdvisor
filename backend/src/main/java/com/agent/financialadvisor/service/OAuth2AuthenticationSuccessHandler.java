@@ -14,6 +14,8 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
@@ -68,9 +70,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             String token = jwtService.generateToken(user.getEmail(), user.getId());
             String frontendUrl = corsOrigins.split(",")[0].trim(); // Use first origin as redirect target
 
-            // Redirect to frontend with token
-            String redirectUrl = frontendUrl + "/auth/callback?token=" + token;
-            log.info("Redirecting to frontend: {}", redirectUrl);
+            // Put token in the URL fragment so it is not sent to servers/proxies as query params.
+            String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+            String redirectUrl = frontendUrl + "/auth/callback#token=" + encodedToken;
+            log.info("Redirecting to frontend callback for user {}", user.getEmail());
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);
         } catch (Exception e) {
             log.error("Error in OAuth2 authentication success handler", e);
