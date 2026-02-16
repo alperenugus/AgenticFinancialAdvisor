@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Briefcase, User, AlertTriangle, LineChart, LogOut } from 'lucide-react';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/useAuth';
 import LoginPage from './components/LoginPage';
 import ChatComponent from './components/ChatComponent';
 import PortfolioView from './components/PortfolioView';

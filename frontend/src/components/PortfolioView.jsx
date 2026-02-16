@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import {
-  TrendingUp,
-  TrendingDown,
   RefreshCw,
   Plus,
   Trash2,
@@ -22,7 +20,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 

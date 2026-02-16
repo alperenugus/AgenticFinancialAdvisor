@@ -1,15 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
 
-const AuthContext = createContext(null);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -18,27 +10,13 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('token');
   });
 
-  useEffect(() => {
-    // Check for token in URL (from OAuth callback)
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get('token');
-    
-    if (tokenFromUrl) {
-      setToken(tokenFromUrl);
-      localStorage.setItem('token', tokenFromUrl);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // Load user if token exists
-    if (token || tokenFromUrl) {
-      loadUser(token || tokenFromUrl);
-    } else {
-      setLoading(false);
-    }
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('token');
   }, []);
 
-  const loadUser = async (authToken) => {
+  const loadUser = useCallback(async (authToken) => {
     try {
       const response = await authAPI.getCurrentUser(authToken);
       setUser(response.data);
@@ -49,18 +27,36 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [logout]);
+
+  useEffect(() => {
+    // Check for token in URL (from OAuth callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    const effectiveToken = tokenFromUrl || token;
+    
+    if (tokenFromUrl) {
+      setToken(tokenFromUrl);
+      localStorage.setItem('token', tokenFromUrl);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Load user if token exists
+    if (effectiveToken) {
+      loadUser(effectiveToken);
+    } else {
+      setLoading(false);
+    }
+  }, [token, loadUser]);
 
   const login = () => {
     // Redirect to backend OAuth2 endpoint
-    const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+    const backendUrl = apiBaseUrl.endsWith('/api')
+      ? apiBaseUrl.slice(0, -4)
+      : apiBaseUrl;
     window.location.href = `${backendUrl}/oauth2/authorization/google`;
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
   };
 
   const value = {

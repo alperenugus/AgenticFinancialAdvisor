@@ -1,5 +1,5 @@
 import { LogIn, LineChart, TrendingUp } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/useAuth";
 
 const LoginPage = () => {
   const { login } = useAuth();
