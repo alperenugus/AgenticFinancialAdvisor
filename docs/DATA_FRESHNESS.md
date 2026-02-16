@@ -2,176 +2,79 @@
 
 ## Current Implementation
 
-### ✅ **Real-Time Data Fetching**
+### ✅ Fresh Data Fetching (No Cache)
 
-The system **ALWAYS fetches fresh data** from Alpha Vantage API** on every request:
+The system fetches market data from **Finnhub** on each request:
 
-- **No Caching**: There is NO caching mechanism in `MarketDataService`
-- **Fresh API Calls**: Every tool call (`getStockPrice`, `getStockPriceData`, etc.) makes a fresh HTTP request
-- **No Stale Data**: Data is never stored or reused between requests
+- No application-level cache in `MarketDataService`
+- Fresh HTTP request per tool invocation (`getStockPrice`, `getStockPriceData`, `getMarketNews`)
+- Data is not reused between requests
 
-### 📊 **Data Sources**
+## Data Sources
 
-#### Alpha Vantage API
+### Finnhub (Primary)
 
-**Current Price (`GLOBAL_QUOTE`)**:
-- **Free Tier**: 15-minute delayed data during market hours
-- **Premium Tier**: Real-time data (requires paid subscription)
-- **After Hours**: Last closing price from previous trading day
+- **Current Price** (`/quote`)
+- **Candles / historical aggregates** (`/stock/candle`)
+- **Company profile** (`/stock/profile2`)
+- **Company news** (`/company-news`)
 
-**Historical Data (`TIME_SERIES_DAILY/WEEKLY/MONTHLY`)**:
-- End-of-day data (updated after market close)
-- Most recent data point is from the last completed trading day
+### Optional Additional Sources
 
-**Company Overview (`OVERVIEW`)**:
-- Fundamental data (updated periodically, typically daily)
-- P/E ratio, revenue growth, profit margins, etc.
+- Yahoo Finance (configured in app settings, not primary)
+- External web/news providers via WebSearchAgent tools
 
-**News Sentiment (`NEWS_SENTIMENT`)**:
-- Recent news articles (updated frequently)
-- Sentiment analysis
+## Important Limitations
 
-### ⚠️ **Important Limitations**
+### 1) Provider Delay
 
-#### 1. **Data Delay (Free Tier)**
+Market-data providers may have delayed quotes depending on exchange coverage and plan tier.
+Even when requests are fresh, returned prices can still be delayed by provider policy.
 
-**Alpha Vantage Free Tier**:
-- **15-minute delay** during market hours
-- This is standard for free financial data APIs
-- For real-time data, you need a **premium Alpha Vantage subscription** or alternative provider
+### 2) API Limits
 
-**Example**:
-- Market opens at 9:30 AM EST
-- At 9:35 AM, you'll see data from 9:20 AM (15 minutes ago)
-- At 9:45 AM, you'll see data from 9:30 AM
+When quota/rate limits are hit:
 
-#### 2. **Rate Limits**
+- API responses may fail
+- Tool calls may return errors or partial data
+- The assistant should state that live data was unavailable
 
-**Free Tier Limits**:
-- **5 API calls per minute**
-- **500 API calls per day**
+### 3) Market Hours / Non-trading Periods
 
-**Impact**:
-- If generating recommendations for 5 stocks, each requiring 7+ tool calls:
-  - 5 stocks × 7 calls = 35 API calls
-  - This takes ~7 minutes due to rate limiting
-- The system includes delays (`Thread.sleep(2000)`) to respect rate limits
+- Outside market hours, “latest” price may reflect the last trade/close
+- Weekends/holidays return last available market session values
 
-#### 3. **Market Hours**
+## How Freshness Works in This App
 
-- **During Market Hours** (9:30 AM - 4:00 PM EST): 15-minute delayed data
-- **After Hours**: Last closing price from previous trading day
-- **Weekends/Holidays**: Last closing price from last trading day
+Example flow for `getStockPrice("AAPL")`:
 
-### 🔄 **How Data is Fetched**
+1. Agent tool is called
+2. `MarketDataService.getStockPrice("AAPL")` executes
+3. A fresh request is sent to Finnhub
+4. Response is parsed and returned immediately
+5. No cache lookup is used
 
-Every time the agent calls a tool:
+## Operational Recommendations
 
-```java
-// Example: getStockPrice("AAPL")
-1. Agent calls getStockPrice("AAPL")
-2. MarketDataService.getStockPrice("AAPL") is called
-3. Fresh HTTP request to Alpha Vantage API
-4. Response parsed and returned immediately
-5. NO caching - next call will fetch fresh data again
-```
+### For Development
 
-### ✅ **What This Means**
+- Current setup is fine for testing and functional validation
 
-**For Recommendations**:
-- ✅ Each recommendation uses **fresh data** from Alpha Vantage
-- ✅ No stale cached data is used
-- ⚠️ Data may be **15 minutes delayed** (free tier limitation)
-- ✅ All tool calls fetch **latest available data** from API
+### For Production
 
-**For Portfolio**:
-- ✅ Portfolio refresh fetches **fresh prices** for all holdings
-- ✅ Each refresh makes new API calls
-- ⚠️ Prices may be 15 minutes delayed during market hours
+- Add clear UI labeling for fetched timestamp (`fetchedAt`) and provider delay caveat
+- Add fallback provider strategy if Finnhub is unavailable
+- Add monitoring on rate-limit and timeout error rates
+- Consider tier upgrades if you need stricter real-time guarantees
 
-### 🚀 **Improving Data Freshness**
+## Summary
 
-#### Option 1: Upgrade Alpha Vantage (Recommended for Production)
+| Area | Status |
+|---|---|
+| Fresh request per call | ✅ Yes |
+| App-level market-data cache | ❌ No |
+| Provider-side delay possible | ⚠️ Yes |
+| Rate-limit impact possible | ⚠️ Yes |
 
-**Premium Tier**:
-- Real-time data (no delay)
-- Higher rate limits (75 calls/minute, 1200/day)
-- Cost: ~$50-200/month depending on plan
-
-**Configuration**:
-```yaml
-market-data:
-  alpha-vantage:
-    api-key: ${ALPHA_VANTAGE_PREMIUM_API_KEY}
-    # Premium tier provides real-time data
-```
-
-#### Option 2: Use Multiple Data Providers
-
-**Yahoo Finance** (Free, Real-Time):
-- Real-time data during market hours
-- No API key required
-- Rate limits apply (use responsibly)
-
-**Polygon.io** (Paid, Real-Time):
-- Real-time data
-- WebSocket support
-- Cost: ~$29-199/month
-
-**IEX Cloud** (Paid, Real-Time):
-- Real-time data
-- Good free tier for development
-- Cost: ~$9-999/month
-
-#### Option 3: Add Data Timestamp Tracking
-
-Track when data was fetched to show users:
-
-```java
-public class StockPriceData {
-    private BigDecimal price;
-    private LocalDateTime fetchedAt;  // When data was fetched
-    private boolean isRealTime;        // Is this real-time or delayed?
-    private int delayMinutes;          // Delay in minutes (0 for real-time)
-}
-```
-
-### 📝 **Current Status**
-
-**Data Freshness**: ✅ **Fresh (No Caching)**
-- Every request fetches new data
-- No stale data is served
-
-**Data Delay**: ⚠️ **15 Minutes (Free Tier)**
-- Standard for free financial data APIs
-- Acceptable for most use cases
-- Upgrade to premium for real-time data
-
-**Rate Limits**: ⚠️ **5 calls/minute**
-- System includes delays to respect limits
-- May slow down recommendation generation
-- Upgrade to premium for higher limits
-
-### 🎯 **Recommendations**
-
-**For Development/Testing**:
-- ✅ Current setup is fine (15-minute delay acceptable)
-- ✅ Free tier sufficient for testing
-
-**For Production**:
-- ⚠️ Consider upgrading to Alpha Vantage Premium for real-time data
-- ⚠️ Or integrate multiple data providers (Yahoo Finance + Alpha Vantage)
-- ✅ Add data timestamp tracking to show users when data was fetched
-- ✅ Add data freshness indicators in UI
-
-### 📊 **Data Freshness Summary**
-
-| Data Type | Freshness | Delay | Notes |
-|-----------|-----------|-------|-------|
-| Current Price | ✅ Fresh | 15 min (free) / Real-time (premium) | Fetched on every request |
-| Historical Data | ✅ Fresh | End-of-day | Updated after market close |
-| Fundamentals | ✅ Fresh | Daily | Updated periodically |
-| News | ✅ Fresh | Near real-time | Updated frequently |
-
-**Key Point**: The system **ALWAYS fetches fresh data** - there is no caching. The only limitation is Alpha Vantage's free tier delay (15 minutes), which is standard for free financial data APIs.
+Key point: the app does not serve cached market data by default. If stale values appear, the most likely causes are provider delay, quota/rate-limit failures, or missing API configuration.
 

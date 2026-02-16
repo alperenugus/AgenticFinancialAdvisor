@@ -12,7 +12,7 @@ This system uses a **multi-agent architecture with individual LLM instances** wh
 - **Multi-Agent Architecture**: 6 specialized AI agents working in coordination
 - **Intelligent Greeting Handling**: Natural conversation flow with contextual financial guidance
 - **Portfolio & Profile Access**: AI Advisor has full access to user portfolio and profile data for personalized advice
-- **Real-time Market Data**: Integration with Alpha Vantage API for live stock data
+- **Real-time Market Data**: Integration with Finnhub API for live stock data
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and analysis
@@ -64,7 +64,7 @@ This system uses a **multi-agent architecture with individual LLM instances** wh
 │                 │            │              │                  │
 │         ┌───────▼────────────▼──────────────▼───────┐        │
 │         │      MarketDataService                     │        │
-│         │  (Alpha Vantage API Integration)          │        │
+│         │  (Finnhub API Integration)                │        │
 │         └───────────────────────────────────────────┘        │
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
@@ -115,7 +115,7 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
 
 3. **Get API Keys**
    - **Groq API Key**: Sign up at [Groq Console](https://console.groq.com/) and create an API key
-   - **Alpha Vantage API Key**: Get free key from [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+   - **Finnhub API Key**: Get free key from [Finnhub](https://finnhub.io/)
    - **Google OAuth2 Credentials**: Follow [Google Auth Setup Guide](./docs/GOOGLE_AUTH_SETUP.md)
 
 4. **Configure environment variables**
@@ -123,7 +123,7 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
    Set environment variables:
    ```bash
    export GROQ_API_KEY=your_groq_api_key_here
-   export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
+   export FINNHUB_API_KEY=your_finnhub_api_key
    export GOOGLE_CLIENT_ID=your_google_client_id
    export GOOGLE_CLIENT_SECRET=your_google_client_secret
    export JWT_SECRET=your-secure-random-secret-key-minimum-32-characters
@@ -159,8 +159,8 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
      expiration: 86400000
    
    market-data:
-     alpha-vantage:
-       api-key: ${ALPHA_VANTAGE_API_KEY:demo}
+     finnhub:
+       api-key: ${FINNHUB_API_KEY:}
    ```
 
 5. **Build and run**
@@ -279,7 +279,7 @@ mvn test jacoco:report
 - **Spring Security OAuth2** - Google Sign-In authentication
 - **JWT** - Token-based authentication
 - **LangChain4j 0.34.0** - LLM integration
-- **Groq API** - Fast LLM inference (llama-3.3-70b for orchestrator and all agent LLMs)
+- **Groq API** - Fast LLM inference (llama-3.3-70b for orchestrator, llama-3.1-8b for subagents)
 - **PostgreSQL** - Database
 - **WebSocket** - Real-time communication
 
@@ -292,7 +292,7 @@ mvn test jacoco:report
 - **Stock Price Graph Favicon** - Professional branding
 
 ### External APIs
-- **Alpha Vantage** - Market data
+- **Finnhub** - Market data
 - **Yahoo Finance** - Additional market data
 - **NewsAPI** - Financial news
 
@@ -358,7 +358,7 @@ AgenticFinancialAdvisor/
    - Set environment variables:
      - `DATABASE_URL` (auto-set by Railway PostgreSQL)
      - `GROQ_API_KEY` (required - get from https://console.groq.com/)
-     - `ALPHA_VANTAGE_API_KEY` (required)
+     - `FINNHUB_API_KEY` (required)
      - `GOOGLE_CLIENT_ID` (required - see [Google Auth Setup](./docs/GOOGLE_AUTH_SETUP.md))
      - `GOOGLE_CLIENT_SECRET` (required)
      - `JWT_SECRET` (required - generate secure random 32+ character string)
@@ -440,7 +440,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - LangChain4j for excellent LLM integration
 - Groq for fast, cost-effective LLM inference
-- Alpha Vantage for market data API
+- Finnhub for market data API
 - Spring Boot community
 
 ## 📞 Support
