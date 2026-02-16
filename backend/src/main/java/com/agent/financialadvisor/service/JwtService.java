@@ -3,6 +3,7 @@ package com.agent.financialadvisor.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,22 @@ public class JwtService {
 
     @Value("${jwt.expiration}")
     private Long expiration;
+
+    @PostConstruct
+    public void validateConfiguration() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT secret is required. Set JWT_SECRET to a strong value.");
+        }
+        if (secret.length() < 32) {
+            throw new IllegalStateException("JWT secret must be at least 32 characters long.");
+        }
+        String normalized = secret.toLowerCase();
+        if (normalized.contains("change-this-in-production")
+                || normalized.contains("your-256-bit-secret-key")
+                || normalized.contains("default")) {
+            throw new IllegalStateException("JWT secret appears to be a placeholder. Set a strong unique JWT_SECRET.");
+        }
+    }
 
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);

@@ -40,10 +40,12 @@ public class AdvisorController {
     public ResponseEntity<Map<String, Object>> analyze(
             @RequestBody Map<String, String> request
     ) {
+        String userIdForRateLimit = "unknown";
         try {
             // Get authenticated user ID
             String userId = SecurityUtil.getCurrentUserEmail()
                     .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            userIdForRateLimit = userId;
             
             String query = request.get("query");
             String sessionId = request.getOrDefault("sessionId", UUID.randomUUID().toString());
@@ -53,8 +55,9 @@ public class AdvisorController {
                         .body(createErrorResponse("Query is required"));
             }
 
-            // Check rate limit before processing
-            rateLimitService.checkAdvisorRateLimit(sessionId);
+            // Check rate limit by authenticated user so clients cannot bypass by changing sessionId.
+            String rateLimitKey = "user:" + userId;
+            rateLimitService.checkAdvisorRateLimit(rateLimitKey);
 
             log.info("Received analysis request: userId={}, query={}", userId, query);
 
@@ -69,7 +72,7 @@ public class AdvisorController {
 
             // Add rate limit headers to successful response
             HttpHeaders headers = new HttpHeaders();
-            headers.add("X-RateLimit-Remaining", String.valueOf(rateLimitService.getRemainingAdvisorTokens(sessionId)));
+            headers.add("X-RateLimit-Remaining", String.valueOf(rateLimitService.getRemainingAdvisorTokens(rateLimitKey)));
 
             return ResponseEntity.ok().headers(headers).body(result);
         } catch (RateLimitExceededException e) {
@@ -79,7 +82,7 @@ public class AdvisorController {
             headers.add("Retry-After", String.valueOf(e.getRetryAfterSeconds()));
             headers.add("X-RateLimit-Reset", String.valueOf(System.currentTimeMillis() / 1000 + e.getRetryAfterSeconds()));
             
-            log.warn("Rate limit exceeded for session: {}", request.getOrDefault("sessionId", "unknown"));
+            log.warn("Rate limit exceeded for user: {}", userIdForRateLimit);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .headers(headers)
                     .body(createErrorResponse(e.getMessage()));

@@ -129,7 +129,7 @@ fintwit:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-minimum-32-characters}
+  secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
 
 logging:
@@ -138,4 +138,4 @@ logging:
     dev.langchain4j: INFO
     org.hibernate.SQL: DEBUG
     org.springframework.web: INFO
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO

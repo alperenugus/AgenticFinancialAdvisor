@@ -18,6 +18,10 @@ spring:
 langchain4j:
   provider: mock
 
+jwt:
+  secret: test-jwt-secret-minimum-32-characters-long
+  expiration: 86400000
+
 logging:
   level:
     com.agent.financialadvisor: DEBUG

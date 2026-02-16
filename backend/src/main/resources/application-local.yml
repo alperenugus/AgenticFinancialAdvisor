@@ -68,6 +68,11 @@ rate-limit:
     refill-tokens: ${RATE_LIMIT_REFILL:10}
     refill-period-seconds: ${RATE_LIMIT_REFILL_PERIOD:60}
 
+jwt:
+  # Local-only fallback for developer convenience; production must set JWT_SECRET env var.
+  secret: ${JWT_SECRET:local-development-jwt-secret-minimum-32-chars}
+  expiration: ${JWT_EXPIRATION:86400000}
+
 logging:
   level:
     com.agent.financialadvisor: DEBUG
