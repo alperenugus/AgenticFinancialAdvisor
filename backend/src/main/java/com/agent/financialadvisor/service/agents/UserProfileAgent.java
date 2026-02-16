@@ -23,10 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,7 +38,7 @@ public class UserProfileAgent {
     private final MarketDataService marketDataService;
     private final WebSocketService webSocketService;
     private final ChatLanguageModel chatLanguageModel;
-    private final Map<String, UserProfileAgentService> agentCache = new HashMap<>();
+    private final Map<String, UserProfileAgentService> agentCache = new ConcurrentHashMap<>();
 
     @Autowired
     public UserProfileAgent(
@@ -88,6 +88,7 @@ public class UserProfileAgent {
                 "You have access to tools for retrieving and updating user profiles and portfolios. " +
                 "When asked about user data, portfolio holdings, or investment preferences, use the appropriate tools. " +
                 "Always provide accurate, up-to-date information from the database. " +
+                "Never invent user ids or portfolio data. " +
                 "Be concise and professional in your responses.")
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }

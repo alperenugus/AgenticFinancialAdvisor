@@ -37,7 +37,7 @@ GROQ_API_KEY=your_groq_api_key_here
 # This is Groq's most capable model for complex reasoning and analysis
 # Alternative: llama-3.1-70b-versatile (slightly faster), llama-3.1-8b-instant (much faster but less capable)
 GROQ_ORCHESTRATOR_MODEL=llama-3.3-70b-versatile
-GROQ_ORCHESTRATOR_TEMPERATURE=0.7
+GROQ_ORCHESTRATOR_TEMPERATURE=0.0
 GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=90  # Increased for comprehensive analysis
 
 # Tool Agent model (fast function calling) - default: llama-3.1-8b-instant
@@ -45,8 +45,8 @@ GROQ_TOOL_AGENT_MODEL=llama-3.1-8b-instant
 GROQ_TOOL_AGENT_TEMPERATURE=0.3
 GROQ_TOOL_AGENT_TIMEOUT_SECONDS=30
 
-# Market Data API (REQUIRED - get free key from https://www.alphavantage.co/support/#api-key)
-ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key_here
+# Market Data API (REQUIRED - get free key from https://finnhub.io/)
+FINNHUB_API_KEY=your_finnhub_api_key_here
 
 # Server Port (Auto-set by Railway - usually don't need to set)
 PORT=8080
@@ -137,7 +137,7 @@ PORT=3000
 - [ ] `JWT_SECRET` - **REQUIRED** - Generate secure random 32+ character string
 - [ ] `JWT_EXPIRATION` - Optional - Default: 86400000 (24 hours)
 - [ ] `GROQ_API_KEY` - **REQUIRED** - Get from https://console.groq.com/
-- [ ] `ALPHA_VANTAGE_API_KEY` - **REQUIRED** - Get from https://www.alphavantage.co/support/#api-key
+- [ ] `FINNHUB_API_KEY` - **REQUIRED** - Get from https://finnhub.io/
 - [ ] `CORS_ORIGINS` - **REQUIRED** - Include frontend URL for OAuth2
 - [ ] `FRONTEND_REDIRECT_URL` - Optional - Frontend URL for OAuth2 callback
 - [ ] `PORT=8080` - Usually auto-set
@@ -166,8 +166,8 @@ PORT=3000
 3. Click **Variables** section
 4. Click **"New Variable"** or **"Add Variable"**
 5. Enter:
-   - **Name**: `LANGCHAIN4J_OLLAMA_BASE_URL`
-   - **Value**: `https://your-ollama-service.railway.app`
+   - **Name**: `GROQ_API_KEY`
+   - **Value**: `your_groq_api_key_here`
 6. Click **Save**
 7. Repeat for each variable
 
@@ -189,7 +189,7 @@ railway variables set GOOGLE_CLIENT_SECRET=your_client_secret --service backend
 railway variables set GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google --service backend
 railway variables set JWT_SECRET=$(openssl rand -base64 32) --service backend
 railway variables set GROQ_API_KEY=your_key --service backend
-railway variables set ALPHA_VANTAGE_API_KEY=your_key --service backend
+railway variables set FINNHUB_API_KEY=your_key --service backend
 railway variables set CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173 --service backend
 
 # Set variables for frontend
@@ -212,7 +212,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-abcdefghijklmnopqrstuvwxyz
 GOOGLE_REDIRECT_URI=https://backend-production-xxxx.up.railway.app/login/oauth2/code/google
 JWT_SECRET=your-secure-random-32-character-secret-key-here
 GROQ_API_KEY=gsk_abc123xyz789
-ALPHA_VANTAGE_API_KEY=ABC123XYZ789
+FINNHUB_API_KEY=ABC123XYZ789
 CORS_ORIGINS=https://frontend-production-xxxx.up.railway.app,http://localhost:5173
 FRONTEND_REDIRECT_URL=https://frontend-production-xxxx.up.railway.app
 PORT=8080
@@ -253,12 +253,12 @@ See [Google Auth Setup Guide](../GOOGLE_AUTH_SETUP.md) for detailed instructions
 3. Create an API key
 4. Set as `GROQ_API_KEY`
 
-### Alpha Vantage API Key (Required)
+### Finnhub API Key (Required)
 
-1. Go to https://www.alphavantage.co/support/#api-key
-2. Fill out the form
-3. Get your free API key (500 calls/day, 5 calls/minute)
-4. Set as `ALPHA_VANTAGE_API_KEY`
+1. Go to https://finnhub.io/
+2. Create an account and generate an API key
+3. Review free tier limits
+4. Set as `FINNHUB_API_KEY`
 
 ### NewsAPI Key (Optional)
 
@@ -321,14 +321,13 @@ Set as `JWT_SECRET` (minimum 32 characters).
 
 ### In Railway Dashboard
 
-1. Go to your service (Backend, Ollama, Frontend)
+1. Go to your service (Backend, Frontend)
 2. Click **Settings** → **Networking**
 3. Copy the **Public Domain** URL
 4. Use this URL in other services' environment variables
 
 ### Example URLs
 
-- **Ollama**: `https://ollama-production-xxxx.up.railway.app`
 - **Backend**: `https://backend-production-xxxx.up.railway.app`
 - **Frontend**: `https://frontend-production-xxxx.up.railway.app`
 
@@ -365,10 +364,10 @@ curl https://your-backend.railway.app/api/advisor/status
 
 ```bash
 # Wrong - missing protocol
-LANGCHAIN4J_OLLAMA_BASE_URL=ollama-production-xxxx.up.railway.app
+VITE_API_BASE_URL=backend-production-xxxx.up.railway.app/api
 
 # Correct
-LANGCHAIN4J_OLLAMA_BASE_URL=https://ollama-production-xxxx.up.railway.app
+VITE_API_BASE_URL=https://backend-production-xxxx.up.railway.app/api
 ```
 
 ### ❌ Frontend Using Internal URLs (CRITICAL ERROR!)
@@ -400,7 +399,7 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 - Forgetting to set `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` → Authentication won't work
 - Forgetting to set `JWT_SECRET` → Authentication will fail
 - Forgetting to set `GROQ_API_KEY` → LLM agents won't work
-- Forgetting to set `ALPHA_VANTAGE_API_KEY` → Market data won't work
+- Forgetting to set `FINNHUB_API_KEY` → Market data won't work
 - Forgetting to set `VITE_API_BASE_URL` → Frontend can't connect to backend
 - Forgetting to set `CORS_ORIGINS` → OAuth2 redirects will fail
 - Using internal URL for frontend → `ERR_NAME_NOT_RESOLVED` error
@@ -417,7 +416,7 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 4. `GOOGLE_REDIRECT_URI` - `https://your-backend.railway.app/login/oauth2/code/google`
 5. `JWT_SECRET` - Generate secure random 32+ character string
 6. `GROQ_API_KEY` - Get from https://console.groq.com/
-7. `ALPHA_VANTAGE_API_KEY` - Get free key
+7. `FINNHUB_API_KEY` - Get free key
 8. `CORS_ORIGINS` - Include frontend URL
 
 ### Minimum Required (Frontend)

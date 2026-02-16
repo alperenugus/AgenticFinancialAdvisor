@@ -28,15 +28,25 @@ const ChatComponent = () => {
     setMessages((prev) => [...prev, { role, content, timestamp: new Date() }]);
   };
 
+  const addMessageIfNotDuplicate = (role, content) => {
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === role && last.content === content) {
+        return prev;
+      }
+      return [...prev, { role, content, timestamp: new Date() }];
+    });
+  };
+
   useEffect(() => {
     // Connect WebSocket
     websocketService.connect(sessionId, {
       onResponse: (data) => {
-        addMessage("assistant", data.content);
+        addMessageIfNotDuplicate("assistant", data.content);
         setIsLoading(false);
       },
       onError: (data) => {
-        addMessage("error", data.content);
+        addMessageIfNotDuplicate("error", data.content);
         setIsLoading(false);
       },
     });
@@ -80,19 +90,19 @@ const ChatComponent = () => {
       const response = await advisorAPI.analyze(userMessage, sessionId);
 
       if (response.data.status === "success") {
-        // Response will come through WebSocket
-        // If WebSocket fails, fallback to HTTP response
-        if (!websocketService.isConnected()) {
-          addMessage("assistant", response.data.response);
-          setIsLoading(false);
-        }
+        // Prefer HTTP response as primary delivery path to avoid spinner hangs.
+        addMessageIfNotDuplicate("assistant", response.data.response);
+        setIsLoading(false);
       } else {
-        addMessage("error", response.data.message || "An error occurred");
+        addMessageIfNotDuplicate(
+          "error",
+          response.data.message || "An error occurred",
+        );
         setIsLoading(false);
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      addMessage(
+      addMessageIfNotDuplicate(
         "error",
         error.response?.data?.message ||
           "Failed to get response. Please try again.",

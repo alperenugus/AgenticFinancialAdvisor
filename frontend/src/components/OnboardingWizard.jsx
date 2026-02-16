@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -252,8 +252,8 @@ const OnboardingWizard = ({ onComplete }) => {
                 Welcome to Financial Advisor AI
               </h2>
               <p className="text-lg text-gray-600text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                Let's set up your personalized investment profile and portfolio.
-                This will only take a few minutes, and we'll use this
+                Let&apos;s set up your personalized investment profile and portfolio.
+                This will only take a few minutes, and we&apos;ll use this
                 information to provide you with tailored financial advice.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -620,7 +620,7 @@ const OnboardingWizard = ({ onComplete }) => {
                 <Check className="w-12 h-12 text-success-600text-success-400" />
               </div>
               <h2 className="text-4xl font-bold text-gray-900text-white mb-4">
-                You're All Set!
+                You&apos;re All Set!
               </h2>
               <p className="text-lg text-gray-600text-gray-400 max-w-2xl mx-auto leading-relaxed">
                 Your profile and portfolio have been set up successfully. You

@@ -4,6 +4,7 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +13,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 /**
  * Security Agent - Validates user inputs for security threats
@@ -23,8 +27,17 @@ import java.util.concurrent.TimeoutException;
 public class SecurityAgent {
 
     private static final Logger log = LoggerFactory.getLogger(SecurityAgent.class);
+    private static final Pattern[] BLOCK_PATTERNS = new Pattern[] {
+            Pattern.compile("(?i)ignore\\s+(all\\s+)?previous\\s+instructions"),
+            Pattern.compile("(?i)(system\\s+prompt|reveal\\s+prompt)"),
+            Pattern.compile("(?i)\\b(rm\\s+-rf|DROP\\s+TABLE|DELETE\\s+FROM|SELECT\\s+\\*\\s+FROM)\\b"),
+            Pattern.compile("(?i)\\b(curl\\s+|wget\\s+|chmod\\s+|chown\\s+|bash\\s+-c)\\b"),
+            Pattern.compile("(?i)<script|javascript:|onerror\\s*=|onload\\s*=")
+    };
+
     private final SecurityValidator securityValidator;
     private final int securityTimeoutSeconds;
+    private final ExecutorService securityExecutor = Executors.newFixedThreadPool(2);
 
     @Autowired
     public SecurityAgent(
@@ -48,25 +61,41 @@ public class SecurityAgent {
             return new SecurityValidationResult(false, "Input is empty");
         }
 
+        for (Pattern pattern : BLOCK_PATTERNS) {
+            if (pattern.matcher(userInput).find()) {
+                return new SecurityValidationResult(false, "Blocked by deterministic security pattern");
+            }
+        }
+
+        CompletableFuture<SecurityValidationResult> future = null;
         try {
             log.debug("🔒 Validating input for security threats: {}", userInput.substring(0, Math.min(100, userInput.length())));
             
-            CompletableFuture<SecurityValidationResult> future = CompletableFuture.supplyAsync(() -> {
+            future = CompletableFuture.supplyAsync(() -> {
                 String response = securityValidator.validate(userInput);
                 return parseValidationResponse(response);
-            });
+            }, securityExecutor);
 
             SecurityValidationResult result = future.get(securityTimeoutSeconds, TimeUnit.SECONDS);
             log.debug("🔒 Security validation result: safe={}, reason={}", result.isSafe(), result.getReason());
             return result;
         } catch (TimeoutException e) {
-            log.warn("⏱️ Security validation timeout, defaulting to safe");
+            // Ensure timed-out checks do not keep consuming executor capacity.
+            if (future != null) {
+                future.cancel(true);
+            }
+            log.warn("⏱️ Security validation timeout, cancelling task and defaulting to safe");
             return new SecurityValidationResult(true, "Validation timeout - defaulting to safe");
         } catch (Exception e) {
             log.error("❌ Error during security validation: {}", e.getMessage(), e);
             // Fail open for availability, but log the error
             return new SecurityValidationResult(true, "Validation error - defaulting to safe");
         }
+    }
+
+    @PreDestroy
+    public void shutdownSecurityExecutor() {
+        securityExecutor.shutdownNow();
     }
 
     /**
@@ -78,18 +107,28 @@ public class SecurityAgent {
         }
 
         String lowerResponse = response.toLowerCase().trim();
-        
-        // Check for explicit unsafe indicators
-        if (lowerResponse.contains("unsafe") || lowerResponse.contains("not safe") || 
-            lowerResponse.contains("reject") || lowerResponse.contains("block") ||
-            lowerResponse.contains("malicious") || lowerResponse.contains("dangerous") ||
-            lowerResponse.contains("security risk") || lowerResponse.contains("injection")) {
-            
-            // Extract reason from response
+
+        // Strong unsafe indicators first.
+        if (lowerResponse.startsWith("unsafe") || lowerResponse.contains("unsafe:") ||
+            lowerResponse.contains("not safe") || lowerResponse.contains("reject") ||
+            lowerResponse.contains("block")) {
             String reason = response.length() > 200 ? response.substring(0, 200) + "..." : response;
             return new SecurityValidationResult(false, reason);
         }
-        
+
+        // Additional threat keywords, excluding explicit safe phrasing.
+        boolean hasThreatKeywords = lowerResponse.contains("malicious")
+                || lowerResponse.contains("dangerous")
+                || lowerResponse.contains("security risk")
+                || lowerResponse.contains("injection");
+        boolean hasSafeQualifier = lowerResponse.contains("no security concerns")
+                || lowerResponse.equals("safe")
+                || lowerResponse.startsWith("safe");
+        if (hasThreatKeywords && !hasSafeQualifier) {
+            String reason = response.length() > 200 ? response.substring(0, 200) + "..." : response;
+            return new SecurityValidationResult(false, reason);
+        }
+
         // Default to safe if no explicit unsafe indicators
         return new SecurityValidationResult(true, "No security concerns detected");
     }

@@ -36,7 +36,7 @@ langchain4j:
       api-key: ${GROQ_API_KEY:}
       base-url: https://api.groq.com/openai/v1
       model: ${GROQ_ORCHESTRATOR_MODEL:llama-3.3-70b-versatile}
-      temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.7}
+      temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.0}
       timeout-seconds: ${GROQ_ORCHESTRATOR_TIMEOUT_SECONDS:90}
     tool-agent:
       api-key: ${GROQ_API_KEY:}
@@ -44,6 +44,12 @@ langchain4j:
       model: ${GROQ_TOOL_AGENT_MODEL:llama-3.1-8b-instant}
       temperature: ${GROQ_TOOL_AGENT_TEMPERATURE:0.3}
       timeout-seconds: ${GROQ_TOOL_AGENT_TIMEOUT_SECONDS:30}
+
+agent:
+  timeout:
+    tool-call-seconds: ${AGENT_TOOL_TIMEOUT_SECONDS:10}
+    orchestrator-seconds: ${AGENT_ORCHESTRATOR_TIMEOUT_SECONDS:90}
+    security-seconds: ${AGENT_SECURITY_TIMEOUT_SECONDS:5}
 
 # External API Configuration
 market-data:

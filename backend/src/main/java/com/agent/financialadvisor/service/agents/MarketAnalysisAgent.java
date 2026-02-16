@@ -17,8 +17,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class MarketAnalysisAgent {
@@ -28,7 +28,7 @@ public class MarketAnalysisAgent {
     private final ObjectMapper objectMapper;
     private final WebSocketService webSocketService;
     private final ChatLanguageModel chatLanguageModel;
-    private final Map<String, MarketAnalysisAgentService> agentCache = new HashMap<>();
+    private final Map<String, MarketAnalysisAgentService> agentCache = new ConcurrentHashMap<>();
 
     @Autowired
     public MarketAnalysisAgent(
@@ -76,7 +76,9 @@ public class MarketAnalysisAgent {
                 "You have access to tools for getting stock prices, price data, market news, technical indicators, and trend analysis. " +
                 "When asked about stock prices, market data, or technical analysis, use the appropriate tools. " +
                 "ALWAYS use tools to get current data - your training data is outdated. " +
-                "Provide accurate, data-driven analysis based on real-time market information.")
+                "Provide accurate, data-driven analysis based on real-time market information. " +
+                "If tool data is unavailable, explicitly say data is unavailable instead of guessing. " +
+                "Keep answers concise unless user asks for deep detail.")
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
@@ -149,7 +151,10 @@ public class MarketAnalysisAgent {
         log.info("🔵 getMarketNews CALLED with symbol={}", symbol);
         try {
             String news = marketDataService.getMarketNews(symbol);
-            return String.format("{\"symbol\": \"%s\", \"news\": \"%s\"}", symbol, news);
+            Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("symbol", symbol);
+            payload.put("news", news);
+            return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
             log.error("Error getting market news for {}: {}", symbol, e.getMessage(), e);
             return String.format("{\"symbol\": \"%s\", \"error\": \"Error fetching news: %s\"}", symbol, e.getMessage());
