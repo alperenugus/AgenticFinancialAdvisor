@@ -8,17 +8,22 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.net.URLEncoder;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class MarketDataService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
+    private static final Pattern SYMBOL_PATTERN = Pattern.compile("^[A-Z0-9.\\-]{1,10}$");
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final String finnhubApiKey;
@@ -43,6 +48,49 @@ public class MarketDataService {
         } else {
             log.info("✅ MarketDataService initialized with Finnhub API");
         }
+    }
+
+    /**
+     * Resolve a user-provided symbol/company name to a tradable ticker using live market APIs.
+     * Returns null when no confident match can be found.
+     */
+    public String resolveSymbol(String symbolOrCompany) {
+        if (symbolOrCompany == null || symbolOrCompany.trim().isEmpty()) {
+            return null;
+        }
+
+        String cleanedInput = symbolOrCompany.trim();
+        if (cleanedInput.startsWith("$") && cleanedInput.length() > 1) {
+            cleanedInput = cleanedInput.substring(1).trim();
+        }
+
+        if (cleanedInput.isEmpty()) {
+            return null;
+        }
+
+        String upperInput = cleanedInput.toUpperCase(Locale.ROOT);
+
+        // If it already looks like a ticker, validate it first.
+        if (isLikelySymbol(upperInput)) {
+            BigDecimal directPrice = getStockPrice(upperInput);
+            if (directPrice != null) {
+                return upperInput;
+            }
+        }
+
+        String resolved = searchBestSymbol(cleanedInput);
+        if (resolved != null) {
+            return resolved;
+        }
+
+        // Last resort: if user gave a ticker-like input but quote endpoint returned no data,
+        // return normalized input so caller can surface a clear "unavailable/invalid" response.
+        if (isLikelySymbol(upperInput)) {
+            return upperInput;
+        }
+
+        log.warn("Unable to resolve tradable symbol for input: {}", symbolOrCompany);
+        return null;
     }
 
     /**
@@ -92,6 +140,109 @@ public class MarketDataService {
             }
         }
         return null;
+    }
+
+    private String searchBestSymbol(String query) {
+        try {
+            if (finnhubApiKey == null || finnhubApiKey.trim().isEmpty()) {
+                log.warn("Finnhub API key not configured");
+                return null;
+            }
+
+            String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
+            String url = String.format("%s/search?q=%s&token=%s", finnhubBaseUrl, encodedQuery, finnhubApiKey);
+
+            String response = webClient.get()
+                    .uri(url)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(timeoutDuration)
+                    .block();
+
+            JsonNode json = objectMapper.readTree(response);
+            if (json.has("error")) {
+                log.warn("Finnhub symbol search error for {}: {}", query, json.get("error").asText());
+                return null;
+            }
+
+            JsonNode results = json.path("result");
+            if (!results.isArray() || results.size() == 0) {
+                log.warn("No symbol search results found for query: {}", query);
+                return null;
+            }
+
+            String bestSymbol = selectBestSymbolCandidate(results, query);
+            if (bestSymbol != null) {
+                log.info("Resolved '{}' to '{}' via live symbol search", query, bestSymbol);
+            }
+            return bestSymbol;
+        } catch (Exception e) {
+            if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                log.warn("Timeout resolving symbol for {}: {}", query, e.getMessage());
+            } else {
+                log.error("Error resolving symbol for {}: {}", query, e.getMessage());
+            }
+            return null;
+        }
+    }
+
+    private String selectBestSymbolCandidate(JsonNode results, String query) {
+        String normalizedQuery = query.trim().toUpperCase(Locale.ROOT);
+        int bestScore = Integer.MIN_VALUE;
+        String bestSymbol = null;
+
+        for (JsonNode candidate : results) {
+            String rawDisplaySymbol = candidate.path("displaySymbol").asText("");
+            String rawSymbol = candidate.path("symbol").asText("");
+            String chosenSymbol = !rawDisplaySymbol.isBlank() ? rawDisplaySymbol : rawSymbol;
+            if (chosenSymbol == null || chosenSymbol.isBlank()) {
+                continue;
+            }
+
+            String normalizedSymbol = chosenSymbol.trim().toUpperCase(Locale.ROOT);
+            String normalizedRawSymbol = rawSymbol.trim().toUpperCase(Locale.ROOT);
+            String description = candidate.path("description").asText("").trim().toUpperCase(Locale.ROOT);
+            String type = candidate.path("type").asText("");
+
+            int score = 0;
+
+            if (normalizedSymbol.equals(normalizedQuery) || normalizedRawSymbol.equals(normalizedQuery)) {
+                score += 120;
+            }
+            if (description.equals(normalizedQuery)) {
+                score += 110;
+            }
+            if (!description.isEmpty() && description.startsWith(normalizedQuery)) {
+                score += 80;
+            }
+            if (!description.isEmpty() && description.contains(normalizedQuery)) {
+                score += 60;
+            }
+            if (normalizedSymbol.startsWith(normalizedQuery)) {
+                score += 50;
+            }
+            if ("Common Stock".equalsIgnoreCase(type) || "EQS".equalsIgnoreCase(type)) {
+                score += 20;
+            }
+            if (!normalizedSymbol.contains(".") && !normalizedSymbol.contains(":")) {
+                score += 10;
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestSymbol = normalizedSymbol;
+            }
+        }
+
+        // Avoid selecting weak/unrelated matches from broad queries.
+        if (bestScore < 50) {
+            return null;
+        }
+        return bestSymbol;
+    }
+
+    private boolean isLikelySymbol(String value) {
+        return value != null && SYMBOL_PATTERN.matcher(value).matches();
     }
 
     /**
