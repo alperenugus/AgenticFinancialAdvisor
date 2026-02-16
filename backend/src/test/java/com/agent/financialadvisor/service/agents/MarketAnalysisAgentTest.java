@@ -2,6 +2,7 @@ package com.agent.financialadvisor.service.agents;
 
 import com.agent.financialadvisor.service.MarketDataService;
 import com.agent.financialadvisor.service.WebSocketService;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +47,7 @@ class MarketAnalysisAgentTest {
     }
 
     @Test
-    void testGetStockPrice_Success() {
+    void testGetStockPrice_Success() throws Exception {
         // Given
         BigDecimal expectedPrice = new BigDecimal("150.50");
         when(marketDataService.resolveSymbol("AAPL")).thenReturn("AAPL");
@@ -59,6 +60,8 @@ class MarketAnalysisAgentTest {
         assertThat(result).contains("AAPL");
         assertThat(result).contains("150.50");
         assertThat(result).contains("USD");
+        JsonNode payload = objectMapper.readTree(result);
+        assertThat(payload.path("fetchedAt").asText()).matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z");
         verify(marketDataService, times(1)).resolveSymbol("AAPL");
         verify(marketDataService, times(1)).getStockPrice("AAPL");
     }

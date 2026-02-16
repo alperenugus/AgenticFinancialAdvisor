@@ -19,6 +19,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -418,19 +425,55 @@ public class OrchestratorService {
                 return defaultError;
             }
 
-            String timestampSuffix = fetchedAt.isBlank() ? "" : String.format(" Fetched at %s.", fetchedAt);
+            String timestampSuffix = buildUserFriendlyTimestampSuffix(fetchedAt);
             if (!requested.isBlank() && !requested.equalsIgnoreCase(resolvedSymbol)) {
                 return String.format(
-                        "The current stock price for %s (%s) is $%s USD.%s",
+                        "The current stock price for %s (%s) is $%s USD%s.",
                         requested, resolvedSymbol, price, timestampSuffix
                 );
             }
 
-            return String.format("The current stock price for %s is $%s USD.%s", resolvedSymbol, price, timestampSuffix);
+            return String.format("The current stock price for %s is $%s USD%s.", resolvedSymbol, price, timestampSuffix);
         } catch (Exception e) {
             log.warn("Unable to parse stock price tool response for target {}: {}", requestedTarget, e.getMessage());
             return defaultError;
         }
+    }
+
+    private String buildUserFriendlyTimestampSuffix(String fetchedAt) {
+        if (fetchedAt == null || fetchedAt.isBlank()) {
+            return "";
+        }
+
+        Instant instant = parseFetchedAtToInstant(fetchedAt);
+        if (instant == null) {
+            return "";
+        }
+
+        String formatted = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a", Locale.US)
+                .withZone(ZoneOffset.UTC)
+                .format(instant);
+        return " as of " + formatted + " UTC";
+    }
+
+    private Instant parseFetchedAtToInstant(String fetchedAt) {
+        try {
+            return Instant.parse(fetchedAt);
+        } catch (DateTimeParseException ignored) {
+        }
+
+        try {
+            return OffsetDateTime.parse(fetchedAt).toInstant();
+        } catch (DateTimeParseException ignored) {
+        }
+
+        try {
+            LocalDateTime localDateTime = LocalDateTime.parse(fetchedAt);
+            return localDateTime.toInstant(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+        }
+
+        return null;
     }
 
 
