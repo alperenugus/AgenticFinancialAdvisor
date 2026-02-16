@@ -75,6 +75,8 @@ public class MarketAnalysisAgent {
                 "Your role is to analyze stock prices, market data, technical indicators, and price trends. " +
                 "You have access to tools for getting stock prices, price data, market news, technical indicators, and trend analysis. " +
                 "When asked about stock prices, market data, or technical analysis, use the appropriate tools. " +
+                "If user names a company (not ticker), pass that exact company name to tools and let tools resolve the ticker using live data. " +
+                "Never substitute a different company (for example, parent/subsidiary) from memory. " +
                 "ALWAYS use tools to get current data - your training data is outdated. " +
                 "Provide accurate, data-driven analysis based on real-time market information. " +
                 "If tool data is unavailable, explicitly say data is unavailable instead of guessing. " +
@@ -82,8 +84,8 @@ public class MarketAnalysisAgent {
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
-    @Tool("Get current stock price for a symbol. ALWAYS use this tool for stock prices - your training data is outdated. " +
-          "Requires: symbol (string, e.g., 'AAPL', 'TSLA'). Returns current price with timestamp.")
+    @Tool("Get current stock price for a ticker OR company name. ALWAYS use this tool for stock prices - your training data is outdated. " +
+          "Requires: symbolOrCompany (string, e.g., 'AAPL', 'TSLA', 'Figma'). Tool performs live symbol resolution and returns current price with timestamp.")
     public String getStockPrice(String symbol) {
         log.info("🔵 getStockPrice CALLED with symbol={} - FETCHING FRESH DATA FROM API", symbol);
         
@@ -92,22 +94,43 @@ public class MarketAnalysisAgent {
         
         long startTime = System.currentTimeMillis();
         try {
-            BigDecimal price = marketDataService.getStockPrice(symbol);
+            String requestedInput = symbol == null ? "" : symbol.trim();
+            String resolvedSymbol = marketDataService.resolveSymbol(requestedInput);
+            if (resolvedSymbol == null || resolvedSymbol.isBlank()) {
+                return String.format(
+                        "{\"requested\": \"%s\", \"error\": \"Unable to resolve a tradable ticker from the provided company/symbol. Please provide a valid ticker or company name.\"}",
+                        escapeJson(requestedInput)
+                );
+            }
+
+            BigDecimal price = marketDataService.getStockPrice(resolvedSymbol);
             if (price == null) {
-                return String.format("{\"symbol\": \"%s\", \"error\": \"Unable to fetch stock price. Symbol may be invalid or API limit reached.\"}", symbol);
+                return String.format(
+                        "{\"requested\": \"%s\", \"symbol\": \"%s\", \"error\": \"Unable to fetch stock price. Symbol may be invalid, newly listed but unavailable, or API limit reached.\"}",
+                        escapeJson(requestedInput), resolvedSymbol
+                );
             }
             // Include timestamp to show data freshness
             String timestamp = java.time.LocalDateTime.now().toString();
-            String result = String.format(
-                "{\"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"fetchedAt\": \"%s\", " +
-                "\"note\": \"Fresh data fetched from API. Free tier may have 15-minute delay during market hours.\"}",
-                symbol, price, timestamp
-            );
+            String result;
+            if (requestedInput.equalsIgnoreCase(resolvedSymbol)) {
+                result = String.format(
+                    "{\"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"fetchedAt\": \"%s\", " +
+                    "\"note\": \"Fresh data fetched from API. Free tier may have 15-minute delay during market hours.\"}",
+                    resolvedSymbol, price, timestamp
+                );
+            } else {
+                result = String.format(
+                    "{\"requested\": \"%s\", \"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"fetchedAt\": \"%s\", " +
+                    "\"note\": \"Fresh data fetched from API after live symbol resolution. Free tier may have 15-minute delay during market hours.\"}",
+                    escapeJson(requestedInput), resolvedSymbol, price, timestamp
+                );
+            }
             
             // Log response
             if (sessionId != null) {
                 long duration = System.currentTimeMillis() - startTime;
-                log.info("✅ [MARKET_AGENT] getStockPrice completed in {}ms for {}", duration, symbol);
+                log.info("✅ [MARKET_AGENT] getStockPrice completed in {}ms for {} (resolved={})", duration, symbol, resolvedSymbol);
                 log.info("📥 [MARKET_AGENT] Response: {}", result);
             }
             
@@ -127,13 +150,26 @@ public class MarketAnalysisAgent {
     }
 
     @Tool("Get stock price data for a time period. Use this to analyze price trends. " +
-          "Requires: symbol (string), timeframe ('daily', 'weekly', or 'monthly'). Returns price data with high, low, average.")
+          "Requires: symbolOrCompany (string), timeframe ('daily', 'weekly', or 'monthly'). Returns price data with high, low, average.")
     public String getStockPriceData(String symbol, String timeframe) {
         log.info("🔵 getStockPriceData CALLED with symbol={}, timeframe={}", symbol, timeframe);
         try {
-            Map<String, Object> data = marketDataService.getStockPriceData(symbol, timeframe);
+            String resolvedSymbol = marketDataService.resolveSymbol(symbol);
+            if (resolvedSymbol == null || resolvedSymbol.isBlank()) {
+                return String.format(
+                        "{\"requested\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Unable to resolve a tradable ticker from the provided company/symbol.\"}",
+                        escapeJson(symbol), timeframe
+                );
+            }
+
+            Map<String, Object> data = marketDataService.getStockPriceData(resolvedSymbol, timeframe);
             if (data.isEmpty()) {
-                return String.format("{\"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Unable to fetch price data.\"}", symbol, timeframe);
+                return String.format("{\"requested\": \"%s\", \"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Unable to fetch price data.\"}",
+                        escapeJson(symbol), resolvedSymbol, timeframe);
+            }
+
+            if (symbol != null && !symbol.trim().equalsIgnoreCase(resolvedSymbol)) {
+                data.put("requested", symbol.trim());
             }
             
             // Convert to JSON string for LLM consumption
@@ -146,13 +182,24 @@ public class MarketAnalysisAgent {
     }
 
     @Tool("Get market news and sentiment for a stock. Returns recent news headlines and sentiment. " +
-          "Requires: symbol (string).")
+          "Requires: symbolOrCompany (string).")
     public String getMarketNews(String symbol) {
         log.info("🔵 getMarketNews CALLED with symbol={}", symbol);
         try {
-            String news = marketDataService.getMarketNews(symbol);
+            String resolvedSymbol = marketDataService.resolveSymbol(symbol);
+            if (resolvedSymbol == null || resolvedSymbol.isBlank()) {
+                return String.format(
+                        "{\"requested\": \"%s\", \"error\": \"Unable to resolve a tradable ticker from the provided company/symbol.\"}",
+                        escapeJson(symbol)
+                );
+            }
+
+            String news = marketDataService.getMarketNews(resolvedSymbol);
             Map<String, Object> payload = new java.util.HashMap<>();
-            payload.put("symbol", symbol);
+            payload.put("symbol", resolvedSymbol);
+            if (symbol != null && !symbol.trim().equalsIgnoreCase(resolvedSymbol)) {
+                payload.put("requested", symbol.trim());
+            }
             payload.put("news", news);
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
@@ -162,13 +209,22 @@ public class MarketAnalysisAgent {
     }
 
     @Tool("Analyze price trends for a stock. Determines uptrend, downtrend, or sideways movement. " +
-          "Requires: symbol (string), timeframe ('daily', 'weekly', or 'monthly'). Returns trend direction and key levels.")
+          "Requires: symbolOrCompany (string), timeframe ('daily', 'weekly', or 'monthly'). Returns trend direction and key levels.")
     public String analyzeTrends(String symbol, String timeframe) {
         log.info("🔵 analyzeTrends CALLED with symbol={}, timeframe={}", symbol, timeframe);
         try {
-            Map<String, Object> priceData = marketDataService.getStockPriceData(symbol, timeframe);
+            String resolvedSymbol = marketDataService.resolveSymbol(symbol);
+            if (resolvedSymbol == null || resolvedSymbol.isBlank()) {
+                return String.format(
+                        "{\"requested\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Unable to resolve a tradable ticker from the provided company/symbol.\"}",
+                        escapeJson(symbol), timeframe
+                );
+            }
+
+            Map<String, Object> priceData = marketDataService.getStockPriceData(resolvedSymbol, timeframe);
             if (priceData.isEmpty()) {
-                return String.format("{\"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Unable to analyze trends - no price data available.\"}", symbol, timeframe);
+                return String.format("{\"requested\": \"%s\", \"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Unable to analyze trends - no price data available.\"}",
+                        escapeJson(symbol), resolvedSymbol, timeframe);
             }
 
             // Simple trend analysis
@@ -188,7 +244,7 @@ public class MarketAnalysisAgent {
             
             if (rangePercent.compareTo(BigDecimal.valueOf(5)) > 0) {
                 // Significant price movement
-                BigDecimal currentPrice = marketDataService.getStockPrice(symbol);
+                BigDecimal currentPrice = marketDataService.getStockPrice(resolvedSymbol);
                 if (currentPrice != null) {
                     if (currentPrice.compareTo(average) > 0) {
                         trendDirection = "UPTREND";
@@ -202,7 +258,7 @@ public class MarketAnalysisAgent {
                 "{\"symbol\": \"%s\", \"timeframe\": \"%s\", \"trend\": \"%s\", " +
                 "\"high\": %s, \"low\": %s, \"average\": %s, \"volatility\": \"%.2f%%\", " +
                 "\"message\": \"Trend analysis completed\"}",
-                symbol, timeframe, trendDirection, high, low, average, rangePercent.doubleValue()
+                resolvedSymbol, timeframe, trendDirection, high, low, average, rangePercent.doubleValue()
             );
         } catch (Exception e) {
             log.error("Error analyzing trends for {}: {}", symbol, e.getMessage(), e);
@@ -211,16 +267,27 @@ public class MarketAnalysisAgent {
     }
 
     @Tool("Get technical indicators for a stock. Returns technical analysis metrics. " +
-          "Requires: symbol (string).")
+          "Requires: symbolOrCompany (string).")
     public String getTechnicalIndicators(String symbol) {
         log.info("🔵 getTechnicalIndicators CALLED with symbol={}", symbol);
         try {
+            String resolvedSymbol = marketDataService.resolveSymbol(symbol);
+            if (resolvedSymbol == null || resolvedSymbol.isBlank()) {
+                return String.format(
+                        "{\"requested\": \"%s\", \"error\": \"Unable to resolve a tradable ticker from the provided company/symbol.\"}",
+                        escapeJson(symbol)
+                );
+            }
+
             // Get price data for calculation
-            Map<String, Object> dailyData = marketDataService.getStockPriceData(symbol, "daily");
-            BigDecimal currentPrice = marketDataService.getStockPrice(symbol);
+            Map<String, Object> dailyData = marketDataService.getStockPriceData(resolvedSymbol, "daily");
+            BigDecimal currentPrice = marketDataService.getStockPrice(resolvedSymbol);
             
             if (dailyData.isEmpty() || currentPrice == null) {
-                return String.format("{\"symbol\": \"%s\", \"error\": \"Unable to calculate technical indicators - insufficient data.\"}", symbol);
+                return String.format(
+                        "{\"requested\": \"%s\", \"symbol\": \"%s\", \"error\": \"Unable to calculate technical indicators - insufficient data.\"}",
+                        escapeJson(symbol), resolvedSymbol
+                );
             }
 
             BigDecimal high = (BigDecimal) dailyData.get("high");
@@ -248,12 +315,21 @@ public class MarketAnalysisAgent {
                 "\"priceChange\": \"%.2f%%\", \"signal\": \"%s\", " +
                 "\"supportLevel\": %s, \"resistanceLevel\": %s, " +
                 "\"message\": \"Technical indicators calculated\"}",
-                symbol, currentPrice, average, priceChangePercent.doubleValue(), signal, low, high
+                resolvedSymbol, currentPrice, average, priceChangePercent.doubleValue(), signal, low, high
             );
         } catch (Exception e) {
             log.error("Error getting technical indicators for {}: {}", symbol, e.getMessage(), e);
             return String.format("{\"symbol\": \"%s\", \"error\": \"Error calculating technical indicators: %s\"}", symbol, e.getMessage());
         }
+    }
+
+    private String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
     }
 }
 
