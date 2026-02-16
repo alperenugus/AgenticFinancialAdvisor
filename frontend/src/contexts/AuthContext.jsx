@@ -19,15 +19,24 @@ export const AuthProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    // Check for token in URL (from OAuth callback)
+    // Check for token in URL (from OAuth callback).
+    // Prefer fragment token to avoid token leakage via query strings.
     const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get('token');
+    const hashParams = new URLSearchParams(
+      window.location.hash.startsWith('#')
+        ? window.location.hash.substring(1)
+        : window.location.hash
+    );
+    const tokenFromUrl = hashParams.get('token') || urlParams.get('token');
     
     if (tokenFromUrl) {
       setToken(tokenFromUrl);
       localStorage.setItem('token', tokenFromUrl);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clean up URL and normalize callback path after token extraction.
+      const normalizedPath = window.location.pathname === '/auth/callback'
+        ? '/'
+        : window.location.pathname;
+      window.history.replaceState({}, document.title, normalizedPath);
     }
 
     // Load user if token exists
