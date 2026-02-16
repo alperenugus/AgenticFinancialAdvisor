@@ -74,7 +74,9 @@ agent:
     # Timeout for individual agent tool calls (in seconds)
     tool-call-seconds: ${AGENT_TOOL_TIMEOUT_SECONDS:10}
     # Timeout for orchestrator's main chat call (in seconds)
-    orchestrator-seconds: ${AGENT_ORCHESTRATOR_TIMEOUT_SECONDS:60}
+    orchestrator-seconds: ${AGENT_ORCHESTRATOR_TIMEOUT_SECONDS:90}
+    # Timeout for security validation checks
+    security-seconds: ${AGENT_SECURITY_TIMEOUT_SECONDS:5}
 
 # External API Configuration
 market-data:

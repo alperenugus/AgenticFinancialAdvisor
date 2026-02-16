@@ -20,6 +20,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fintwit Analysis Agent - Analyzes financial Twitter sentiment and trends
@@ -36,7 +37,7 @@ public class FintwitAnalysisAgent {
     private final String twitterBearerToken;
     private final String twitterApiBaseUrl;
     private final boolean useTwitterApi;
-    private final Map<String, FintwitAnalysisAgentService> agentCache = new HashMap<>();
+    private final Map<String, FintwitAnalysisAgentService> agentCache = new ConcurrentHashMap<>();
 
     @Autowired
     public FintwitAnalysisAgent(
@@ -88,7 +89,8 @@ public class FintwitAnalysisAgent {
                 "Your role is to analyze social sentiment from financial Twitter for market insights. " +
                 "You have access to tools for getting fintwit sentiment, trends, and mentions. " +
                 "When asked about social sentiment, Twitter discussions, or fintwit trends, use the appropriate tools. " +
-                "Provide sentiment analysis and insights based on social media discussions.")
+                "Provide sentiment analysis and insights based on social media discussions. " +
+                "Keep responses concise and explicitly mention uncertainty when signal quality is weak.")
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 

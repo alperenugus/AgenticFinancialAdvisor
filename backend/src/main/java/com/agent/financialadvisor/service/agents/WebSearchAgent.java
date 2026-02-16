@@ -19,10 +19,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Web Search Agent - Provides web search capabilities for financial data
@@ -41,7 +43,7 @@ public class WebSearchAgent {
     private final String serperApiKey;
     private final String serperBaseUrl;
     private final boolean useTavily;
-    private final Map<String, WebSearchAgentService> agentCache = new HashMap<>();
+    private final Map<String, WebSearchAgentService> agentCache = new ConcurrentHashMap<>();
 
     @Autowired
     public WebSearchAgent(
@@ -102,7 +104,8 @@ public class WebSearchAgent {
                 "Your role is to search the web for financial news, stock analysis, market trends, and company information. " +
                 "You have access to tools for searching financial news, stock analysis, market trends, and company info. " +
                 "When asked about recent news, market trends, or company information, use the appropriate search tools. " +
-                "Provide comprehensive, up-to-date information from web sources.")
+                "Provide concise, up-to-date information from web sources with source links when available. " +
+                "Do not speculate when sources are missing.")
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
@@ -145,7 +148,8 @@ public class WebSearchAgent {
     public String searchStockAnalysis(String symbol) {
         log.info("🔵 searchStockAnalysis CALLED with symbol={}", symbol);
         try {
-            String query = symbol + " stock analysis price target investment research 2024";
+            int currentYear = LocalDate.now().getYear();
+            String query = symbol + " stock analysis price target investment research " + currentYear;
             return performSearch(query, 5);
         } catch (Exception e) {
             log.error("Error searching stock analysis: {}", e.getMessage(), e);
@@ -171,7 +175,8 @@ public class WebSearchAgent {
     public String searchCompanyInfo(String symbol) {
         log.info("🔵 searchCompanyInfo CALLED with symbol={}", symbol);
         try {
-            String query = symbol + " company news earnings report corporate developments 2024";
+            int currentYear = LocalDate.now().getYear();
+            String query = symbol + " company news earnings report corporate developments " + currentYear;
             return performSearch(query, 5);
         } catch (Exception e) {
             log.error("Error searching company info: {}", e.getMessage(), e);

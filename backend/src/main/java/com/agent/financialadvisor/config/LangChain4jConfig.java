@@ -30,7 +30,7 @@ public class LangChain4jConfig {
     @Value("${langchain4j.groq.orchestrator.model:llama-3.3-70b-versatile}")
     private String orchestratorModel;
 
-    @Value("${langchain4j.groq.orchestrator.temperature:0.7}")
+    @Value("${langchain4j.groq.orchestrator.temperature:0.0}")
     private Double orchestratorTemperature;
 
     @Value("${langchain4j.groq.orchestrator.timeout-seconds:60}")
@@ -103,11 +103,11 @@ public class LangChain4jConfig {
     /**
      * Agent ChatLanguageModel - used by individual agents (UserProfile, MarketAnalysis, WebSearch, Fintwit)
      * Each agent has its own LLM instance using this model configuration
-     * Uses the same configuration as the orchestrator for consistency
+     * Uses the tool-agent model for faster/cheaper tool-focused reasoning
      */
     @Bean(name = "agentChatLanguageModel")
     public ChatLanguageModel agentChatLanguageModel() {
-        if (orchestratorApiKey == null || orchestratorApiKey.trim().isEmpty()) {
+        if (toolAgentApiKey == null || toolAgentApiKey.trim().isEmpty()) {
             throw new IllegalStateException(
                 "GROQ_API_KEY environment variable is required. " +
                 "Please set it in Railway environment variables or application.yml"
@@ -115,11 +115,11 @@ public class LangChain4jConfig {
         }
 
         return OpenAiChatModel.builder()
-                .apiKey(orchestratorApiKey)
-                .baseUrl(orchestratorBaseUrl)
-                .modelName(orchestratorModel)
-                .temperature(orchestratorTemperature)
-                .timeout(java.time.Duration.ofSeconds(orchestratorTimeoutSeconds))
+                .apiKey(toolAgentApiKey)
+                .baseUrl(toolAgentBaseUrl)
+                .modelName(toolAgentModel)
+                .temperature(toolAgentTemperature)
+                .timeout(java.time.Duration.ofSeconds(toolAgentTimeoutSeconds))
                 .logRequests(true)
                 .logResponses(true)
                 .build();

@@ -3,6 +3,7 @@ package com.agent.financialadvisor.service.orchestrator;
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
 import com.agent.financialadvisor.aspect.ToolCallAspect;
+import jakarta.annotation.PreDestroy;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -16,11 +17,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 @Service
 public class OrchestratorService {
@@ -35,9 +39,12 @@ public class OrchestratorService {
     private final SecurityAgent securityAgent;
     private final WebSocketService webSocketService;
     private final int orchestratorTimeoutSeconds;
+    private final int toolCallTimeoutSeconds;
+    private final ExecutorService agentToolExecutor;
     
     // Cache for AI service instances per session
-    private final Map<String, OrchestratorAgent> orchestratorCache = new HashMap<>();
+    private final Map<String, OrchestratorAgent> orchestratorCache = new ConcurrentHashMap<>();
+    private final Map<String, String> sessionUserIdCache = new ConcurrentHashMap<>();
 
     public OrchestratorService(
             ChatLanguageModel chatLanguageModel,
@@ -47,7 +54,8 @@ public class OrchestratorService {
             FintwitAnalysisAgent fintwitAnalysisAgent,
             SecurityAgent securityAgent,
             WebSocketService webSocketService,
-            @Value("${agent.timeout.orchestrator-seconds:60}") int orchestratorTimeoutSeconds
+            @Value("${agent.timeout.orchestrator-seconds:90}") int orchestratorTimeoutSeconds,
+            @Value("${agent.timeout.tool-call-seconds:10}") int toolCallTimeoutSeconds
     ) {
         this.chatLanguageModel = chatLanguageModel;
         this.userProfileAgent = userProfileAgent;
@@ -57,6 +65,10 @@ public class OrchestratorService {
         this.securityAgent = securityAgent;
         this.webSocketService = webSocketService;
         this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
+        this.toolCallTimeoutSeconds = toolCallTimeoutSeconds;
+        this.agentToolExecutor = Executors.newFixedThreadPool(
+                Math.max(4, Runtime.getRuntime().availableProcessors())
+        );
         
         log.info("✅ Orchestrator initialized with 5 agents, each with their own LLM instance: UserProfile, MarketAnalysis, WebSearch, Fintwit, Security");
     }
@@ -66,6 +78,7 @@ public class OrchestratorService {
      */
     public String coordinateAnalysis(String userId, String userQuery, String sessionId) {
         log.info("🎯 Orchestrator coordinating analysis for userId={}, query={}", userId, userQuery);
+        sessionUserIdCache.put(sessionId, userId);
         
         try {
             // Validate input security using SecurityAgent
@@ -117,7 +130,13 @@ public class OrchestratorService {
                     
                     // Inject current date into the query so orchestrator knows today's date
                     String currentDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"));
-                    String queryWithDate = String.format("Today's date is %s. User query: %s", currentDate, userQuery);
+                    String queryWithDate = String.format(
+                            "Today's date is %s. Authenticated user id is %s. " +
+                                    "Use this user id for any user profile or portfolio tools. User query: %s",
+                            currentDate,
+                            userId,
+                            userQuery
+                    );
                     log.info("📅 [ORCHESTRATOR] Query with date context: {}", queryWithDate);
                     
                     String result = orchestrator.chat(sessionId, queryWithDate);
@@ -187,12 +206,53 @@ public class OrchestratorService {
             return AiServices.builder(OrchestratorAgent.class)
                     .chatLanguageModel(chatLanguageModel)
                     .chatMemoryProvider(memoryProvider)
-                    .tools(
-                            new AgentOrchestrationTools(userProfileAgent, marketAnalysisAgent, 
-                                                       webSearchAgent, fintwitAnalysisAgent)
-                    )
+                    .tools(new AgentOrchestrationTools())
                     .build();
         });
+    }
+
+    private String enrichSubAgentQuery(String query, String userId) {
+        return String.format(
+                "Authenticated user id: %s. Use this exact user id for any user profile/portfolio tools. " +
+                        "Do not invent user ids.\nUser query: %s",
+                userId,
+                query
+        );
+    }
+
+    private String resolveSessionIdForTool() {
+        String sessionId = ToolCallAspect.getSessionId();
+        if (sessionId == null || sessionId.isBlank()) {
+            return null;
+        }
+        return sessionId;
+    }
+
+    private String resolveUserIdForSession(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return null;
+        }
+        return sessionUserIdCache.get(sessionId);
+    }
+
+    private String invokeWithToolTimeout(String agentName, String sessionId, Supplier<String> invocation) {
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(invocation, agentToolExecutor);
+        try {
+            return future.get(toolCallTimeoutSeconds, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            String msg = String.format(
+                    "{\"error\":\"%s timed out after %d seconds\",\"agent\":\"%s\"}",
+                    agentName,
+                    toolCallTimeoutSeconds,
+                    agentName
+            );
+            log.warn("⏱️ {} timed out for sessionId={}", agentName, sessionId);
+            return msg;
+        } catch (Exception e) {
+            log.error("❌ {} failed for sessionId={}: {}", agentName, sessionId, e.getMessage(), e);
+            return String.format("{\"error\":\"%s failed: %s\",\"agent\":\"%s\"}", agentName, e.getMessage(), agentName);
+        }
     }
 
     /**
@@ -236,61 +296,87 @@ public class OrchestratorService {
                 "- **DELEGATE PROPERLY**: Use agent tools to delegate queries to the right specialized agent\n" +
                 "- **COMBINE INSIGHTS**: When multiple agents provide data, synthesize them into a coherent response\n" +
                 "- **BE EFFICIENT**: Don't call unnecessary agents, but don't miss important data sources\n" +
-                "- **FAIL GRACEFULLY**: If an agent fails, acknowledge it and work with available data\n\n" +
+                "- **FAIL GRACEFULLY**: If an agent fails, acknowledge it and work with available data\n" +
+                "- **NO STALE MARKET FACTS**: For current prices/news/trends, always use delegated tool responses; never answer from memory\n\n" +
                 "### RESPONSE STYLE:\n" +
                 "- Be professional, concise, and helpful\n" +
                 "- Use formatting (bullet points, bold text) to make data easy to read\n" +
-                "- Address the user directly")
+                "- Address the user directly\n" +
+                "- For simple questions, keep response under 120 words unless the user asks for more detail")
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
     /**
      * Tool wrapper class that allows orchestrator to call individual agent LLMs
      */
-    private static class AgentOrchestrationTools {
-        private final UserProfileAgent userProfileAgent;
-        private final MarketAnalysisAgent marketAnalysisAgent;
-        private final WebSearchAgent webSearchAgent;
-        private final FintwitAnalysisAgent fintwitAnalysisAgent;
+    private class AgentOrchestrationTools {
 
-        public AgentOrchestrationTools(
-                UserProfileAgent userProfileAgent,
-                MarketAnalysisAgent marketAnalysisAgent,
-                WebSearchAgent webSearchAgent,
-                FintwitAnalysisAgent fintwitAnalysisAgent
-        ) {
-            this.userProfileAgent = userProfileAgent;
-            this.marketAnalysisAgent = marketAnalysisAgent;
-            this.webSearchAgent = webSearchAgent;
-            this.fintwitAnalysisAgent = fintwitAnalysisAgent;
-        }
-
-        @Tool("Delegate query to UserProfileAgent. Use this for questions about user profiles, portfolios, investment preferences, risk tolerance, or portfolio holdings. " +
-                "Requires: sessionId (string), query (string). Returns agent's response.")
-        public String delegateToUserProfileAgent(String sessionId, String query) {
+        @Tool("Delegate query to UserProfileAgent. Use for user profiles, portfolios, investment preferences, risk tolerance, or portfolio holdings. " +
+                "Requires: query (string). Returns the agent response.")
+        public String delegateToUserProfileAgent(String query) {
+            String sessionId = resolveSessionIdForTool();
+            String userId = resolveUserIdForSession(sessionId);
+            if (sessionId == null || userId == null) {
+                return "{\"error\":\"Missing session/user context for UserProfileAgent\"}";
+            }
             log.info("🔄 [ORCHESTRATOR] Delegating to UserProfileAgent: {}", query);
-            return userProfileAgent.processQuery(sessionId, query);
+            String enrichedQuery = enrichSubAgentQuery(query, userId);
+            return invokeWithToolTimeout(
+                    "UserProfileAgent",
+                    sessionId,
+                    () -> userProfileAgent.processQuery(sessionId, enrichedQuery)
+            );
         }
 
-        @Tool("Delegate query to MarketAnalysisAgent. Use this for questions about stock prices, market data, technical indicators, price trends, or market analysis. " +
-                "Requires: sessionId (string), query (string). Returns agent's response.")
-        public String delegateToMarketAnalysisAgent(String sessionId, String query) {
+        @Tool("Delegate query to MarketAnalysisAgent. Use for stock prices, market data, technical indicators, price trends, or market analysis. " +
+                "Requires: query (string). Returns the agent response.")
+        public String delegateToMarketAnalysisAgent(String query) {
+            String sessionId = resolveSessionIdForTool();
+            String userId = resolveUserIdForSession(sessionId);
+            if (sessionId == null || userId == null) {
+                return "{\"error\":\"Missing session/user context for MarketAnalysisAgent\"}";
+            }
             log.info("🔄 [ORCHESTRATOR] Delegating to MarketAnalysisAgent: {}", query);
-            return marketAnalysisAgent.processQuery(sessionId, query);
+            String enrichedQuery = enrichSubAgentQuery(query, userId);
+            return invokeWithToolTimeout(
+                    "MarketAnalysisAgent",
+                    sessionId,
+                    () -> marketAnalysisAgent.processQuery(sessionId, enrichedQuery)
+            );
         }
 
-        @Tool("Delegate query to WebSearchAgent. Use this for questions about financial news, market research, company information, or recent market developments. " +
-                "Requires: sessionId (string), query (string). Returns agent's response.")
-        public String delegateToWebSearchAgent(String sessionId, String query) {
+        @Tool("Delegate query to WebSearchAgent. Use for financial news, market research, company information, or recent market developments. " +
+                "Requires: query (string). Returns the agent response.")
+        public String delegateToWebSearchAgent(String query) {
+            String sessionId = resolveSessionIdForTool();
+            String userId = resolveUserIdForSession(sessionId);
+            if (sessionId == null || userId == null) {
+                return "{\"error\":\"Missing session/user context for WebSearchAgent\"}";
+            }
             log.info("🔄 [ORCHESTRATOR] Delegating to WebSearchAgent: {}", query);
-            return webSearchAgent.processQuery(sessionId, query);
+            String enrichedQuery = enrichSubAgentQuery(query, userId);
+            return invokeWithToolTimeout(
+                    "WebSearchAgent",
+                    sessionId,
+                    () -> webSearchAgent.processQuery(sessionId, enrichedQuery)
+            );
         }
 
-        @Tool("Delegate query to FintwitAnalysisAgent. Use this for questions about social sentiment, Twitter discussions, fintwit trends, or social media sentiment analysis. " +
-                "Requires: sessionId (string), query (string). Returns agent's response.")
-        public String delegateToFintwitAnalysisAgent(String sessionId, String query) {
+        @Tool("Delegate query to FintwitAnalysisAgent. Use for social sentiment, Twitter discussions, fintwit trends, or social media sentiment analysis. " +
+                "Requires: query (string). Returns the agent response.")
+        public String delegateToFintwitAnalysisAgent(String query) {
+            String sessionId = resolveSessionIdForTool();
+            String userId = resolveUserIdForSession(sessionId);
+            if (sessionId == null || userId == null) {
+                return "{\"error\":\"Missing session/user context for FintwitAnalysisAgent\"}";
+            }
             log.info("🔄 [ORCHESTRATOR] Delegating to FintwitAnalysisAgent: {}", query);
-            return fintwitAnalysisAgent.processQuery(sessionId, query);
+            String enrichedQuery = enrichSubAgentQuery(query, userId);
+            return invokeWithToolTimeout(
+                    "FintwitAnalysisAgent",
+                    sessionId,
+                    () -> fintwitAnalysisAgent.processQuery(sessionId, enrichedQuery)
+            );
         }
     }
 
@@ -298,7 +384,7 @@ public class OrchestratorService {
      * Check agent status - verify all agents are available
      */
     public Map<String, Boolean> getAgentStatus() {
-        Map<String, Boolean> status = new HashMap<>();
+        Map<String, Boolean> status = new ConcurrentHashMap<>();
         status.put("userProfileAgent", userProfileAgent != null);
         status.put("marketAnalysisAgent", marketAnalysisAgent != null);
         status.put("webSearchAgent", webSearchAgent != null);
@@ -312,6 +398,12 @@ public class OrchestratorService {
      */
     public void clearSession(String sessionId) {
         orchestratorCache.remove(sessionId);
+        sessionUserIdCache.remove(sessionId);
         log.info("Cleared orchestrator cache for session: {}", sessionId);
+    }
+
+    @PreDestroy
+    public void shutdownExecutor() {
+        agentToolExecutor.shutdownNow();
     }
 }
