@@ -15,12 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OrchestratorServiceTest {
@@ -60,38 +54,55 @@ class OrchestratorServiceTest {
                 webSocketService,
                 new ObjectMapper(),
                 90,
-                10
+                10,
+                2
         );
     }
 
     @Test
-    void coordinateAnalysis_UsesDirectFlowForSimpleStockPriceQuestion() {
-        when(securityAgent.validateInput(anyString()))
-                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
-        when(marketAnalysisAgent.getStockPrice("figma"))
-                .thenReturn("{\"requested\":\"figma\",\"symbol\":\"FIG\",\"price\":\"42.00\",\"currency\":\"USD\",\"fetchedAt\":\"2026-02-16T00:00:00\"}");
+    void parseEvaluationDecision_ParsesFailJson() {
+        String raw = """
+                {"verdict":"FAIL","reason":"Ticker does not match requested company","retryInstruction":"Call MarketAnalysisAgent again and verify company identity from tool output."}
+                """;
 
-        String result = orchestratorService.coordinateAnalysis("user-1", "figma stock price", "session-1");
+        OrchestratorService.EvaluationDecision decision = orchestratorService.parseEvaluationDecisionForTesting(raw);
 
-        assertThat(result).contains("figma (FIG)");
-        assertThat(result).contains("$42.00");
-        verify(marketAnalysisAgent).getStockPrice("figma");
-        verify(marketAnalysisAgent, never()).processQuery(anyString(), anyString());
-        verify(webSocketService).sendFinalResponse(eq("session-1"), contains("FIG"));
+        assertThat(decision.isPass()).isFalse();
+        assertThat(decision.reason()).contains("Ticker does not match requested company");
+        assertThat(decision.retryInstruction()).contains("verify company identity");
     }
 
     @Test
-    void coordinateAnalysis_ReturnsFriendlyErrorWhenDirectToolFails() {
-        when(securityAgent.validateInput(anyString()))
-                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
-        when(marketAnalysisAgent.getStockPrice("figma"))
-                .thenReturn("{\"requested\":\"figma\",\"error\":\"Unable to fetch stock price\"}");
+    void parseEvaluationDecision_ParsesPassJsonInsideCodeFence() {
+        String raw = """
+                ```json
+                {"verdict":"PASS","reason":"Response is grounded in delegated evidence","retryInstruction":""}
+                ```
+                """;
 
-        String result = orchestratorService.coordinateAnalysis("user-1", "stock price of figma", "session-2");
+        OrchestratorService.EvaluationDecision decision = orchestratorService.parseEvaluationDecisionForTesting(raw);
 
-        assertThat(result).contains("couldn't fetch a live stock price");
-        verify(marketAnalysisAgent).getStockPrice("figma");
-        verify(marketAnalysisAgent, never()).processQuery(anyString(), anyString());
-        verify(webSocketService).sendFinalResponse(eq("session-2"), contains("couldn't fetch"));
+        assertThat(decision.isPass()).isTrue();
+        assertThat(decision.reason()).contains("grounded");
+    }
+
+    @Test
+    void parseEvaluationDecision_HandlesPlainFailText() {
+        OrchestratorService.EvaluationDecision decision = orchestratorService.parseEvaluationDecisionForTesting(
+                "FAIL: The answer includes unsupported real-time claims."
+        );
+
+        assertThat(decision.isPass()).isFalse();
+        assertThat(decision.retryInstruction()).contains("unsupported real-time claims");
+    }
+
+    @Test
+    void parseEvaluationDecision_DefaultsPassForUnparseableOutput() {
+        OrchestratorService.EvaluationDecision decision = orchestratorService.parseEvaluationDecisionForTesting(
+                "I am not sure."
+        );
+
+        assertThat(decision.isPass()).isTrue();
+        assertThat(decision.reason()).contains("unclear");
     }
 }

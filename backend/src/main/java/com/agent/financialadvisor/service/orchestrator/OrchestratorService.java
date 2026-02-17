@@ -19,6 +19,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,17 +32,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class OrchestratorService {
 
     private static final Logger log = LoggerFactory.getLogger(OrchestratorService.class);
-    private static final Pattern SIMPLE_STOCK_PRICE_SUFFIX_PATTERN =
-            Pattern.compile("(?i)^\\s*(.+?)\\s+(?:stock|share)\\s+price\\s*\\??\\s*$");
-    private static final Pattern SIMPLE_STOCK_PRICE_PREFIX_PATTERN =
-            Pattern.compile("(?i)^\\s*(?:stock|share)\\s+price\\s+(?:of|for)\\s+(.+?)\\s*\\??\\s*$");
+    private static final int MAX_EVIDENCE_CHARS = 800;
     
     private final ChatLanguageModel chatLanguageModel;
     private final UserProfileAgent userProfileAgent;
@@ -49,11 +49,14 @@ public class OrchestratorService {
     private final ObjectMapper objectMapper;
     private final int orchestratorTimeoutSeconds;
     private final int toolCallTimeoutSeconds;
+    private final int evaluatorMaxAttempts;
     private final ExecutorService agentToolExecutor;
+    private final ResponseEvaluatorAgent responseEvaluatorAgent;
     
     // Cache for AI service instances per session
     private final Map<String, OrchestratorAgent> orchestratorCache = new ConcurrentHashMap<>();
     private final Map<String, String> sessionUserIdCache = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, List<String>>> evaluationEvidenceBySession = new ConcurrentHashMap<>();
 
     public OrchestratorService(
             ChatLanguageModel chatLanguageModel,
@@ -65,7 +68,8 @@ public class OrchestratorService {
             WebSocketService webSocketService,
             ObjectMapper objectMapper,
             @Value("${agent.timeout.orchestrator-seconds:90}") int orchestratorTimeoutSeconds,
-            @Value("${agent.timeout.tool-call-seconds:10}") int toolCallTimeoutSeconds
+            @Value("${agent.timeout.tool-call-seconds:10}") int toolCallTimeoutSeconds,
+            @Value("${agent.evaluation.max-attempts:2}") int evaluatorMaxAttempts
     ) {
         this.chatLanguageModel = chatLanguageModel;
         this.userProfileAgent = userProfileAgent;
@@ -77,9 +81,13 @@ public class OrchestratorService {
         this.objectMapper = objectMapper;
         this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
         this.toolCallTimeoutSeconds = toolCallTimeoutSeconds;
+        this.evaluatorMaxAttempts = Math.max(1, evaluatorMaxAttempts);
         this.agentToolExecutor = Executors.newFixedThreadPool(
                 Math.max(4, Runtime.getRuntime().availableProcessors())
         );
+        this.responseEvaluatorAgent = AiServices.builder(ResponseEvaluatorAgent.class)
+                .chatLanguageModel(chatLanguageModel)
+                .build();
         
         log.info("✅ Orchestrator initialized with 5 agents, each with their own LLM instance: UserProfile, MarketAnalysis, WebSearch, Fintwit, Security");
     }
@@ -111,12 +119,6 @@ public class OrchestratorService {
                 return greetingResponse;
             }
 
-            // For simple stock-price questions, bypass orchestration and return live tool data directly.
-            String directPriceResponse = tryHandleSimpleStockPriceQuery(userQuery, sessionId);
-            if (directPriceResponse != null) {
-                return directPriceResponse;
-            }
-
             // Execute directly - no planning phase
             return executeQuery(userId, userQuery, sessionId);
         } catch (Exception e) {
@@ -142,21 +144,7 @@ public class OrchestratorService {
             
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
                 try {
-                    log.info("🚀 [ORCHESTRATOR] Sending query to orchestrator for sessionId={}", sessionId);
-                    log.info("📤 [ORCHESTRATOR] Query: {}", userQuery);
-                    
-                    // Inject current date into the query so orchestrator knows today's date
-                    String currentDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"));
-                    String queryWithDate = String.format(
-                            "Today's date is %s. Authenticated user id is %s. " +
-                                    "Use this user id for any user profile or portfolio tools. User query: %s",
-                            currentDate,
-                            userId,
-                            userQuery
-                    );
-                    log.info("📅 [ORCHESTRATOR] Query with date context: {}", queryWithDate);
-                    
-                    String result = orchestrator.chat(sessionId, queryWithDate);
+                    String result = executeWithEvaluationLoop(orchestrator, sessionId, userId, userQuery);
                     log.info("✅ [ORCHESTRATOR] Response received for sessionId={}, length={}", sessionId, result != null ? result.length() : 0);
                     if (result != null && result.length() > 0) {
                         // Log first 500 chars of response
@@ -203,6 +191,245 @@ public class OrchestratorService {
             String errorMsg = "I apologize, but I encountered an error while processing your request. Please try again.";
             webSocketService.sendError(sessionId, errorMsg);
             return errorMsg;
+        }
+    }
+
+    private String executeWithEvaluationLoop(
+            OrchestratorAgent orchestrator,
+            String sessionId,
+            String userId,
+            String userQuery
+    ) {
+        String baseQuery = buildBaseOrchestratorQuery(userId, userQuery);
+        String latestResponse = null;
+        String evaluatorFeedback = null;
+
+        try {
+            for (int attempt = 1; attempt <= evaluatorMaxAttempts; attempt++) {
+                initializeAttemptEvidence(sessionId);
+                String prompt = (attempt == 1)
+                        ? baseQuery
+                        : buildCorrectiveOrchestratorQuery(baseQuery, latestResponse, evaluatorFeedback);
+
+                log.info("🚀 [ORCHESTRATOR] Sending query to orchestrator for sessionId={}, attempt={}/{}",
+                        sessionId, attempt, evaluatorMaxAttempts);
+                log.info("📤 [ORCHESTRATOR] Query: {}", prompt);
+
+                latestResponse = orchestrator.chat(sessionId, prompt);
+                Map<String, List<String>> evidenceSnapshot = snapshotEvidence(sessionId);
+                EvaluationDecision decision = evaluateResponseWithJudge(userQuery, latestResponse, evidenceSnapshot);
+
+                if (decision.isPass()) {
+                    return latestResponse;
+                }
+
+                evaluatorFeedback = decision.retryInstruction();
+                log.warn("⚠️ Evaluator marked response as FAIL for sessionId={} (attempt {}/{}): {}",
+                        sessionId, attempt, evaluatorMaxAttempts, decision.reason());
+
+                if (attempt < evaluatorMaxAttempts) {
+                    webSocketService.sendReasoning(
+                            sessionId,
+                            "Running evaluator-guided correction pass to improve tool-grounded accuracy."
+                    );
+                }
+            }
+
+            return latestResponse;
+        } finally {
+            evaluationEvidenceBySession.remove(sessionId);
+        }
+    }
+
+    private String buildBaseOrchestratorQuery(String userId, String userQuery) {
+        String currentDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"));
+        return String.format(
+                "Today's date is %s. Authenticated user id is %s. " +
+                        "Use this user id for any user profile or portfolio tools. User query: %s",
+                currentDate,
+                userId,
+                userQuery
+        );
+    }
+
+    private String buildCorrectiveOrchestratorQuery(String baseQuery, String previousResponse, String feedback) {
+        String prior = previousResponse == null ? "(no previous response)" :
+                previousResponse.substring(0, Math.min(previousResponse.length(), 600));
+        String evaluatorNote = feedback == null || feedback.isBlank()
+                ? "Evaluator found insufficient grounding or relevance."
+                : feedback;
+
+        return baseQuery + "\n\n" +
+                "EVALUATOR FEEDBACK (must correct): " + evaluatorNote + "\n" +
+                "Previous response excerpt: " + prior + "\n\n" +
+                "Correction protocol:\n" +
+                "1) Re-assess intent and required data sources.\n" +
+                "2) Delegate to specialist agents for any current/user-specific facts.\n" +
+                "3) Base all concrete claims on delegated outputs from this turn.\n" +
+                "4) If evidence is missing, clearly say data is unavailable rather than guessing.\n" +
+                "Return only the corrected user-facing final answer.";
+    }
+
+    private EvaluationDecision evaluateResponseWithJudge(
+            String userQuery,
+            String assistantResponse,
+            Map<String, List<String>> evidenceByAgent
+    ) {
+        try {
+            String evaluationInput = buildEvaluationInput(userQuery, assistantResponse, evidenceByAgent);
+            String rawEvaluatorOutput = responseEvaluatorAgent.evaluate(evaluationInput);
+            EvaluationDecision decision = parseEvaluationDecision(rawEvaluatorOutput);
+            log.info("🧪 Evaluator verdict={}, reason={}", decision.isPass() ? "PASS" : "FAIL", decision.reason());
+            return decision;
+        } catch (Exception e) {
+            log.warn("Evaluator failed; returning best-effort response. Error={}", e.getMessage());
+            return EvaluationDecision.pass("Evaluator unavailable");
+        }
+    }
+
+    private String buildEvaluationInput(
+            String userQuery,
+            String assistantResponse,
+            Map<String, List<String>> evidenceByAgent
+    ) throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userQuery", userQuery);
+        payload.put("assistantResponse", assistantResponse);
+        payload.put("evidenceByAgent", evidenceByAgent);
+        payload.put("evaluationPolicy",
+                "PASS only if response answers the query and concrete time-sensitive/user-specific claims " +
+                        "are grounded in evidence. FAIL for unsupported claims, stale-memory disclaimers " +
+                        "for current-data requests, or company/ticker mismatches.");
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private EvaluationDecision parseEvaluationDecision(String rawOutput) {
+        if (rawOutput == null || rawOutput.trim().isEmpty()) {
+            return EvaluationDecision.pass("Evaluator returned empty output");
+        }
+
+        String cleaned = stripCodeFences(rawOutput.trim());
+        String jsonSegment = extractJsonObject(cleaned);
+        if (jsonSegment != null) {
+            try {
+                JsonNode root = objectMapper.readTree(jsonSegment);
+                String verdict = root.path("verdict").asText("").trim().toUpperCase(Locale.ROOT);
+                String reason = root.path("reason").asText("No reason provided");
+                String retryInstruction = root.path("retryInstruction").asText(reason);
+                if ("FAIL".equals(verdict)) {
+                    return EvaluationDecision.fail(reason, retryInstruction);
+                }
+                if ("PASS".equals(verdict)) {
+                    return EvaluationDecision.pass(reason);
+                }
+            } catch (Exception ignored) {
+                log.warn("Could not parse evaluator JSON output: {}", rawOutput);
+            }
+        }
+
+        String normalized = cleaned.toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("FAIL")) {
+            return EvaluationDecision.fail("Evaluator indicated failure", cleaned);
+        }
+        if (normalized.startsWith("PASS")) {
+            return EvaluationDecision.pass("Evaluator indicated pass");
+        }
+
+        return EvaluationDecision.pass("Evaluator verdict unclear");
+    }
+
+    private String stripCodeFences(String value) {
+        String trimmed = value.trim();
+        if (trimmed.startsWith("```")) {
+            int firstNewLine = trimmed.indexOf('\n');
+            if (firstNewLine >= 0) {
+                trimmed = trimmed.substring(firstNewLine + 1);
+            }
+            if (trimmed.endsWith("```")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 3);
+            }
+        }
+        return trimmed.trim();
+    }
+
+    private String extractJsonObject(String text) {
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return text.substring(start, end + 1);
+        }
+        return null;
+    }
+
+    private void initializeAttemptEvidence(String sessionId) {
+        evaluationEvidenceBySession.put(sessionId, new ConcurrentHashMap<>());
+    }
+
+    private void recordEvidence(String sessionId, String agentName, String output) {
+        if (sessionId == null || sessionId.isBlank() || agentName == null || agentName.isBlank()) {
+            return;
+        }
+        Map<String, List<String>> evidence = evaluationEvidenceBySession.computeIfAbsent(
+                sessionId,
+                sid -> new ConcurrentHashMap<>()
+        );
+        List<String> values = evidence.computeIfAbsent(agentName, key -> java.util.Collections.synchronizedList(new ArrayList<>()));
+        values.add(truncateEvidence(output));
+    }
+
+    private String truncateEvidence(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.length() <= MAX_EVIDENCE_CHARS) {
+            return value;
+        }
+        return value.substring(0, MAX_EVIDENCE_CHARS) + "...";
+    }
+
+    private Map<String, List<String>> snapshotEvidence(String sessionId) {
+        Map<String, List<String>> source = evaluationEvidenceBySession.get(sessionId);
+        if (source == null || source.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<String>> copy = new HashMap<>();
+        source.forEach((agent, outputs) -> copy.put(agent, new ArrayList<>(outputs)));
+        return copy;
+    }
+
+    EvaluationDecision parseEvaluationDecisionForTesting(String rawOutput) {
+        return parseEvaluationDecision(rawOutput);
+    }
+
+    static final class EvaluationDecision {
+        private final boolean pass;
+        private final String reason;
+        private final String retryInstruction;
+
+        private EvaluationDecision(boolean pass, String reason, String retryInstruction) {
+            this.pass = pass;
+            this.reason = reason;
+            this.retryInstruction = retryInstruction;
+        }
+
+        static EvaluationDecision pass(String reason) {
+            return new EvaluationDecision(true, reason, "");
+        }
+
+        static EvaluationDecision fail(String reason, String retryInstruction) {
+            return new EvaluationDecision(false, reason, retryInstruction);
+        }
+
+        boolean isPass() {
+            return pass;
+        }
+
+        String reason() {
+            return reason;
+        }
+
+        String retryInstruction() {
+            return retryInstruction;
         }
     }
 
@@ -287,153 +514,6 @@ public class OrchestratorService {
         return false;
     }
 
-    private String tryHandleSimpleStockPriceQuery(String userQuery, String sessionId) {
-        String target = extractSimpleStockPriceTarget(userQuery);
-        if (target == null) {
-            return null;
-        }
-
-        log.info("⚡ Direct stock-price flow triggered for sessionId={}, target={}", sessionId, target);
-        ToolCallAspect.setSessionId(sessionId);
-        try {
-            String toolResult = marketAnalysisAgent.getStockPrice(target);
-            String response = formatSimpleStockPriceResponse(toolResult, target);
-            webSocketService.sendFinalResponse(sessionId, response);
-            return response;
-        } catch (Exception e) {
-            log.warn("Direct stock-price flow failed for target {}: {}", target, e.getMessage());
-            return null;
-        } finally {
-            ToolCallAspect.clearSessionId();
-        }
-    }
-
-    private String extractSimpleStockPriceTarget(String query) {
-        if (query == null || query.trim().isEmpty()) {
-            return null;
-        }
-
-        String normalized = query.trim().replaceAll("\\s+", " ");
-        String lower = normalized.toLowerCase();
-
-        if (!lower.contains("stock price") && !lower.contains("share price")) {
-            return null;
-        }
-
-        // Avoid direct path for complex/comparative questions.
-        String paddedLower = " " + lower + " ";
-        String[] complexSignals = {
-                " compare ", " versus ", " vs ", " trend ", " analysis ", " forecast ",
-                " target ", " historical ", " history ", " sentiment ", " news ", " portfolio ", " and "
-        };
-        for (String signal : complexSignals) {
-            if (paddedLower.contains(signal)) {
-                return null;
-            }
-        }
-
-        String target = null;
-
-        Matcher prefixMatcher = SIMPLE_STOCK_PRICE_PREFIX_PATTERN.matcher(normalized);
-        if (prefixMatcher.matches()) {
-            target = prefixMatcher.group(1);
-        } else {
-            Matcher suffixMatcher = SIMPLE_STOCK_PRICE_SUFFIX_PATTERN.matcher(normalized);
-            if (suffixMatcher.matches()) {
-                target = suffixMatcher.group(1);
-            }
-        }
-
-        if (target == null) {
-            return null;
-        }
-
-        target = stripLeadingQuestionPhrases(target.trim());
-        if (target.endsWith("'s")) {
-            target = target.substring(0, target.length() - 2).trim();
-        }
-        target = target.replaceAll("^\\$+", "").replaceAll("[\\?\\.!,:;]+$", "").trim();
-        target = target.replaceAll("^[\"'`]+|[\"'`]+$", "").trim();
-
-        if (target.isEmpty()) {
-            return null;
-        }
-
-        if (target.split("\\s+").length > 6) {
-            return null;
-        }
-
-        return target;
-    }
-
-    private String stripLeadingQuestionPhrases(String value) {
-        String cleaned = value;
-        String[] prefixes = {
-                "what is ", "what's ", "tell me ", "show me ", "give me ", "can you ", "could you ",
-                "the ", "current ", "latest ", "please "
-        };
-
-        boolean changed;
-        do {
-            changed = false;
-            String lower = cleaned.toLowerCase();
-            for (String prefix : prefixes) {
-                if (lower.startsWith(prefix)) {
-                    cleaned = cleaned.substring(prefix.length()).trim();
-                    changed = true;
-                    break;
-                }
-            }
-        } while (changed && !cleaned.isEmpty());
-
-        return cleaned;
-    }
-
-    private String formatSimpleStockPriceResponse(String toolResultJson, String requestedTarget) {
-        String defaultError = String.format(
-                "I couldn't fetch a live stock price for \"%s\" right now. Please try again in a moment.",
-                requestedTarget
-        );
-
-        if (toolResultJson == null || toolResultJson.trim().isEmpty()) {
-            return defaultError;
-        }
-
-        try {
-            JsonNode root = objectMapper.readTree(toolResultJson);
-            if (root.has("error")) {
-                return String.format(
-                        "I couldn't fetch a live stock price for \"%s\" right now (%s).",
-                        requestedTarget,
-                        root.get("error").asText()
-                );
-            }
-
-            String resolvedSymbol = root.path("symbol").asText("");
-            String requested = root.path("requested").asText("");
-            String price = root.path("price").asText("");
-            String fetchedAt = root.path("fetchedAt").asText("");
-
-            if (resolvedSymbol.isBlank() || price.isBlank()) {
-                return defaultError;
-            }
-
-            String timestampSuffix = fetchedAt.isBlank() ? "" : String.format(" Fetched at %s.", fetchedAt);
-            if (!requested.isBlank() && !requested.equalsIgnoreCase(resolvedSymbol)) {
-                return String.format(
-                        "The current stock price for %s (%s) is $%s USD.%s",
-                        requested, resolvedSymbol, price, timestampSuffix
-                );
-            }
-
-            return String.format("The current stock price for %s is $%s USD.%s", resolvedSymbol, price, timestampSuffix);
-        } catch (Exception e) {
-            log.warn("Unable to parse stock price tool response for target {}: {}", requestedTarget, e.getMessage());
-            return defaultError;
-        }
-    }
-
-
     /**
      * Orchestrator Agent interface - coordinates between different agent LLMs
      */
@@ -461,13 +541,29 @@ public class OrchestratorService {
                 "- **BE EFFICIENT**: Don't call unnecessary agents, but don't miss important data sources\n" +
                 "- **FAIL GRACEFULLY**: If an agent fails, acknowledge it and work with available data\n" +
                 "- **NO STALE MARKET FACTS**: For current prices/news/trends, always use delegated tool responses; never answer from memory\n" +
-                "- **PRESERVE ENTITY IDENTITY**: Never substitute user-requested companies with parent/subsidiary companies from memory\n\n" +
+                "- **PRESERVE ENTITY IDENTITY**: Never substitute user-requested companies with parent/subsidiary companies from memory\n" +
+                "- **SUPPORT EVALUATOR FEEDBACK**: If evaluator feedback is provided, revise by gathering better tool evidence, not by restating unsupported claims\n\n" +
                 "### RESPONSE STYLE:\n" +
                 "- Be professional, concise, and helpful\n" +
                 "- Use formatting (bullet points, bold text) to make data easy to read\n" +
                 "- Address the user directly\n" +
                 "- For simple questions, keep response under 120 words unless the user asks for more detail")
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
+    }
+
+    private interface ResponseEvaluatorAgent {
+        @SystemMessage("You are an evaluator agent for a financial assistant. " +
+                "Assess whether the assistant response should be accepted.\n\n" +
+                "You will receive JSON containing: userQuery, assistantResponse, evidenceByAgent, evaluationPolicy.\n\n" +
+                "Evaluation principles:\n" +
+                "- PASS only if the response clearly addresses the query.\n" +
+                "- For current prices/news/sentiment or user-specific claims, FAIL if evidence is missing or unsupported.\n" +
+                "- FAIL for company/ticker identity mismatch or likely wrong-company substitution.\n" +
+                "- FAIL if the response falls back to stale-memory disclaimers for a request that requires live data.\n" +
+                "- If uncertain, prefer FAIL with a concrete retry instruction.\n\n" +
+                "Respond ONLY as JSON:\n" +
+                "{\"verdict\":\"PASS|FAIL\",\"reason\":\"short reason\",\"retryInstruction\":\"actionable instruction for assistant\"}")
+        String evaluate(@UserMessage String evaluationPayloadJson);
     }
 
     /**
@@ -485,11 +581,13 @@ public class OrchestratorService {
             }
             log.info("🔄 [ORCHESTRATOR] Delegating to UserProfileAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
-            return invokeWithToolTimeout(
+            String result = invokeWithToolTimeout(
                     "UserProfileAgent",
                     sessionId,
                     () -> userProfileAgent.processQuery(sessionId, enrichedQuery)
             );
+            recordEvidence(sessionId, "UserProfileAgent", result);
+            return result;
         }
 
         @Tool("Delegate query to MarketAnalysisAgent. Use for stock prices, market data, technical indicators, price trends, or market analysis. " +
@@ -502,11 +600,13 @@ public class OrchestratorService {
             }
             log.info("🔄 [ORCHESTRATOR] Delegating to MarketAnalysisAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
-            return invokeWithToolTimeout(
+            String result = invokeWithToolTimeout(
                     "MarketAnalysisAgent",
                     sessionId,
                     () -> marketAnalysisAgent.processQuery(sessionId, enrichedQuery)
             );
+            recordEvidence(sessionId, "MarketAnalysisAgent", result);
+            return result;
         }
 
         @Tool("Delegate query to WebSearchAgent. Use for financial news, market research, company information, or recent market developments. " +
@@ -519,11 +619,13 @@ public class OrchestratorService {
             }
             log.info("🔄 [ORCHESTRATOR] Delegating to WebSearchAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
-            return invokeWithToolTimeout(
+            String result = invokeWithToolTimeout(
                     "WebSearchAgent",
                     sessionId,
                     () -> webSearchAgent.processQuery(sessionId, enrichedQuery)
             );
+            recordEvidence(sessionId, "WebSearchAgent", result);
+            return result;
         }
 
         @Tool("Delegate query to FintwitAnalysisAgent. Use for social sentiment, Twitter discussions, fintwit trends, or social media sentiment analysis. " +
@@ -536,11 +638,13 @@ public class OrchestratorService {
             }
             log.info("🔄 [ORCHESTRATOR] Delegating to FintwitAnalysisAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
-            return invokeWithToolTimeout(
+            String result = invokeWithToolTimeout(
                     "FintwitAnalysisAgent",
                     sessionId,
                     () -> fintwitAnalysisAgent.processQuery(sessionId, enrichedQuery)
             );
+            recordEvidence(sessionId, "FintwitAnalysisAgent", result);
+            return result;
         }
     }
 
@@ -563,6 +667,7 @@ public class OrchestratorService {
     public void clearSession(String sessionId) {
         orchestratorCache.remove(sessionId);
         sessionUserIdCache.remove(sessionId);
+        evaluationEvidenceBySession.remove(sessionId);
         log.info("Cleared orchestrator cache for session: {}", sessionId);
     }
 

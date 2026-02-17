@@ -14,9 +14,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
@@ -24,6 +26,11 @@ public class MarketDataService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
     private static final Pattern SYMBOL_PATTERN = Pattern.compile("^[A-Z0-9.\\-]{1,10}$");
+    private static final Set<String> COMPANY_NAME_STOP_WORDS = Set.of(
+            "INC", "INCORPORATED", "CORP", "CORPORATION", "CO", "COMPANY",
+            "LTD", "LIMITED", "PLC", "HOLDING", "HOLDINGS", "GROUP",
+            "CLASS", "ADR", "COMMON", "STOCK", "THE", "SA", "NV", "SE"
+    );
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final String finnhubApiKey;
@@ -188,6 +195,9 @@ public class MarketDataService {
 
     private String selectBestSymbolCandidate(JsonNode results, String query) {
         String normalizedQuery = query.trim().toUpperCase(Locale.ROOT);
+        String normalizedQueryCompact = normalizeForComparison(query).replace(" ", "");
+        Set<String> queryTokens = tokenizeForComparison(query);
+        boolean queryLooksLikeTicker = isLikelySymbol(normalizedQuery);
         int bestScore = Integer.MIN_VALUE;
         String bestSymbol = null;
 
@@ -203,29 +213,51 @@ public class MarketDataService {
             String normalizedRawSymbol = rawSymbol.trim().toUpperCase(Locale.ROOT);
             String description = candidate.path("description").asText("").trim().toUpperCase(Locale.ROOT);
             String type = candidate.path("type").asText("");
+            Set<String> descriptionTokens = tokenizeForComparison(description);
 
             int score = 0;
 
             if (normalizedSymbol.equals(normalizedQuery) || normalizedRawSymbol.equals(normalizedQuery)) {
                 score += 120;
             }
-            if (description.equals(normalizedQuery)) {
-                score += 110;
+            int overlapCount = overlapCount(queryTokens, descriptionTokens);
+            double overlapRatio = queryTokens.isEmpty() ? 0.0 : (double) overlapCount / queryTokens.size();
+            if (overlapRatio >= 1.0) {
+                score += 120;
+            } else if (overlapRatio >= 0.67) {
+                score += 95;
+            } else if (overlapRatio >= 0.34) {
+                score += 45;
             }
-            if (!description.isEmpty() && description.startsWith(normalizedQuery)) {
+
+            String descriptionCompact = normalizeForComparison(description).replace(" ", "");
+            if (!normalizedQueryCompact.isEmpty() && descriptionCompact.contains(normalizedQueryCompact)) {
                 score += 80;
             }
-            if (!description.isEmpty() && description.contains(normalizedQuery)) {
-                score += 60;
-            }
-            if (normalizedSymbol.startsWith(normalizedQuery)) {
+            if (!description.isEmpty() && description.startsWith(normalizedQuery)) {
                 score += 50;
             }
+            if (normalizedSymbol.startsWith(normalizedQuery)) {
+                score += 40;
+            }
+
+            double symbolSimilarity = normalizedSimilarity(normalizedQueryCompact, normalizeForComparison(normalizedSymbol).replace(" ", ""));
+            if (symbolSimilarity >= 0.95) {
+                score += 35;
+            } else if (symbolSimilarity >= 0.85) {
+                score += 20;
+            }
+
             if ("Common Stock".equalsIgnoreCase(type) || "EQS".equalsIgnoreCase(type)) {
                 score += 20;
             }
             if (!normalizedSymbol.contains(".") && !normalizedSymbol.contains(":")) {
                 score += 10;
+            }
+
+            if (!queryLooksLikeTicker && !hasConfidentCompanyNameMatch(query, description, normalizedSymbol)) {
+                log.debug("Rejecting low-confidence candidate '{}' for query '{}'", normalizedSymbol, query);
+                continue;
             }
 
             if (score > bestScore) {
@@ -235,10 +267,123 @@ public class MarketDataService {
         }
 
         // Avoid selecting weak/unrelated matches from broad queries.
-        if (bestScore < 50) {
+        int minimumRequiredScore = queryLooksLikeTicker ? 50 : 90;
+        if (bestScore < minimumRequiredScore) {
             return null;
         }
         return bestSymbol;
+    }
+
+    String selectBestSymbolCandidateForTesting(JsonNode results, String query) {
+        return selectBestSymbolCandidate(results, query);
+    }
+
+    private boolean hasConfidentCompanyNameMatch(String query, String description, String symbol) {
+        Set<String> queryTokens = tokenizeForComparison(query);
+        if (queryTokens.isEmpty()) {
+            return false;
+        }
+
+        Set<String> candidateTokens = new LinkedHashSet<>();
+        candidateTokens.addAll(tokenizeForComparison(description));
+        candidateTokens.addAll(tokenizeForComparison(symbol));
+        int overlap = overlapCount(queryTokens, candidateTokens);
+        double overlapRatio = (double) overlap / queryTokens.size();
+
+        String queryCompact = normalizeForComparison(query).replace(" ", "");
+        String descriptionCompact = normalizeForComparison(description).replace(" ", "");
+        if (!queryCompact.isEmpty() && descriptionCompact.contains(queryCompact)) {
+            return true;
+        }
+        if (overlapRatio >= 0.67) {
+            return true;
+        }
+
+        if (queryTokens.size() == 1) {
+            String queryToken = queryTokens.iterator().next();
+            for (String token : candidateTokens) {
+                if (token.equals(queryToken)) {
+                    return true;
+                }
+                if (token.startsWith(queryToken) && queryToken.length() >= 5) {
+                    return true;
+                }
+                if (normalizedSimilarity(queryToken, token) >= 0.90) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private Set<String> tokenizeForComparison(String value) {
+        Set<String> tokens = new LinkedHashSet<>();
+        String normalized = normalizeForComparison(value);
+        if (normalized.isEmpty()) {
+            return tokens;
+        }
+        String[] rawTokens = normalized.split("\\s+");
+        for (String token : rawTokens) {
+            if (token.isBlank()) {
+                continue;
+            }
+            if (!COMPANY_NAME_STOP_WORDS.contains(token)) {
+                tokens.add(token);
+            }
+        }
+        return tokens;
+    }
+
+    private String normalizeForComparison(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value
+                .toUpperCase(Locale.ROOT)
+                .replace("&", " AND ")
+                .replaceAll("[^A-Z0-9 ]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private int overlapCount(Set<String> a, Set<String> b) {
+        int overlap = 0;
+        for (String token : a) {
+            if (b.contains(token)) {
+                overlap++;
+            }
+        }
+        return overlap;
+    }
+
+    private double normalizedSimilarity(String a, String b) {
+        if (a == null || b == null || a.isBlank() || b.isBlank()) {
+            return 0.0;
+        }
+        int distance = levenshteinDistance(a, b);
+        int maxLen = Math.max(a.length(), b.length());
+        return maxLen == 0 ? 1.0 : 1.0 - ((double) distance / maxLen);
+    }
+
+    private int levenshteinDistance(String a, String b) {
+        int[][] dp = new int[a.length() + 1][b.length() + 1];
+        for (int i = 0; i <= a.length(); i++) {
+            dp[i][0] = i;
+        }
+        for (int j = 0; j <= b.length(); j++) {
+            dp[0][j] = j;
+        }
+        for (int i = 1; i <= a.length(); i++) {
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                dp[i][j] = Math.min(
+                        Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
+                        dp[i - 1][j - 1] + cost
+                );
+            }
+        }
+        return dp[a.length()][b.length()];
     }
 
     private boolean isLikelySymbol(String value) {
