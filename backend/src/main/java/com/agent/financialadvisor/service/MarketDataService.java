@@ -14,11 +14,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
@@ -26,13 +27,9 @@ public class MarketDataService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
     private static final Pattern SYMBOL_PATTERN = Pattern.compile("^[A-Z0-9.\\-]{1,10}$");
-    private static final Set<String> COMPANY_NAME_STOP_WORDS = Set.of(
-            "INC", "INCORPORATED", "CORP", "CORPORATION", "CO", "COMPANY",
-            "LTD", "LIMITED", "PLC", "HOLDING", "HOLDINGS", "GROUP",
-            "CLASS", "ADR", "COMMON", "STOCK", "THE", "SA", "NV", "SE"
-    );
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
+    private final TickerResolver tickerResolver;
     private final String finnhubApiKey;
     private final String finnhubBaseUrl;
     private final Duration timeoutDuration;
@@ -40,12 +37,14 @@ public class MarketDataService {
     public MarketDataService(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
+            TickerResolver tickerResolver,
             @Value("${market-data.finnhub.api-key:}") String finnhubApiKey,
             @Value("${market-data.finnhub.base-url:https://finnhub.io/api/v1}") String finnhubBaseUrl,
             @Value("${market-data.finnhub.timeout-seconds:10}") int timeoutSeconds
     ) {
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
+        this.tickerResolver = tickerResolver;
         this.finnhubApiKey = finnhubApiKey;
         this.finnhubBaseUrl = finnhubBaseUrl;
         this.timeoutDuration = Duration.ofSeconds(timeoutSeconds);
@@ -59,7 +58,7 @@ public class MarketDataService {
 
     /**
      * Resolve a user-provided symbol/company name to a tradable ticker using live market APIs.
-     * Returns null when no confident match can be found.
+     * Uses LLM-based selection over live API candidates.
      */
     public String resolveSymbol(String symbolOrCompany) {
         if (symbolOrCompany == null || symbolOrCompany.trim().isEmpty()) {
@@ -67,8 +66,7 @@ public class MarketDataService {
         }
 
         String cleanedInput = symbolOrCompany.trim();
-        boolean hadDollarPrefix = cleanedInput.startsWith("$");
-        if (hadDollarPrefix && cleanedInput.length() > 1) {
+        if (cleanedInput.startsWith("$") && cleanedInput.length() > 1) {
             cleanedInput = cleanedInput.substring(1).trim();
         }
 
@@ -76,29 +74,21 @@ public class MarketDataService {
             return null;
         }
 
-        String upperInput = cleanedInput.toUpperCase(Locale.ROOT);
-        boolean explicitTickerInput = looksLikeExplicitTickerInput(cleanedInput, hadDollarPrefix);
-
-        // If it already looks like a ticker, validate it first.
-        if (explicitTickerInput) {
-            BigDecimal directPrice = getStockPrice(upperInput);
-            if (directPrice != null) {
-                return upperInput;
-            }
+        List<TickerResolver.Candidate> candidates = buildResolutionCandidates(cleanedInput);
+        if (candidates.isEmpty()) {
+            log.warn("Unable to resolve tradable symbol for input: {} (no candidates)", symbolOrCompany);
+            return null;
         }
 
-        String resolved = searchBestSymbol(cleanedInput);
-        if (resolved != null) {
+        TickerResolver.Decision decision = tickerResolver.resolve(cleanedInput, candidates);
+        if (decision != null && decision.accepted() && decision.symbol() != null && !decision.symbol().isBlank()) {
+            String resolved = decision.symbol().trim().toUpperCase(Locale.ROOT);
+            log.info("Resolved '{}' to '{}' via LLM ticker resolver", cleanedInput, resolved);
             return resolved;
         }
 
-        // Last resort: if user gave a ticker-like input but quote endpoint returned no data,
-        // return normalized input so caller can surface a clear "unavailable/invalid" response.
-        if (explicitTickerInput) {
-            return upperInput;
-        }
-
-        log.warn("Unable to resolve tradable symbol for input: {}", symbolOrCompany);
+        String reason = decision == null ? "no decision returned" : decision.reason();
+        log.warn("Unable to resolve tradable symbol for input: {} ({})", symbolOrCompany, reason);
         return null;
     }
 
@@ -151,11 +141,60 @@ public class MarketDataService {
         return null;
     }
 
-    private String searchBestSymbol(String query) {
+    private List<TickerResolver.Candidate> buildResolutionCandidates(String query) {
+        Map<String, TickerResolver.Candidate> candidatesBySymbol = new LinkedHashMap<>();
+
+        String directProbeSymbol = query.toUpperCase(Locale.ROOT);
+        BigDecimal directPrice = getStockPrice(directProbeSymbol);
+        if (directPrice != null) {
+            candidatesBySymbol.put(
+                    directProbeSymbol,
+                    new TickerResolver.Candidate(
+                            directProbeSymbol,
+                            "Direct quote probe succeeded",
+                            "DIRECT_QUOTE",
+                            true
+                    )
+            );
+        }
+
+        JsonNode results = searchSymbolCandidates(query);
+        if (results != null && results.isArray()) {
+            int maxCandidates = Math.min(results.size(), 20);
+            for (int i = 0; i < maxCandidates; i++) {
+                JsonNode candidate = results.get(i);
+                String displaySymbol = candidate.path("displaySymbol").asText("").trim();
+                String rawSymbol = candidate.path("symbol").asText("").trim();
+                String selectedSymbol = !displaySymbol.isBlank() ? displaySymbol : rawSymbol;
+                if (selectedSymbol.isBlank()) {
+                    continue;
+                }
+
+                String normalizedSymbol = selectedSymbol.toUpperCase(Locale.ROOT);
+                if (!SYMBOL_PATTERN.matcher(normalizedSymbol).matches()) {
+                    continue;
+                }
+
+                candidatesBySymbol.putIfAbsent(
+                        normalizedSymbol,
+                        new TickerResolver.Candidate(
+                                normalizedSymbol,
+                                candidate.path("description").asText(""),
+                                candidate.path("type").asText(""),
+                                false
+                        )
+                );
+            }
+        }
+
+        return new ArrayList<>(candidatesBySymbol.values());
+    }
+
+    private JsonNode searchSymbolCandidates(String query) {
         try {
             if (finnhubApiKey == null || finnhubApiKey.trim().isEmpty()) {
                 log.warn("Finnhub API key not configured");
-                return null;
+                return objectMapper.createArrayNode();
             }
 
             String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
@@ -171,254 +210,23 @@ public class MarketDataService {
             JsonNode json = objectMapper.readTree(response);
             if (json.has("error")) {
                 log.warn("Finnhub symbol search error for {}: {}", query, json.get("error").asText());
-                return null;
+                return objectMapper.createArrayNode();
             }
 
             JsonNode results = json.path("result");
             if (!results.isArray() || results.size() == 0) {
                 log.warn("No symbol search results found for query: {}", query);
-                return null;
+                return objectMapper.createArrayNode();
             }
-
-            String bestSymbol = selectBestSymbolCandidate(results, query);
-            if (bestSymbol != null) {
-                log.info("Resolved '{}' to '{}' via live symbol search", query, bestSymbol);
-            }
-            return bestSymbol;
+            return results;
         } catch (Exception e) {
             if (e.getMessage() != null && e.getMessage().contains("timeout")) {
                 log.warn("Timeout resolving symbol for {}: {}", query, e.getMessage());
             } else {
                 log.error("Error resolving symbol for {}: {}", query, e.getMessage());
             }
-            return null;
+            return objectMapper.createArrayNode();
         }
-    }
-
-    private String selectBestSymbolCandidate(JsonNode results, String query) {
-        String normalizedQuery = query.trim().toUpperCase(Locale.ROOT);
-        String normalizedQueryCompact = normalizeForComparison(query).replace(" ", "");
-        Set<String> queryTokens = tokenizeForComparison(query);
-        boolean queryLooksLikeTicker = looksLikeTickerForSearchRanking(query);
-        int bestScore = Integer.MIN_VALUE;
-        String bestSymbol = null;
-
-        for (JsonNode candidate : results) {
-            String rawDisplaySymbol = candidate.path("displaySymbol").asText("");
-            String rawSymbol = candidate.path("symbol").asText("");
-            String chosenSymbol = !rawDisplaySymbol.isBlank() ? rawDisplaySymbol : rawSymbol;
-            if (chosenSymbol == null || chosenSymbol.isBlank()) {
-                continue;
-            }
-
-            String normalizedSymbol = chosenSymbol.trim().toUpperCase(Locale.ROOT);
-            String normalizedRawSymbol = rawSymbol.trim().toUpperCase(Locale.ROOT);
-            String description = candidate.path("description").asText("").trim().toUpperCase(Locale.ROOT);
-            String type = candidate.path("type").asText("");
-            Set<String> descriptionTokens = tokenizeForComparison(description);
-
-            int score = 0;
-
-            if (normalizedSymbol.equals(normalizedQuery) || normalizedRawSymbol.equals(normalizedQuery)) {
-                score += 120;
-            }
-            int overlapCount = overlapCount(queryTokens, descriptionTokens);
-            double overlapRatio = queryTokens.isEmpty() ? 0.0 : (double) overlapCount / queryTokens.size();
-            if (overlapRatio >= 1.0) {
-                score += 120;
-            } else if (overlapRatio >= 0.67) {
-                score += 95;
-            } else if (overlapRatio >= 0.34) {
-                score += 45;
-            }
-
-            String descriptionCompact = normalizeForComparison(description).replace(" ", "");
-            if (!normalizedQueryCompact.isEmpty() && descriptionCompact.contains(normalizedQueryCompact)) {
-                score += 80;
-            }
-            if (!description.isEmpty() && description.startsWith(normalizedQuery)) {
-                score += 50;
-            }
-            if (normalizedSymbol.startsWith(normalizedQuery)) {
-                score += 40;
-            }
-
-            double symbolSimilarity = normalizedSimilarity(normalizedQueryCompact, normalizeForComparison(normalizedSymbol).replace(" ", ""));
-            if (symbolSimilarity >= 0.95) {
-                score += 35;
-            } else if (symbolSimilarity >= 0.85) {
-                score += 20;
-            }
-
-            if ("Common Stock".equalsIgnoreCase(type) || "EQS".equalsIgnoreCase(type)) {
-                score += 20;
-            }
-            if (!normalizedSymbol.contains(".") && !normalizedSymbol.contains(":")) {
-                score += 10;
-            }
-
-            if (!queryLooksLikeTicker && !hasConfidentCompanyNameMatch(query, description, normalizedSymbol)) {
-                log.debug("Rejecting low-confidence candidate '{}' for query '{}'", normalizedSymbol, query);
-                continue;
-            }
-
-            if (score > bestScore) {
-                bestScore = score;
-                bestSymbol = normalizedSymbol;
-            }
-        }
-
-        // Avoid selecting weak/unrelated matches from broad queries.
-        int minimumRequiredScore = queryLooksLikeTicker ? 50 : 90;
-        if (bestScore < minimumRequiredScore) {
-            return null;
-        }
-        return bestSymbol;
-    }
-
-    private boolean hasConfidentCompanyNameMatch(String query, String description, String symbol) {
-        Set<String> queryTokens = tokenizeForComparison(query);
-        if (queryTokens.isEmpty()) {
-            return false;
-        }
-
-        Set<String> candidateTokens = new LinkedHashSet<>();
-        candidateTokens.addAll(tokenizeForComparison(description));
-        candidateTokens.addAll(tokenizeForComparison(symbol));
-        int overlap = overlapCount(queryTokens, candidateTokens);
-        double overlapRatio = (double) overlap / queryTokens.size();
-
-        String queryCompact = normalizeForComparison(query).replace(" ", "");
-        String descriptionCompact = normalizeForComparison(description).replace(" ", "");
-        if (!queryCompact.isEmpty() && descriptionCompact.contains(queryCompact)) {
-            return true;
-        }
-        if (overlapRatio >= 0.67) {
-            return true;
-        }
-
-        if (queryTokens.size() == 1) {
-            String queryToken = queryTokens.iterator().next();
-            for (String token : candidateTokens) {
-                if (token.equals(queryToken)) {
-                    return true;
-                }
-                if (token.startsWith(queryToken) && queryToken.length() >= 5) {
-                    return true;
-                }
-                if (normalizedSimilarity(queryToken, token) >= 0.90) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private Set<String> tokenizeForComparison(String value) {
-        Set<String> tokens = new LinkedHashSet<>();
-        String normalized = normalizeForComparison(value);
-        if (normalized.isEmpty()) {
-            return tokens;
-        }
-        String[] rawTokens = normalized.split("\\s+");
-        for (String token : rawTokens) {
-            if (token.isBlank()) {
-                continue;
-            }
-            if (!COMPANY_NAME_STOP_WORDS.contains(token)) {
-                tokens.add(token);
-            }
-        }
-        return tokens;
-    }
-
-    private String normalizeForComparison(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        return value
-                .toUpperCase(Locale.ROOT)
-                .replace("&", " AND ")
-                .replaceAll("[^A-Z0-9 ]", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-
-    private int overlapCount(Set<String> a, Set<String> b) {
-        int overlap = 0;
-        for (String token : a) {
-            if (b.contains(token)) {
-                overlap++;
-            }
-        }
-        return overlap;
-    }
-
-    private double normalizedSimilarity(String a, String b) {
-        if (a == null || b == null || a.isBlank() || b.isBlank()) {
-            return 0.0;
-        }
-        int distance = levenshteinDistance(a, b);
-        int maxLen = Math.max(a.length(), b.length());
-        return maxLen == 0 ? 1.0 : 1.0 - ((double) distance / maxLen);
-    }
-
-    private int levenshteinDistance(String a, String b) {
-        int[][] dp = new int[a.length() + 1][b.length() + 1];
-        for (int i = 0; i <= a.length(); i++) {
-            dp[i][0] = i;
-        }
-        for (int j = 0; j <= b.length(); j++) {
-            dp[0][j] = j;
-        }
-        for (int i = 1; i <= a.length(); i++) {
-            for (int j = 1; j <= b.length(); j++) {
-                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
-                dp[i][j] = Math.min(
-                        Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
-                        dp[i - 1][j - 1] + cost
-                );
-            }
-        }
-        return dp[a.length()][b.length()];
-    }
-
-    private boolean looksLikeTickerForSearchRanking(String rawInput) {
-        if (rawInput == null || rawInput.isBlank()) {
-            return false;
-        }
-        String trimmed = rawInput.trim();
-        String upper = trimmed.toUpperCase(Locale.ROOT);
-        return SYMBOL_PATTERN.matcher(upper).matches()
-                && !trimmed.contains(" ")
-                && (trimmed.equals(upper) || upper.matches(".*[0-9.\\-].*"));
-    }
-
-    private boolean looksLikeExplicitTickerInput(String rawInput, boolean hadDollarPrefix) {
-        if (rawInput == null || rawInput.isBlank()) {
-            return false;
-        }
-        String trimmed = rawInput.trim();
-        String upper = trimmed.toUpperCase(Locale.ROOT);
-        if (trimmed.contains(" ") || !SYMBOL_PATTERN.matcher(upper).matches()) {
-            return false;
-        }
-
-        if (hadDollarPrefix) {
-            return true;
-        }
-        if (upper.matches(".*[0-9.\\-].*")) {
-            return true;
-        }
-        if (trimmed.equals(upper)) {
-            return true;
-        }
-
-        // Support common lowercase ticker input (e.g., "tsla"), but avoid interpreting
-        // TitleCase company names like "Figma" as explicit tickers.
-        boolean isAllLower = trimmed.equals(trimmed.toLowerCase(Locale.ROOT));
-        return isAllLower && trimmed.length() <= 4;
     }
 
     /**

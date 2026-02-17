@@ -90,6 +90,9 @@ market-data:
     api-key: ${FINNHUB_API_KEY:}
     base-url: ${FINNHUB_BASE_URL:https://finnhub.io/api/v1}
     timeout-seconds: ${MARKET_DATA_TIMEOUT_SECONDS:10}
+  symbol-resolution:
+    # Number of LLM plan/evaluate attempts for ticker selection
+    max-attempts: ${MARKET_SYMBOL_RESOLUTION_MAX_ATTEMPTS:2}
 
   yahoo-finance:
     base-url: https://query1.finance.yahoo.com/v8/finance/chart

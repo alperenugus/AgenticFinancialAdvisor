@@ -10,6 +10,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,6 +21,7 @@ class MarketDataServiceSymbolSelectionTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private HttpServer httpServer;
     private MarketDataService service;
+    private StubTickerResolver tickerResolver;
     private final Map<String, String> quoteResponses = new ConcurrentHashMap<>();
     private volatile String searchResponse;
 
@@ -38,9 +40,11 @@ class MarketDataServiceSymbolSelectionTest {
         httpServer.start();
 
         searchResponse = "{\"result\":[]}";
+        tickerResolver = new StubTickerResolver();
         service = new MarketDataService(
                 WebClient.builder(),
                 objectMapper,
+                tickerResolver,
                 "test-key",
                 "http://localhost:" + httpServer.getAddress().getPort(),
                 10
@@ -66,13 +70,17 @@ class MarketDataServiceSymbolSelectionTest {
                 }
                 """;
 
+        tickerResolver.nextDecision = new TickerResolver.Decision("FIG", true, "Best company identity match");
         String resolved = service.resolveSymbol("Figma");
 
         assertThat(resolved).isEqualTo("FIG");
+        assertThat(tickerResolver.lastInput).isEqualTo("Figma");
+        assertThat(tickerResolver.lastCandidates).extracting(TickerResolver.Candidate::symbol)
+                .contains("FIG", "FIGS");
     }
 
     @Test
-    void resolveSymbol_ReturnsNullWhenOnlyLowConfidenceCandidatesExist() {
+    void resolveSymbol_ReturnsNullWhenResolverRejectsCandidates() {
         quoteResponses.put("FIGMA", "{\"c\":0}");
         searchResponse = """
                 {
@@ -83,6 +91,7 @@ class MarketDataServiceSymbolSelectionTest {
                 }
                 """;
 
+        tickerResolver.nextDecision = new TickerResolver.Decision(null, false, "No confident match");
         String resolved = service.resolveSymbol("Figma");
 
         assertThat(resolved).isNull();
@@ -92,18 +101,22 @@ class MarketDataServiceSymbolSelectionTest {
     void resolveSymbol_UsesDirectQuoteForTickerInput() {
         quoteResponses.put("TSLA", "{\"c\":300.5}");
 
+        tickerResolver.nextDecision = new TickerResolver.Decision("TSLA", true, "Direct quote candidate");
         String resolved = service.resolveSymbol("TSLA");
 
         assertThat(resolved).isEqualTo("TSLA");
+        assertThat(tickerResolver.lastCandidates).extracting(TickerResolver.Candidate::symbol).contains("TSLA");
+        assertThat(tickerResolver.lastCandidates).anyMatch(TickerResolver.Candidate::directQuoteCandidate);
     }
 
     @Test
-    void resolveSymbol_TickerLikeInputFallsBackToNormalizedTickerWhenUnavailable() {
+    void resolveSymbol_ReturnsNullWhenNoCandidatesFromQuoteOrSearch() {
         quoteResponses.put("ABCD", "{\"c\":0}");
+        tickerResolver.nextDecision = new TickerResolver.Decision("ABCD", true, "Should not be used");
 
         String resolved = service.resolveSymbol("ABCD");
 
-        assertThat(resolved).isEqualTo("ABCD");
+        assertThat(resolved).isNull();
     }
 
     private void writeJson(com.sun.net.httpserver.HttpExchange exchange, String body) throws IOException {
@@ -127,5 +140,18 @@ class MarketDataServiceSymbolSelectionTest {
             }
         }
         return null;
+    }
+
+    private static class StubTickerResolver implements TickerResolver {
+        private Decision nextDecision = new Decision(null, false, "unset");
+        private String lastInput = "";
+        private List<Candidate> lastCandidates = List.of();
+
+        @Override
+        public Decision resolve(String userInput, List<Candidate> candidates) {
+            this.lastInput = userInput;
+            this.lastCandidates = candidates;
+            return nextDecision;
+        }
     }
 }
