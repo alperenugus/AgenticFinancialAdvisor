@@ -2,7 +2,11 @@
 
 ## Overview
 
-This guide covers deploying the Agentic Financial Advisor system using **100% free services** where possible, including Ollama (free LLM) for both development and production.
+> **Important (2026-02 update)**  
+> The current production architecture uses **Groq API models** (no self-hosted Ollama required).  
+> Sections below that describe Ollama deployment are kept as historical reference only.
+
+This guide covers deployment patterns for the Agentic Financial Advisor system.
 
 ## Deployment Options
 

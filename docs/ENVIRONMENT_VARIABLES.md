@@ -39,6 +39,7 @@ GROQ_API_KEY=your_groq_api_key_here
 GROQ_ORCHESTRATOR_MODEL=llama-3.3-70b-versatile
 GROQ_ORCHESTRATOR_TEMPERATURE=0.0
 GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=90  # Increased for comprehensive analysis
+AGENT_EVALUATION_MAX_ATTEMPTS=2       # Orchestrator evaluator-guided retries
 
 # Tool Agent model (fast function calling) - default: llama-3.1-8b-instant
 GROQ_TOOL_AGENT_MODEL=llama-3.1-8b-instant
@@ -47,6 +48,9 @@ GROQ_TOOL_AGENT_TIMEOUT_SECONDS=30
 
 # Market Data API (REQUIRED - get free key from https://finnhub.io/)
 FINNHUB_API_KEY=your_finnhub_api_key_here
+
+# Optional: Symbol resolver retries (planner/selector/evaluator/auditor loop)
+MARKET_SYMBOL_RESOLUTION_MAX_ATTEMPTS=2
 
 # Server Port (Auto-set by Railway - usually don't need to set)
 PORT=8080
@@ -143,11 +147,13 @@ PORT=3000
 - [ ] `PORT=8080` - Usually auto-set
 - [ ] (Optional) `GROQ_ORCHESTRATOR_MODEL` - Default: llama-3.3-70b-versatile (most capable model)
 - [ ] (Optional) `GROQ_ORCHESTRATOR_TIMEOUT_SECONDS` - Default: 90 (increased for comprehensive analysis)
+- [ ] (Optional) `AGENT_EVALUATION_MAX_ATTEMPTS` - Default: 2
 - [ ] (Optional) `GROQ_TOOL_AGENT_MODEL` - Default: llama-3.1-8b-instant
 - [ ] (Optional) `NEWS_API_KEY` - If using NewsAPI
 - [ ] (Optional) `TAVILY_API_KEY` - For web search (recommended) - Get from https://tavily.com
 - [ ] (Optional) `SERPER_API_KEY` - Alternative web search API - Get from https://serper.dev
 - [ ] (Optional) `TWITTER_BEARER_TOKEN` - For direct Twitter API access - Get from https://developer.twitter.com
+- [ ] (Optional) `MARKET_SYMBOL_RESOLUTION_MAX_ATTEMPTS` - Default: 2
 
 ### Frontend Service Variables
 

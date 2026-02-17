@@ -9,10 +9,11 @@ This system uses a **multi-agent architecture with individual LLM instances** wh
 ## ✨ Features
 
 - **Google Sign-In Authentication**: Secure OAuth2 authentication with JWT tokens
-- **Multi-Agent Architecture**: 6 specialized AI agents working in coordination
+- **Multi-Agent Architecture**: 12 LLM agent roles across orchestration, specialists, and symbol-resolution consensus
 - **Intelligent Greeting Handling**: Natural conversation flow with contextual financial guidance
 - **Portfolio & Profile Access**: AI Advisor has full access to user portfolio and profile data for personalized advice
 - **Real-time Market Data**: Integration with Finnhub API for live stock data
+- **Agentic Symbol Resolution**: Planner/selector/evaluator/auditor consensus for company -> ticker mapping
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and analysis
@@ -185,6 +186,7 @@ The frontend will start on `http://localhost:5173`
 
 - **[API Documentation](./API.md)** - Complete API reference
 - **[Architecture](./ARCHITECTURE.md)** - System architecture and design
+- **[Agent Inventory](./docs/AGENT_INVENTORY.md)** - Current LLM agent count and role breakdown
 - **[Google Auth Setup](./docs/GOOGLE_AUTH_SETUP.md)** - Google Sign-In configuration guide
 - **[Deployment Guide](./DEPLOYMENT.md)** - General deployment instructions
 - **[Railway Deployment](./docs/railway/RAILWAY_GUIDE.md)** - Complete Railway deployment guide
@@ -194,69 +196,27 @@ The frontend will start on `http://localhost:5173`
 
 ## 🤖 Agents
 
-### 1. Orchestrator Agent
-Coordinates all other agent LLMs using its own LLM instance. Delegates queries to specialized agent LLMs and synthesizes their responses into final recommendations.
+### Current total: **12 LLM agent roles**
 
-### 2. User Profile Agent
-Has its own LLM instance for reasoning about user profiles and portfolios. Manages user investment preferences, risk tolerance, goals, and constraints. **Also provides portfolio access tools.**
+See [docs/AGENT_INVENTORY.md](./docs/AGENT_INVENTORY.md) for the authoritative list.
 
-**Tools:**
-- `getUserProfile(userId)` - Get user profile (risk tolerance, goals, preferences)
-- `updateRiskTolerance(userId, level)` - Update risk tolerance
-- `getInvestmentGoals(userId)` - Get investment goals
-- `getPortfolio(userId)` - Get complete portfolio with all holdings and current prices
-- `getPortfolioHoldings(userId)` - Get list of stocks user owns
-- `getPortfolioSummary(userId)` - Get portfolio summary (total value, gain/loss, holdings count)
+#### A) Orchestration layer (3)
+1. **OrchestratorAgent** - coordinates specialist delegation and synthesizes final responses
+2. **ResponsePlannerAgent** - builds per-turn execution plans
+3. **ResponseEvaluatorAgent** - evaluates responses against evidence and drives retries
 
-### 3. Market Analysis Agent
-Has its own LLM instance for reasoning about market data. Analyzes stock prices, price trends, and technical indicators.
+#### B) Core specialist layer (5)
+4. **UserProfileAgentService** (`UserProfileAgent`) - profile/portfolio context
+5. **MarketAnalysisAgentService** (`MarketAnalysisAgent`) - prices, trends, technicals
+6. **WebSearchAgentService** (`WebSearchAgent`) - web/news research
+7. **FintwitAnalysisAgentService** (`FintwitAnalysisAgent`) - social sentiment context
+8. **SecurityValidator** (`SecurityAgent`) - input security validation
 
-**Tools:**
-- `getStockPrice(symbol, timeframe)` - Get stock price data
-- `getMarketNews(symbol, dateRange)` - Get relevant news
-- `analyzeTrends(symbol, timeframe)` - Analyze price trends
-- `getTechnicalIndicators(symbol)` - Calculate technical indicators
-
-### 4. Web Search Agent
-Has its own LLM instance for reasoning about web search queries. Searches the web for financial news, analysis, and market insights using Tavily MCP.
-
-**Tools:**
-- `searchFinancialNews(query)` - Search for financial news and market insights
-- `searchStockAnalysis(symbol)` - Search for stock analysis and research reports
-- `searchMarketTrends(query)` - Search for market trends and sector analysis
-- `searchCompanyInfo(symbol)` - Search for company information and earnings
-
-### 5. Fintwit Analysis Agent
-Has its own LLM instance for reasoning about social sentiment. Analyzes social sentiment from financial Twitter (fintwit) for market insights.
-
-**Tools:**
-- `analyzeFintwitSentiment(symbol)` - Analyze social sentiment for a stock
-- `getFintwitTrends(query)` - Get trending topics from financial Twitter
-- `searchFintwitContent(query)` - Search for specific content on financial Twitter
-- `calculateConfidence(factors)` - Calculate confidence score
-- `formatRecommendation(recommendation)` - Format for user
-
-### 7. Stock Discovery Agent
-Discovers stocks in real-time based on user criteria. **No hardcoded stock lists** - uses live market data validation.
-
-**Tools:**
-- `discoverStocks(riskTolerance, sectors, excludeOwned)` - Find stocks matching criteria with real-time validation
-- `validateStockSymbol(symbol)` - Verify if a stock symbol exists and is tradeable
-
-### 8. Portfolio Recommendation Service
-Generates portfolio-level recommendations using AI agents and real-time stock discovery.
-
-**Features:**
-- **Real-time stock discovery** - No hardcoded lists, validates stocks using live market data
-- **Portfolio-focused** - Considers current holdings, diversification, and risk alignment
-- **AI-powered** - Uses orchestrator to analyze stocks in context of user's portfolio
-- **Automatic generation** - Triggers when profile/portfolio changes
-
-**Triggers:**
-- When user profile is created/updated
-- When portfolio holdings are added/removed
-- When user requests recommendations and none exist
-- Manual trigger via `POST /api/advisor/generate-recommendations`
+#### C) Symbol-resolution consensus layer (4)
+9. **SymbolResolutionPlannerAgent** - symbol disambiguation planning
+10. **SymbolSelectionAgent** - candidate ticker selection
+11. **SymbolSelectionEvaluatorAgent** - selection quality evaluation
+12. **SymbolSelectionAuditorAgent** - independent second-pass audit
 
 ## 🧪 Testing
 

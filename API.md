@@ -31,6 +31,18 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
+## Agent Inventory (Current Runtime)
+
+The backend currently runs **12 LLM agent roles**.
+
+- 3 orchestration/governance roles
+- 5 core specialist roles
+- 4 ticker-resolution consensus roles
+
+Authoritative list: `docs/AGENT_INVENTORY.md`
+
+---
+
 ## Authentication Endpoints
 
 ### Get Current User
@@ -292,6 +304,7 @@ GET /api/advisor/status
 ```
 
 **Note:** This endpoint is public (no authentication required) for health checks.
+It reports core runtime service readiness and is not intended to enumerate every internal planner/evaluator/auditor role.
 
 ### Debug Recommendations
 
@@ -547,9 +560,9 @@ interface Recommendation {
 
 ## Rate Limiting
 
-### Alpha Vantage API
-- **Free Tier**: 5 calls per minute, 500 calls per day
-- The system implements basic rate limiting awareness
+### Finnhub API
+- Provider quotas/rate limits depend on your plan tier
+- The system handles upstream failures/timeouts and surfaces tool-level errors when limits are hit
 
 ### Recommendations
 - No rate limiting currently implemented
@@ -665,6 +678,11 @@ These are the tools available to the LLM orchestrator. They're called automatica
 - `analyzeTrends(symbol: string, timeframe: string): string`
 - `getTechnicalIndicators(symbol: string): string`
 
+### Ticker Resolution (Internal Consensus)
+- `MarketDataService.resolveSymbol(symbolOrCompany)` uses `LlmTickerResolver`
+- Resolver roles: planner -> selector -> evaluator -> auditor
+- If consensus is not reached, symbol resolution returns `null` (no guess)
+
 ### WebSearchAgent Tools
 - `searchFinancialNews(query: string): string` - Search for financial news, analysis, and market insights
 - `searchStockAnalysis(symbol: string): string` - Search for stock analysis and research reports
@@ -703,7 +721,7 @@ These are the tools available to the LLM orchestrator. They're called automatica
 - **JWT Token-based API** - All endpoints require authentication
 - **User Management** - User entity with Google OAuth integration
 - **Updated API Endpoints** - Removed `userId` from paths (uses authenticated user)
-- All 6 agents implemented
+- Core specialist and orchestration agents implemented
 - WebSocket support for real-time updates
 - Portfolio management
 - User profile management
@@ -711,7 +729,7 @@ These are the tools available to the LLM orchestrator. They're called automatica
 ### v1.0.0
 - Initial API release
 - Session-based user IDs
-- All 6 agents implemented
+- Initial core agent architecture implemented
 - WebSocket support for real-time updates
 - Portfolio management
 - User profile management

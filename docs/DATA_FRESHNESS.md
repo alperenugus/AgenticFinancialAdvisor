@@ -19,6 +19,19 @@ The system fetches market data from **Finnhub** on each request:
 - **Company profile** (`/stock/profile2`)
 - **Company news** (`/company-news`)
 
+### Symbol Resolution (Agentic Consensus)
+
+Ticker/company mapping is resolved from live candidates using:
+
+- Finnhub quote/search candidate generation
+- Multi-agent consensus (`LlmTickerResolver`):
+  - planner
+  - selector
+  - evaluator
+  - auditor
+
+If consensus is not reached, the system returns unresolved instead of guessing.
+
 ### Optional Additional Sources
 
 - Yahoo Finance (configured in app settings, not primary)

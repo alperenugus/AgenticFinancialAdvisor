@@ -8,7 +8,7 @@ This document describes all input validation checks throughout the application.
 
 **Validations:**
 1. ✅ **Format validation**: Symbol must be 1-10 alphanumeric uppercase characters (regex: `^[A-Z0-9]{1,10}$`)
-2. ✅ **Existence validation**: Symbol must exist in the market (validated by fetching current price from Alpha Vantage)
+2. ✅ **Existence validation**: Symbol must exist in live market data (validated via Finnhub quote/search + resolver consensus)
 3. ✅ **Null/empty check**: Symbol cannot be null or empty
 4. ✅ **Quantity validation**: Must be a positive integer > 0
 5. ✅ **Average price validation**: Must be a positive number > 0
@@ -39,13 +39,17 @@ This document describes all input validation checks throughout the application.
 ### Market Data Service
 
 **`getStockPrice(String symbol)`:**
-- ✅ Checks for Alpha Vantage "Error Message" field
-- ✅ Checks for Alpha Vantage "Note" field (rate limiting)
+- ✅ Checks for Finnhub API errors
 - ✅ Validates price data exists in response
 - ✅ Returns `null` if symbol is invalid or error occurs
 
+**`resolveSymbol(String symbolOrCompany)`:**
+- ✅ Builds live candidate list from Finnhub quote/search
+- ✅ Uses multi-agent resolver (`LlmTickerResolver`) for disambiguation
+- ✅ Planner -> Selector -> Evaluator -> Auditor consensus flow
+- ✅ Returns `null` when no confident consensus is reached (no guessing)
+
 **`validateSymbol(String symbol)`:**
-- ✅ Format validation (1-10 alphanumeric uppercase)
 - ✅ Existence validation (fetches price to verify)
 
 ## User Profile Validation
@@ -101,9 +105,9 @@ This document describes all input validation checks throughout the application.
 
 ### High Priority
 
-1. **Stock Symbol Validation in Agents**
-   - `MarketAnalysisAgent`, `WebSearchAgent`, `FintwitAnalysisAgent` should validate symbols before processing
-   - Currently they handle errors gracefully but don't prevent invalid symbols upfront
+1. **Symbol Validation Observability**
+   - Add metrics on resolver retries/rejections for production monitoring
+   - Track unresolved symbol rates by query category
 
 2. **Query Input Sanitization**
    - `AdvisorController.analyze()` should validate/sanitize user queries

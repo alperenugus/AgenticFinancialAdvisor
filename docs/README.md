@@ -3,6 +3,7 @@
 ## Main Documentation
 
 - **[README.md](../README.md)** - Project overview and quick start
+- **[AGENT_INVENTORY.md](./AGENT_INVENTORY.md)** - Current LLM agent count and roles (source of truth)
 - **[PROJECT_PLAN.md](../PROJECT_PLAN.md)** - Complete project plan and roadmap
 - **[ARCHITECTURE.md](../ARCHITECTURE.md)** - System architecture and design
 - **[API.md](../API.md)** - Complete API documentation
@@ -11,6 +12,9 @@
 ---
 
 ## Railway Deployment
+
+> Note: Some Railway docs in this folder include historical Ollama deployment steps.
+> Current production architecture uses Groq-hosted models (see root `README.md` and `ARCHITECTURE.md`).
 
 - **[RAILWAY_GUIDE.md](./railway/RAILWAY_GUIDE.md)** - **Start here!** Complete Railway deployment guide
 - **[RAILWAY_DEPLOYMENT.md](./railway/RAILWAY_DEPLOYMENT.md)** - Detailed step-by-step instructions
