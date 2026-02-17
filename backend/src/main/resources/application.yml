@@ -77,9 +77,6 @@ agent:
     orchestrator-seconds: ${AGENT_ORCHESTRATOR_TIMEOUT_SECONDS:90}
     # Timeout for security validation checks
     security-seconds: ${AGENT_SECURITY_TIMEOUT_SECONDS:5}
-  self-correction:
-    # Number of orchestrator attempts before returning best effort response
-    max-attempts: ${AGENT_SELF_CORRECTION_MAX_ATTEMPTS:2}
 
 # External API Configuration
 market-data:

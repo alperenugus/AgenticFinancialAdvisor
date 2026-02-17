@@ -3,6 +3,8 @@ package com.agent.financialadvisor.service.orchestrator;
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
 import com.agent.financialadvisor.aspect.ToolCallAspect;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
@@ -18,9 +20,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -28,15 +27,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class OrchestratorService {
 
     private static final Logger log = LoggerFactory.getLogger(OrchestratorService.class);
-    private static final String AGENT_USER_PROFILE = "UserProfileAgent";
-    private static final String AGENT_MARKET_ANALYSIS = "MarketAnalysisAgent";
-    private static final String AGENT_WEB_SEARCH = "WebSearchAgent";
-    private static final String AGENT_FINTWIT = "FintwitAnalysisAgent";
+    private static final Pattern SIMPLE_STOCK_PRICE_SUFFIX_PATTERN =
+            Pattern.compile("(?i)^\\s*(.+?)\\s+(?:stock|share)\\s+price\\s*\\??\\s*$");
+    private static final Pattern SIMPLE_STOCK_PRICE_PREFIX_PATTERN =
+            Pattern.compile("(?i)^\\s*(?:stock|share)\\s+price\\s+(?:of|for)\\s+(.+?)\\s*\\??\\s*$");
     
     private final ChatLanguageModel chatLanguageModel;
     private final UserProfileAgent userProfileAgent;
@@ -45,15 +46,14 @@ public class OrchestratorService {
     private final FintwitAnalysisAgent fintwitAnalysisAgent;
     private final SecurityAgent securityAgent;
     private final WebSocketService webSocketService;
+    private final ObjectMapper objectMapper;
     private final int orchestratorTimeoutSeconds;
     private final int toolCallTimeoutSeconds;
-    private final int selfCorrectionMaxAttempts;
     private final ExecutorService agentToolExecutor;
     
     // Cache for AI service instances per session
     private final Map<String, OrchestratorAgent> orchestratorCache = new ConcurrentHashMap<>();
     private final Map<String, String> sessionUserIdCache = new ConcurrentHashMap<>();
-    private final Map<String, Set<String>> delegatedAgentsBySession = new ConcurrentHashMap<>();
 
     public OrchestratorService(
             ChatLanguageModel chatLanguageModel,
@@ -63,9 +63,9 @@ public class OrchestratorService {
             FintwitAnalysisAgent fintwitAnalysisAgent,
             SecurityAgent securityAgent,
             WebSocketService webSocketService,
+            ObjectMapper objectMapper,
             @Value("${agent.timeout.orchestrator-seconds:90}") int orchestratorTimeoutSeconds,
-            @Value("${agent.timeout.tool-call-seconds:10}") int toolCallTimeoutSeconds,
-            @Value("${agent.self-correction.max-attempts:2}") int selfCorrectionMaxAttempts
+            @Value("${agent.timeout.tool-call-seconds:10}") int toolCallTimeoutSeconds
     ) {
         this.chatLanguageModel = chatLanguageModel;
         this.userProfileAgent = userProfileAgent;
@@ -74,9 +74,9 @@ public class OrchestratorService {
         this.fintwitAnalysisAgent = fintwitAnalysisAgent;
         this.securityAgent = securityAgent;
         this.webSocketService = webSocketService;
+        this.objectMapper = objectMapper;
         this.orchestratorTimeoutSeconds = orchestratorTimeoutSeconds;
         this.toolCallTimeoutSeconds = toolCallTimeoutSeconds;
-        this.selfCorrectionMaxAttempts = Math.max(1, selfCorrectionMaxAttempts);
         this.agentToolExecutor = Executors.newFixedThreadPool(
                 Math.max(4, Runtime.getRuntime().availableProcessors())
         );
@@ -111,6 +111,12 @@ public class OrchestratorService {
                 return greetingResponse;
             }
 
+            // For simple stock-price questions, bypass orchestration and return live tool data directly.
+            String directPriceResponse = tryHandleSimpleStockPriceQuery(userQuery, sessionId);
+            if (directPriceResponse != null) {
+                return directPriceResponse;
+            }
+
             // Execute directly - no planning phase
             return executeQuery(userId, userQuery, sessionId);
         } catch (Exception e) {
@@ -136,7 +142,21 @@ public class OrchestratorService {
             
             CompletableFuture<String> futureResponse = CompletableFuture.supplyAsync(() -> {
                 try {
-                    String result = runSelfCorrectingQuery(orchestrator, sessionId, userId, userQuery);
+                    log.info("🚀 [ORCHESTRATOR] Sending query to orchestrator for sessionId={}", sessionId);
+                    log.info("📤 [ORCHESTRATOR] Query: {}", userQuery);
+                    
+                    // Inject current date into the query so orchestrator knows today's date
+                    String currentDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"));
+                    String queryWithDate = String.format(
+                            "Today's date is %s. Authenticated user id is %s. " +
+                                    "Use this user id for any user profile or portfolio tools. User query: %s",
+                            currentDate,
+                            userId,
+                            userQuery
+                    );
+                    log.info("📅 [ORCHESTRATOR] Query with date context: {}", queryWithDate);
+                    
+                    String result = orchestrator.chat(sessionId, queryWithDate);
                     log.info("✅ [ORCHESTRATOR] Response received for sessionId={}, length={}", sessionId, result != null ? result.length() : 0);
                     if (result != null && result.length() > 0) {
                         // Log first 500 chars of response
@@ -183,200 +203,6 @@ public class OrchestratorService {
             String errorMsg = "I apologize, but I encountered an error while processing your request. Please try again.";
             webSocketService.sendError(sessionId, errorMsg);
             return errorMsg;
-        }
-    }
-
-    private String runSelfCorrectingQuery(
-            OrchestratorAgent orchestrator,
-            String sessionId,
-            String userId,
-            String userQuery
-    ) {
-        String baseQuery = buildBaseOrchestratorQuery(userId, userQuery);
-        String latestResponse = null;
-        String lastFailureReason = null;
-
-        try {
-            for (int attempt = 1; attempt <= selfCorrectionMaxAttempts; attempt++) {
-                delegatedAgentsBySession.put(sessionId, ConcurrentHashMap.newKeySet());
-                String attemptQuery = attempt == 1
-                        ? baseQuery
-                        : buildCorrectiveOrchestratorQuery(baseQuery, latestResponse, lastFailureReason);
-
-                log.info("🚀 [ORCHESTRATOR] Sending query to orchestrator for sessionId={}, attempt={}/{}",
-                        sessionId, attempt, selfCorrectionMaxAttempts);
-                log.info("📤 [ORCHESTRATOR] Query: {}", attemptQuery);
-
-                latestResponse = orchestrator.chat(sessionId, attemptQuery);
-                Set<String> delegatedAgents = snapshotDelegatedAgents(sessionId);
-                ResponseQualityCheck quality = evaluateResponseQuality(userQuery, latestResponse, delegatedAgents);
-                if (quality.isPass()) {
-                    return latestResponse;
-                }
-
-                lastFailureReason = quality.reason();
-                log.warn(
-                        "⚠️ Response quality check failed for sessionId={} on attempt {}/{}: {} (delegated={})",
-                        sessionId, attempt, selfCorrectionMaxAttempts, lastFailureReason, delegatedAgents
-                );
-
-                if (attempt < selfCorrectionMaxAttempts) {
-                    webSocketService.sendReasoning(
-                            sessionId,
-                            "Running a correction pass to ensure the answer is grounded in live tool data."
-                    );
-                }
-            }
-            return latestResponse;
-        } finally {
-            delegatedAgentsBySession.remove(sessionId);
-        }
-    }
-
-    private String buildBaseOrchestratorQuery(String userId, String userQuery) {
-        String currentDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMMM d, yyyy"));
-        return String.format(
-                "Today's date is %s. Authenticated user id is %s. " +
-                        "Use this user id for any user profile or portfolio tools. User query: %s",
-                currentDate,
-                userId,
-                userQuery
-        );
-    }
-
-    private String buildCorrectiveOrchestratorQuery(String baseQuery, String previousResponse, String failureReason) {
-        String truncatedPreviousResponse = previousResponse == null
-                ? "(no previous response)"
-                : previousResponse.substring(0, Math.min(700, previousResponse.length()));
-
-        return baseQuery + "\n\n" +
-                "SELF-CORRECTION REQUIRED:\n" +
-                "- Your previous response failed validation: " + failureReason + "\n" +
-                "- Previous response: " + truncatedPreviousResponse + "\n\n" +
-                "Corrective steps:\n" +
-                "1) Re-evaluate the user intent.\n" +
-                "2) If the question needs current market/user-specific facts, call the right delegate tools before answering.\n" +
-                "3) Ground concrete facts in tool outputs from this turn; do not rely on memory.\n" +
-                "4) If tools fail, say so clearly and avoid guessing.\n" +
-                "Return only the corrected final answer for the user.";
-    }
-
-    private ResponseQualityCheck evaluateResponseQuality(String userQuery, String response, Set<String> delegatedAgents) {
-        if (response == null || response.trim().isEmpty()) {
-            return ResponseQualityCheck.failed("Empty response");
-        }
-
-        String lowerQuery = userQuery == null ? "" : userQuery.toLowerCase(Locale.ROOT);
-        String lowerResponse = response.toLowerCase(Locale.ROOT);
-        boolean asksLiveMarketData = asksForLiveMarketData(lowerQuery);
-        boolean asksUserSpecificData = asksForUserSpecificData(lowerQuery);
-
-        if (asksLiveMarketData) {
-            boolean hasMarketDelegation = delegatedAgents.contains(AGENT_MARKET_ANALYSIS)
-                    || delegatedAgents.contains(AGENT_WEB_SEARCH)
-                    || delegatedAgents.contains(AGENT_FINTWIT);
-            if (!hasMarketDelegation) {
-                return ResponseQualityCheck.failed("Live-data query answered without market-related tool delegation");
-            }
-
-            if (containsRealtimeLimitation(lowerResponse)) {
-                return ResponseQualityCheck.failed("Response still claims missing real-time access after tool flow");
-            }
-        }
-
-        if (asksUserSpecificData && !delegatedAgents.contains(AGENT_USER_PROFILE)) {
-            return ResponseQualityCheck.failed("User-specific query answered without UserProfileAgent delegation");
-        }
-
-        return ResponseQualityCheck.passed();
-    }
-
-    private boolean asksForLiveMarketData(String lowerQuery) {
-        String[] liveSignals = {
-                "stock price", "share price", "current price", "latest price", "today's price",
-                "market news", "latest news", "sentiment", "trend", "technical", "rsi", "moving average"
-        };
-        for (String signal : liveSignals) {
-            if (lowerQuery.contains(signal)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean asksForUserSpecificData(String lowerQuery) {
-        String[] userSignals = {
-                "my portfolio", "my holdings", "my positions", "my risk", "my allocation", "my account"
-        };
-        for (String signal : userSignals) {
-            if (lowerQuery.contains(signal)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean containsRealtimeLimitation(String lowerResponse) {
-        String[] limitationSignals = {
-                "as of my last update",
-                "i don't have access to real-time",
-                "i do not have access to real-time",
-                "i can't access live",
-                "i cannot access live",
-                "training data"
-        };
-        for (String signal : limitationSignals) {
-            if (lowerResponse.contains(signal)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void recordDelegation(String sessionId, String agentName) {
-        if (sessionId == null || sessionId.isBlank()) {
-            return;
-        }
-        delegatedAgentsBySession
-                .computeIfAbsent(sessionId, sid -> ConcurrentHashMap.newKeySet())
-                .add(agentName);
-    }
-
-    private Set<String> snapshotDelegatedAgents(String sessionId) {
-        Set<String> delegated = delegatedAgentsBySession.get(sessionId);
-        if (delegated == null || delegated.isEmpty()) {
-            return Set.of();
-        }
-        return new HashSet<>(delegated);
-    }
-
-    ResponseQualityCheck evaluateResponseQualityForTesting(String userQuery, String response, Set<String> delegatedAgents) {
-        return evaluateResponseQuality(userQuery, response, delegatedAgents == null ? Set.of() : delegatedAgents);
-    }
-
-    static final class ResponseQualityCheck {
-        private final boolean pass;
-        private final String reason;
-
-        private ResponseQualityCheck(boolean pass, String reason) {
-            this.pass = pass;
-            this.reason = reason;
-        }
-
-        static ResponseQualityCheck passed() {
-            return new ResponseQualityCheck(true, "OK");
-        }
-
-        static ResponseQualityCheck failed(String reason) {
-            return new ResponseQualityCheck(false, reason);
-        }
-
-        boolean isPass() {
-            return pass;
-        }
-
-        String reason() {
-            return reason;
         }
     }
 
@@ -461,6 +287,153 @@ public class OrchestratorService {
         return false;
     }
 
+    private String tryHandleSimpleStockPriceQuery(String userQuery, String sessionId) {
+        String target = extractSimpleStockPriceTarget(userQuery);
+        if (target == null) {
+            return null;
+        }
+
+        log.info("⚡ Direct stock-price flow triggered for sessionId={}, target={}", sessionId, target);
+        ToolCallAspect.setSessionId(sessionId);
+        try {
+            String toolResult = marketAnalysisAgent.getStockPrice(target);
+            String response = formatSimpleStockPriceResponse(toolResult, target);
+            webSocketService.sendFinalResponse(sessionId, response);
+            return response;
+        } catch (Exception e) {
+            log.warn("Direct stock-price flow failed for target {}: {}", target, e.getMessage());
+            return null;
+        } finally {
+            ToolCallAspect.clearSessionId();
+        }
+    }
+
+    private String extractSimpleStockPriceTarget(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return null;
+        }
+
+        String normalized = query.trim().replaceAll("\\s+", " ");
+        String lower = normalized.toLowerCase();
+
+        if (!lower.contains("stock price") && !lower.contains("share price")) {
+            return null;
+        }
+
+        // Avoid direct path for complex/comparative questions.
+        String paddedLower = " " + lower + " ";
+        String[] complexSignals = {
+                " compare ", " versus ", " vs ", " trend ", " analysis ", " forecast ",
+                " target ", " historical ", " history ", " sentiment ", " news ", " portfolio ", " and "
+        };
+        for (String signal : complexSignals) {
+            if (paddedLower.contains(signal)) {
+                return null;
+            }
+        }
+
+        String target = null;
+
+        Matcher prefixMatcher = SIMPLE_STOCK_PRICE_PREFIX_PATTERN.matcher(normalized);
+        if (prefixMatcher.matches()) {
+            target = prefixMatcher.group(1);
+        } else {
+            Matcher suffixMatcher = SIMPLE_STOCK_PRICE_SUFFIX_PATTERN.matcher(normalized);
+            if (suffixMatcher.matches()) {
+                target = suffixMatcher.group(1);
+            }
+        }
+
+        if (target == null) {
+            return null;
+        }
+
+        target = stripLeadingQuestionPhrases(target.trim());
+        if (target.endsWith("'s")) {
+            target = target.substring(0, target.length() - 2).trim();
+        }
+        target = target.replaceAll("^\\$+", "").replaceAll("[\\?\\.!,:;]+$", "").trim();
+        target = target.replaceAll("^[\"'`]+|[\"'`]+$", "").trim();
+
+        if (target.isEmpty()) {
+            return null;
+        }
+
+        if (target.split("\\s+").length > 6) {
+            return null;
+        }
+
+        return target;
+    }
+
+    private String stripLeadingQuestionPhrases(String value) {
+        String cleaned = value;
+        String[] prefixes = {
+                "what is ", "what's ", "tell me ", "show me ", "give me ", "can you ", "could you ",
+                "the ", "current ", "latest ", "please "
+        };
+
+        boolean changed;
+        do {
+            changed = false;
+            String lower = cleaned.toLowerCase();
+            for (String prefix : prefixes) {
+                if (lower.startsWith(prefix)) {
+                    cleaned = cleaned.substring(prefix.length()).trim();
+                    changed = true;
+                    break;
+                }
+            }
+        } while (changed && !cleaned.isEmpty());
+
+        return cleaned;
+    }
+
+    private String formatSimpleStockPriceResponse(String toolResultJson, String requestedTarget) {
+        String defaultError = String.format(
+                "I couldn't fetch a live stock price for \"%s\" right now. Please try again in a moment.",
+                requestedTarget
+        );
+
+        if (toolResultJson == null || toolResultJson.trim().isEmpty()) {
+            return defaultError;
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(toolResultJson);
+            if (root.has("error")) {
+                return String.format(
+                        "I couldn't fetch a live stock price for \"%s\" right now (%s).",
+                        requestedTarget,
+                        root.get("error").asText()
+                );
+            }
+
+            String resolvedSymbol = root.path("symbol").asText("");
+            String requested = root.path("requested").asText("");
+            String price = root.path("price").asText("");
+            String fetchedAt = root.path("fetchedAt").asText("");
+
+            if (resolvedSymbol.isBlank() || price.isBlank()) {
+                return defaultError;
+            }
+
+            String timestampSuffix = fetchedAt.isBlank() ? "" : String.format(" Fetched at %s.", fetchedAt);
+            if (!requested.isBlank() && !requested.equalsIgnoreCase(resolvedSymbol)) {
+                return String.format(
+                        "The current stock price for %s (%s) is $%s USD.%s",
+                        requested, resolvedSymbol, price, timestampSuffix
+                );
+            }
+
+            return String.format("The current stock price for %s is $%s USD.%s", resolvedSymbol, price, timestampSuffix);
+        } catch (Exception e) {
+            log.warn("Unable to parse stock price tool response for target {}: {}", requestedTarget, e.getMessage());
+            return defaultError;
+        }
+    }
+
+
     /**
      * Orchestrator Agent interface - coordinates between different agent LLMs
      */
@@ -488,9 +461,7 @@ public class OrchestratorService {
                 "- **BE EFFICIENT**: Don't call unnecessary agents, but don't miss important data sources\n" +
                 "- **FAIL GRACEFULLY**: If an agent fails, acknowledge it and work with available data\n" +
                 "- **NO STALE MARKET FACTS**: For current prices/news/trends, always use delegated tool responses; never answer from memory\n" +
-                "- **PRESERVE ENTITY IDENTITY**: Never substitute user-requested companies with parent/subsidiary companies from memory\n" +
-                "- **SELF-VERIFY TOOL GROUNDING**: Before finalizing, ensure time-sensitive or user-specific claims are backed by delegated tool outputs from this turn\n" +
-                "- **SELF-CORRECT WHEN ASKED**: If prompted to correct a prior answer, rerun delegation as needed instead of rephrasing unsupported claims\n\n" +
+                "- **PRESERVE ENTITY IDENTITY**: Never substitute user-requested companies with parent/subsidiary companies from memory\n\n" +
                 "### RESPONSE STYLE:\n" +
                 "- Be professional, concise, and helpful\n" +
                 "- Use formatting (bullet points, bold text) to make data easy to read\n" +
@@ -512,7 +483,6 @@ public class OrchestratorService {
             if (sessionId == null || userId == null) {
                 return "{\"error\":\"Missing session/user context for UserProfileAgent\"}";
             }
-            recordDelegation(sessionId, AGENT_USER_PROFILE);
             log.info("🔄 [ORCHESTRATOR] Delegating to UserProfileAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
             return invokeWithToolTimeout(
@@ -530,7 +500,6 @@ public class OrchestratorService {
             if (sessionId == null || userId == null) {
                 return "{\"error\":\"Missing session/user context for MarketAnalysisAgent\"}";
             }
-            recordDelegation(sessionId, AGENT_MARKET_ANALYSIS);
             log.info("🔄 [ORCHESTRATOR] Delegating to MarketAnalysisAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
             return invokeWithToolTimeout(
@@ -548,7 +517,6 @@ public class OrchestratorService {
             if (sessionId == null || userId == null) {
                 return "{\"error\":\"Missing session/user context for WebSearchAgent\"}";
             }
-            recordDelegation(sessionId, AGENT_WEB_SEARCH);
             log.info("🔄 [ORCHESTRATOR] Delegating to WebSearchAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
             return invokeWithToolTimeout(
@@ -566,7 +534,6 @@ public class OrchestratorService {
             if (sessionId == null || userId == null) {
                 return "{\"error\":\"Missing session/user context for FintwitAnalysisAgent\"}";
             }
-            recordDelegation(sessionId, AGENT_FINTWIT);
             log.info("🔄 [ORCHESTRATOR] Delegating to FintwitAnalysisAgent: {}", query);
             String enrichedQuery = enrichSubAgentQuery(query, userId);
             return invokeWithToolTimeout(
@@ -596,7 +563,6 @@ public class OrchestratorService {
     public void clearSession(String sessionId) {
         orchestratorCache.remove(sessionId);
         sessionUserIdCache.remove(sessionId);
-        delegatedAgentsBySession.remove(sessionId);
         log.info("Cleared orchestrator cache for session: {}", sessionId);
     }
 

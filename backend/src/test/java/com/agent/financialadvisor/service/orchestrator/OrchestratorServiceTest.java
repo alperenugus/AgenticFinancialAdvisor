@@ -6,6 +6,7 @@ import com.agent.financialadvisor.service.agents.MarketAnalysisAgent;
 import com.agent.financialadvisor.service.agents.SecurityAgent;
 import com.agent.financialadvisor.service.agents.UserProfileAgent;
 import com.agent.financialadvisor.service.agents.WebSearchAgent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,9 +14,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OrchestratorServiceTest {
@@ -53,56 +58,40 @@ class OrchestratorServiceTest {
                 fintwitAnalysisAgent,
                 securityAgent,
                 webSocketService,
+                new ObjectMapper(),
                 90,
-                10,
-                2
+                10
         );
     }
 
     @Test
-    void evaluateResponseQuality_FailsWhenLiveMarketQueryHasNoMarketDelegation() {
-        OrchestratorService.ResponseQualityCheck result = orchestratorService.evaluateResponseQualityForTesting(
-                "What is Tesla stock price right now?",
-                "Tesla is trading around $300.",
-                Set.of()
-        );
+    void coordinateAnalysis_UsesDirectFlowForSimpleStockPriceQuestion() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(marketAnalysisAgent.getStockPrice("figma"))
+                .thenReturn("{\"requested\":\"figma\",\"symbol\":\"FIG\",\"price\":\"42.00\",\"currency\":\"USD\",\"fetchedAt\":\"2026-02-16T00:00:00\"}");
 
-        assertThat(result.isPass()).isFalse();
-        assertThat(result.reason()).contains("Live-data query answered without market-related tool delegation");
+        String result = orchestratorService.coordinateAnalysis("user-1", "figma stock price", "session-1");
+
+        assertThat(result).contains("figma (FIG)");
+        assertThat(result).contains("$42.00");
+        verify(marketAnalysisAgent).getStockPrice("figma");
+        verify(marketAnalysisAgent, never()).processQuery(anyString(), anyString());
+        verify(webSocketService).sendFinalResponse(eq("session-1"), contains("FIG"));
     }
 
     @Test
-    void evaluateResponseQuality_PassesWhenLiveMarketQueryUsesMarketDelegation() {
-        OrchestratorService.ResponseQualityCheck result = orchestratorService.evaluateResponseQualityForTesting(
-                "What is Tesla stock price right now?",
-                "Based on the latest market data, Tesla is trading around $300.",
-                Set.of("MarketAnalysisAgent")
-        );
+    void coordinateAnalysis_ReturnsFriendlyErrorWhenDirectToolFails() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(marketAnalysisAgent.getStockPrice("figma"))
+                .thenReturn("{\"requested\":\"figma\",\"error\":\"Unable to fetch stock price\"}");
 
-        assertThat(result.isPass()).isTrue();
-    }
+        String result = orchestratorService.coordinateAnalysis("user-1", "stock price of figma", "session-2");
 
-    @Test
-    void evaluateResponseQuality_FailsWhenPortfolioQueryWithoutUserProfileDelegation() {
-        OrchestratorService.ResponseQualityCheck result = orchestratorService.evaluateResponseQualityForTesting(
-                "Can you review my portfolio allocation?",
-                "Your portfolio appears concentrated in tech.",
-                Set.of("MarketAnalysisAgent")
-        );
-
-        assertThat(result.isPass()).isFalse();
-        assertThat(result.reason()).contains("User-specific query answered without UserProfileAgent delegation");
-    }
-
-    @Test
-    void evaluateResponseQuality_FailsWhenResponseAdmitsNoRealtimeAccess() {
-        OrchestratorService.ResponseQualityCheck result = orchestratorService.evaluateResponseQualityForTesting(
-                "Give me the latest Apple stock price.",
-                "I don't have access to real-time prices.",
-                Set.of("MarketAnalysisAgent")
-        );
-
-        assertThat(result.isPass()).isFalse();
-        assertThat(result.reason()).contains("missing real-time access");
+        assertThat(result).contains("couldn't fetch a live stock price");
+        verify(marketAnalysisAgent).getStockPrice("figma");
+        verify(marketAnalysisAgent, never()).processQuery(anyString(), anyString());
+        verify(webSocketService).sendFinalResponse(eq("session-2"), contains("couldn't fetch"));
     }
 }
