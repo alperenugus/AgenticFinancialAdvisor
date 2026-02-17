@@ -67,7 +67,8 @@ public class MarketDataService {
         }
 
         String cleanedInput = symbolOrCompany.trim();
-        if (cleanedInput.startsWith("$") && cleanedInput.length() > 1) {
+        boolean hadDollarPrefix = cleanedInput.startsWith("$");
+        if (hadDollarPrefix && cleanedInput.length() > 1) {
             cleanedInput = cleanedInput.substring(1).trim();
         }
 
@@ -76,9 +77,10 @@ public class MarketDataService {
         }
 
         String upperInput = cleanedInput.toUpperCase(Locale.ROOT);
+        boolean explicitTickerInput = looksLikeExplicitTickerInput(cleanedInput, hadDollarPrefix);
 
         // If it already looks like a ticker, validate it first.
-        if (isLikelySymbol(upperInput)) {
+        if (explicitTickerInput) {
             BigDecimal directPrice = getStockPrice(upperInput);
             if (directPrice != null) {
                 return upperInput;
@@ -92,7 +94,7 @@ public class MarketDataService {
 
         // Last resort: if user gave a ticker-like input but quote endpoint returned no data,
         // return normalized input so caller can surface a clear "unavailable/invalid" response.
-        if (isLikelySymbol(upperInput)) {
+        if (explicitTickerInput) {
             return upperInput;
         }
 
@@ -197,7 +199,7 @@ public class MarketDataService {
         String normalizedQuery = query.trim().toUpperCase(Locale.ROOT);
         String normalizedQueryCompact = normalizeForComparison(query).replace(" ", "");
         Set<String> queryTokens = tokenizeForComparison(query);
-        boolean queryLooksLikeTicker = isLikelySymbol(normalizedQuery);
+        boolean queryLooksLikeTicker = looksLikeTickerForSearchRanking(query);
         int bestScore = Integer.MIN_VALUE;
         String bestSymbol = null;
 
@@ -272,10 +274,6 @@ public class MarketDataService {
             return null;
         }
         return bestSymbol;
-    }
-
-    String selectBestSymbolCandidateForTesting(JsonNode results, String query) {
-        return selectBestSymbolCandidate(results, query);
     }
 
     private boolean hasConfidentCompanyNameMatch(String query, String description, String symbol) {
@@ -386,8 +384,41 @@ public class MarketDataService {
         return dp[a.length()][b.length()];
     }
 
-    private boolean isLikelySymbol(String value) {
-        return value != null && SYMBOL_PATTERN.matcher(value).matches();
+    private boolean looksLikeTickerForSearchRanking(String rawInput) {
+        if (rawInput == null || rawInput.isBlank()) {
+            return false;
+        }
+        String trimmed = rawInput.trim();
+        String upper = trimmed.toUpperCase(Locale.ROOT);
+        return SYMBOL_PATTERN.matcher(upper).matches()
+                && !trimmed.contains(" ")
+                && (trimmed.equals(upper) || upper.matches(".*[0-9.\\-].*"));
+    }
+
+    private boolean looksLikeExplicitTickerInput(String rawInput, boolean hadDollarPrefix) {
+        if (rawInput == null || rawInput.isBlank()) {
+            return false;
+        }
+        String trimmed = rawInput.trim();
+        String upper = trimmed.toUpperCase(Locale.ROOT);
+        if (trimmed.contains(" ") || !SYMBOL_PATTERN.matcher(upper).matches()) {
+            return false;
+        }
+
+        if (hadDollarPrefix) {
+            return true;
+        }
+        if (upper.matches(".*[0-9.\\-].*")) {
+            return true;
+        }
+        if (trimmed.equals(upper)) {
+            return true;
+        }
+
+        // Support common lowercase ticker input (e.g., "tsla"), but avoid interpreting
+        // TitleCase company names like "Figma" as explicit tickers.
+        boolean isAllLower = trimmed.equals(trimmed.toLowerCase(Locale.ROOT));
+        return isAllLower && trimmed.length() <= 4;
     }
 
     /**

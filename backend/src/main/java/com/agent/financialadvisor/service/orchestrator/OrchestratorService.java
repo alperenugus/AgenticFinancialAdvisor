@@ -3,7 +3,6 @@ package com.agent.financialadvisor.service.orchestrator;
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
 import com.agent.financialadvisor.aspect.ToolCallAspect;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import dev.langchain4j.agent.tool.Tool;
@@ -23,7 +22,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +50,8 @@ public class OrchestratorService {
     private final int evaluatorMaxAttempts;
     private final ExecutorService agentToolExecutor;
     private final ResponseEvaluatorAgent responseEvaluatorAgent;
+    private final ResponsePlannerAgent responsePlannerAgent;
+    private final EvaluatorDecisionParser evaluatorDecisionParser;
     
     // Cache for AI service instances per session
     private final Map<String, OrchestratorAgent> orchestratorCache = new ConcurrentHashMap<>();
@@ -88,6 +88,10 @@ public class OrchestratorService {
         this.responseEvaluatorAgent = AiServices.builder(ResponseEvaluatorAgent.class)
                 .chatLanguageModel(chatLanguageModel)
                 .build();
+        this.responsePlannerAgent = AiServices.builder(ResponsePlannerAgent.class)
+                .chatLanguageModel(chatLanguageModel)
+                .build();
+        this.evaluatorDecisionParser = new EvaluatorDecisionParser(objectMapper);
         
         log.info("✅ Orchestrator initialized with 5 agents, each with their own LLM instance: UserProfile, MarketAnalysis, WebSearch, Fintwit, Security");
     }
@@ -207,9 +211,10 @@ public class OrchestratorService {
         try {
             for (int attempt = 1; attempt <= evaluatorMaxAttempts; attempt++) {
                 initializeAttemptEvidence(sessionId);
+                String executionPlan = generateExecutionPlan(userQuery, evaluatorFeedback);
                 String prompt = (attempt == 1)
-                        ? baseQuery
-                        : buildCorrectiveOrchestratorQuery(baseQuery, latestResponse, evaluatorFeedback);
+                        ? buildPlannedOrchestratorQuery(baseQuery, executionPlan)
+                        : buildCorrectiveOrchestratorQuery(baseQuery, latestResponse, evaluatorFeedback, executionPlan);
 
                 log.info("🚀 [ORCHESTRATOR] Sending query to orchestrator for sessionId={}, attempt={}/{}",
                         sessionId, attempt, evaluatorMaxAttempts);
@@ -217,15 +222,19 @@ public class OrchestratorService {
 
                 latestResponse = orchestrator.chat(sessionId, prompt);
                 Map<String, List<String>> evidenceSnapshot = snapshotEvidence(sessionId);
-                EvaluationDecision decision = evaluateResponseWithJudge(userQuery, latestResponse, evidenceSnapshot);
+                EvaluatorDecisionParser.EvaluationDecision decision = evaluateResponseWithJudge(
+                        userQuery,
+                        latestResponse,
+                        evidenceSnapshot
+                );
 
                 if (decision.isPass()) {
                     return latestResponse;
                 }
 
-                evaluatorFeedback = decision.retryInstruction();
+                evaluatorFeedback = decision.getRetryInstruction();
                 log.warn("⚠️ Evaluator marked response as FAIL for sessionId={} (attempt {}/{}): {}",
-                        sessionId, attempt, evaluatorMaxAttempts, decision.reason());
+                        sessionId, attempt, evaluatorMaxAttempts, decision.getReason());
 
                 if (attempt < evaluatorMaxAttempts) {
                     webSocketService.sendReasoning(
@@ -252,7 +261,22 @@ public class OrchestratorService {
         );
     }
 
-    private String buildCorrectiveOrchestratorQuery(String baseQuery, String previousResponse, String feedback) {
+    private String buildPlannedOrchestratorQuery(String baseQuery, String executionPlan) {
+        return baseQuery + "\n\n" +
+                "Execution plan (from planner, follow it):\n" +
+                executionPlan + "\n\n" +
+                "Plan-Execute-Verify protocol:\n" +
+                "1) Plan: confirm the required data sources.\n" +
+                "2) Execute: call the right delegate tools.\n" +
+                "3) Verify: ensure final claims are grounded in tool outputs from this turn.";
+    }
+
+    private String buildCorrectiveOrchestratorQuery(
+            String baseQuery,
+            String previousResponse,
+            String feedback,
+            String executionPlan
+    ) {
         String prior = previousResponse == null ? "(no previous response)" :
                 previousResponse.substring(0, Math.min(previousResponse.length(), 600));
         String evaluatorNote = feedback == null || feedback.isBlank()
@@ -260,6 +284,7 @@ public class OrchestratorService {
                 : feedback;
 
         return baseQuery + "\n\n" +
+                "Execution plan (from planner, follow it):\n" + executionPlan + "\n\n" +
                 "EVALUATOR FEEDBACK (must correct): " + evaluatorNote + "\n" +
                 "Previous response excerpt: " + prior + "\n\n" +
                 "Correction protocol:\n" +
@@ -270,7 +295,38 @@ public class OrchestratorService {
                 "Return only the corrected user-facing final answer.";
     }
 
-    private EvaluationDecision evaluateResponseWithJudge(
+    private String generateExecutionPlan(String userQuery, String evaluatorFeedback) {
+        try {
+            String plannerInput = buildPlannerInput(userQuery, evaluatorFeedback);
+            String plan = responsePlannerAgent.plan(plannerInput);
+            if (plan == null || plan.isBlank()) {
+                return defaultPlan();
+            }
+            return plan.substring(0, Math.min(plan.length(), 1200));
+        } catch (Exception e) {
+            log.warn("Planner unavailable, using fallback plan. Error={}", e.getMessage());
+            return defaultPlan();
+        }
+    }
+
+    private String buildPlannerInput(String userQuery, String evaluatorFeedback) throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userQuery", userQuery);
+        if (evaluatorFeedback != null && !evaluatorFeedback.isBlank()) {
+            payload.put("evaluatorFeedback", evaluatorFeedback);
+        }
+        payload.put("instruction",
+                "Return concise JSON plan with keys: objective, requiredAgents, toolTasks, acceptanceChecks.");
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private String defaultPlan() {
+        return "{\"objective\":\"Answer user query accurately\",\"requiredAgents\":[\"MarketAnalysisAgent\"]," +
+                "\"toolTasks\":[\"Fetch missing data via delegate tools\"]," +
+                "\"acceptanceChecks\":[\"Claims grounded in tool evidence\",\"No unsupported assumptions\"]}";
+    }
+
+    private EvaluatorDecisionParser.EvaluationDecision evaluateResponseWithJudge(
             String userQuery,
             String assistantResponse,
             Map<String, List<String>> evidenceByAgent
@@ -278,12 +334,12 @@ public class OrchestratorService {
         try {
             String evaluationInput = buildEvaluationInput(userQuery, assistantResponse, evidenceByAgent);
             String rawEvaluatorOutput = responseEvaluatorAgent.evaluate(evaluationInput);
-            EvaluationDecision decision = parseEvaluationDecision(rawEvaluatorOutput);
-            log.info("🧪 Evaluator verdict={}, reason={}", decision.isPass() ? "PASS" : "FAIL", decision.reason());
+            EvaluatorDecisionParser.EvaluationDecision decision = evaluatorDecisionParser.parse(rawEvaluatorOutput);
+            log.info("🧪 Evaluator verdict={}, reason={}", decision.isPass() ? "PASS" : "FAIL", decision.getReason());
             return decision;
         } catch (Exception e) {
             log.warn("Evaluator failed; returning best-effort response. Error={}", e.getMessage());
-            return EvaluationDecision.pass("Evaluator unavailable");
+            return EvaluatorDecisionParser.EvaluationDecision.pass("Evaluator unavailable");
         }
     }
 
@@ -301,64 +357,6 @@ public class OrchestratorService {
                         "are grounded in evidence. FAIL for unsupported claims, stale-memory disclaimers " +
                         "for current-data requests, or company/ticker mismatches.");
         return objectMapper.writeValueAsString(payload);
-    }
-
-    private EvaluationDecision parseEvaluationDecision(String rawOutput) {
-        if (rawOutput == null || rawOutput.trim().isEmpty()) {
-            return EvaluationDecision.pass("Evaluator returned empty output");
-        }
-
-        String cleaned = stripCodeFences(rawOutput.trim());
-        String jsonSegment = extractJsonObject(cleaned);
-        if (jsonSegment != null) {
-            try {
-                JsonNode root = objectMapper.readTree(jsonSegment);
-                String verdict = root.path("verdict").asText("").trim().toUpperCase(Locale.ROOT);
-                String reason = root.path("reason").asText("No reason provided");
-                String retryInstruction = root.path("retryInstruction").asText(reason);
-                if ("FAIL".equals(verdict)) {
-                    return EvaluationDecision.fail(reason, retryInstruction);
-                }
-                if ("PASS".equals(verdict)) {
-                    return EvaluationDecision.pass(reason);
-                }
-            } catch (Exception ignored) {
-                log.warn("Could not parse evaluator JSON output: {}", rawOutput);
-            }
-        }
-
-        String normalized = cleaned.toUpperCase(Locale.ROOT);
-        if (normalized.startsWith("FAIL")) {
-            return EvaluationDecision.fail("Evaluator indicated failure", cleaned);
-        }
-        if (normalized.startsWith("PASS")) {
-            return EvaluationDecision.pass("Evaluator indicated pass");
-        }
-
-        return EvaluationDecision.pass("Evaluator verdict unclear");
-    }
-
-    private String stripCodeFences(String value) {
-        String trimmed = value.trim();
-        if (trimmed.startsWith("```")) {
-            int firstNewLine = trimmed.indexOf('\n');
-            if (firstNewLine >= 0) {
-                trimmed = trimmed.substring(firstNewLine + 1);
-            }
-            if (trimmed.endsWith("```")) {
-                trimmed = trimmed.substring(0, trimmed.length() - 3);
-            }
-        }
-        return trimmed.trim();
-    }
-
-    private String extractJsonObject(String text) {
-        int start = text.indexOf('{');
-        int end = text.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return text.substring(start, end + 1);
-        }
-        return null;
     }
 
     private void initializeAttemptEvidence(String sessionId) {
@@ -395,42 +393,6 @@ public class OrchestratorService {
         Map<String, List<String>> copy = new HashMap<>();
         source.forEach((agent, outputs) -> copy.put(agent, new ArrayList<>(outputs)));
         return copy;
-    }
-
-    EvaluationDecision parseEvaluationDecisionForTesting(String rawOutput) {
-        return parseEvaluationDecision(rawOutput);
-    }
-
-    static final class EvaluationDecision {
-        private final boolean pass;
-        private final String reason;
-        private final String retryInstruction;
-
-        private EvaluationDecision(boolean pass, String reason, String retryInstruction) {
-            this.pass = pass;
-            this.reason = reason;
-            this.retryInstruction = retryInstruction;
-        }
-
-        static EvaluationDecision pass(String reason) {
-            return new EvaluationDecision(true, reason, "");
-        }
-
-        static EvaluationDecision fail(String reason, String retryInstruction) {
-            return new EvaluationDecision(false, reason, retryInstruction);
-        }
-
-        boolean isPass() {
-            return pass;
-        }
-
-        String reason() {
-            return reason;
-        }
-
-        String retryInstruction() {
-            return retryInstruction;
-        }
     }
 
     /**
@@ -564,6 +526,18 @@ public class OrchestratorService {
                 "Respond ONLY as JSON:\n" +
                 "{\"verdict\":\"PASS|FAIL\",\"reason\":\"short reason\",\"retryInstruction\":\"actionable instruction for assistant\"}")
         String evaluate(@UserMessage String evaluationPayloadJson);
+    }
+
+    private interface ResponsePlannerAgent {
+        @SystemMessage("You are a planning agent for a financial assistant. " +
+                "Create a concise execution plan before tool use.\n\n" +
+                "Rules:\n" +
+                "- Output valid JSON only (no markdown).\n" +
+                "- Prefer only required agents/tools.\n" +
+                "- Include explicit acceptance checks for factual grounding.\n\n" +
+                "JSON schema:\n" +
+                "{\"objective\":\"...\",\"requiredAgents\":[\"...\"],\"toolTasks\":[\"...\"],\"acceptanceChecks\":[\"...\"]}")
+        String plan(@UserMessage String planningPayloadJson);
     }
 
     /**
