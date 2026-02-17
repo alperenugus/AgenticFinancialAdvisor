@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -111,7 +113,7 @@ public class MarketAnalysisAgent {
                 );
             }
             // Include timestamp to show data freshness
-            String timestamp = java.time.LocalDateTime.now().toString();
+            String timestamp = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
             String result;
             if (requestedInput.equalsIgnoreCase(resolvedSymbol)) {
                 result = String.format(

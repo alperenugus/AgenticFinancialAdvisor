@@ -69,12 +69,14 @@ class OrchestratorServiceTest {
         when(securityAgent.validateInput(anyString()))
                 .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
         when(marketAnalysisAgent.getStockPrice("figma"))
-                .thenReturn("{\"requested\":\"figma\",\"symbol\":\"FIG\",\"price\":\"42.00\",\"currency\":\"USD\",\"fetchedAt\":\"2026-02-16T00:00:00\"}");
+                .thenReturn("{\"requested\":\"figma\",\"symbol\":\"FIG\",\"price\":\"42.00\",\"currency\":\"USD\",\"fetchedAt\":\"2026-02-16T23:48:04.292794067\"}");
 
         String result = orchestratorService.coordinateAnalysis("user-1", "figma stock price", "session-1");
 
         assertThat(result).contains("figma (FIG)");
         assertThat(result).contains("$42.00");
+        assertThat(result).contains("as of Feb 16, 2026 11:48 PM UTC");
+        assertThat(result).doesNotContain("2026-02-16T23:48:04.292794067");
         verify(marketAnalysisAgent).getStockPrice("figma");
         verify(marketAnalysisAgent, never()).processQuery(anyString(), anyString());
         verify(webSocketService).sendFinalResponse(eq("session-1"), contains("FIG"));
