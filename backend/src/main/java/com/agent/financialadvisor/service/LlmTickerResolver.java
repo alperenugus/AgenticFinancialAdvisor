@@ -8,6 +8,7 @@ import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 public class LlmTickerResolver implements TickerResolver {
@@ -25,22 +25,48 @@ public class LlmTickerResolver implements TickerResolver {
 
     private final ObjectMapper objectMapper;
     private final int maxAttempts;
+    private final SymbolResolutionPlannerAgent plannerAgent;
     private final SymbolSelectionAgent selectionAgent;
     private final SymbolSelectionEvaluatorAgent evaluatorAgent;
+    private final SymbolSelectionAuditorAgent auditorAgent;
 
+    @Autowired
     public LlmTickerResolver(
-            @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel,
+            ChatLanguageModel orchestratorModel,
+            @Qualifier("agentChatLanguageModel") ChatLanguageModel selectorModel,
             ObjectMapper objectMapper,
             @Value("${market-data.symbol-resolution.max-attempts:2}") int maxAttempts
     ) {
         this.objectMapper = objectMapper;
         this.maxAttempts = Math.max(1, maxAttempts);
+        this.plannerAgent = AiServices.builder(SymbolResolutionPlannerAgent.class)
+                .chatLanguageModel(orchestratorModel)
+                .build();
         this.selectionAgent = AiServices.builder(SymbolSelectionAgent.class)
-                .chatLanguageModel(chatLanguageModel)
+                .chatLanguageModel(selectorModel)
                 .build();
         this.evaluatorAgent = AiServices.builder(SymbolSelectionEvaluatorAgent.class)
-                .chatLanguageModel(chatLanguageModel)
+                .chatLanguageModel(orchestratorModel)
                 .build();
+        this.auditorAgent = AiServices.builder(SymbolSelectionAuditorAgent.class)
+                .chatLanguageModel(selectorModel)
+                .build();
+    }
+
+    LlmTickerResolver(
+            ObjectMapper objectMapper,
+            int maxAttempts,
+            SymbolResolutionPlannerAgent plannerAgent,
+            SymbolSelectionAgent selectionAgent,
+            SymbolSelectionEvaluatorAgent evaluatorAgent,
+            SymbolSelectionAuditorAgent auditorAgent
+    ) {
+        this.objectMapper = objectMapper;
+        this.maxAttempts = Math.max(1, maxAttempts);
+        this.plannerAgent = plannerAgent;
+        this.selectionAgent = selectionAgent;
+        this.evaluatorAgent = evaluatorAgent;
+        this.auditorAgent = auditorAgent;
     }
 
     @Override
@@ -49,41 +75,75 @@ public class LlmTickerResolver implements TickerResolver {
             return new Decision(null, false, "No candidates available for ticker resolution");
         }
 
+        String planningNotes = buildPlanningNotes(userInput, candidates);
         String feedback = null;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-            String selectedSymbol = selectSymbol(userInput, candidates, feedback);
+            String selectedSymbol = selectSymbol(userInput, candidates, planningNotes, feedback);
             if (selectedSymbol == null || selectedSymbol.isBlank()) {
                 feedback = "No symbol selected. Choose the best match from candidates or return null.";
                 continue;
             }
 
-            if (!containsCandidate(candidates, selectedSymbol)) {
-                feedback = "Selected symbol must be one of the provided candidates.";
+            EvaluationVerdict evaluatorVerdict = evaluateSelection(userInput, candidates, selectedSymbol, planningNotes);
+            if (!evaluatorVerdict.pass()) {
+                feedback = evaluatorVerdict.reason();
+                log.info("Ticker evaluator rejected symbol={} for input='{}' on attempt {}/{}: {}",
+                        selectedSymbol, userInput, attempt, maxAttempts, feedback);
                 continue;
             }
 
-            EvaluationVerdict verdict = evaluateSelection(userInput, candidates, selectedSymbol);
-            if (verdict.pass()) {
-                return new Decision(selectedSymbol, true, verdict.reason());
+            EvaluationVerdict auditorVerdict = auditSelection(
+                    userInput,
+                    candidates,
+                    selectedSymbol,
+                    planningNotes,
+                    evaluatorVerdict.reason()
+            );
+            if (auditorVerdict.pass()) {
+                String reason = "Evaluator: " + evaluatorVerdict.reason() + " | Auditor: " + auditorVerdict.reason();
+                return new Decision(selectedSymbol, true, reason);
             }
 
-            feedback = verdict.reason();
-            log.info("Ticker evaluator rejected symbol={} for input='{}' on attempt {}/{}: {}",
+            feedback = auditorVerdict.reason();
+            log.info("Ticker auditor rejected symbol={} for input='{}' on attempt {}/{}: {}",
                     selectedSymbol, userInput, attempt, maxAttempts, feedback);
         }
 
         return new Decision(null, false, "LLM resolver could not produce a confident ticker selection");
     }
 
-    private String selectSymbol(String userInput, List<Candidate> candidates, String feedback) {
+    private String buildPlanningNotes(String userInput, List<Candidate> candidates) {
         try {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("userInput", userInput);
             payload.put("candidates", candidates);
+            payload.put("instruction", "Create concise disambiguation notes for ticker selection.");
+            String raw = plannerAgent.plan(objectMapper.writeValueAsString(payload));
+            if (raw == null || raw.isBlank()) {
+                return "{\"objective\":\"Select correct ticker\",\"checks\":[\"identity match\",\"avoid lookalikes\"]}";
+            }
+            return raw.substring(0, Math.min(raw.length(), 800));
+        } catch (Exception e) {
+            log.warn("Ticker planning failed for '{}': {}", userInput, e.getMessage());
+            return "{\"objective\":\"Select correct ticker\",\"checks\":[\"identity match\",\"avoid lookalikes\"]}";
+        }
+    }
+
+    private String selectSymbol(
+            String userInput,
+            List<Candidate> candidates,
+            String planningNotes,
+            String feedback
+    ) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("userInput", userInput);
+            payload.put("candidates", candidates);
+            payload.put("planningNotes", planningNotes);
             if (feedback != null && !feedback.isBlank()) {
                 payload.put("feedback", feedback);
             }
-            payload.put("instruction", "Choose one candidate symbol or null if no confident match.");
+            payload.put("instruction", "Choose one candidate symbol or null if no confident match. Use only provided candidates.");
             String raw = selectionAgent.select(objectMapper.writeValueAsString(payload));
             return parseSelectedSymbol(raw);
         } catch (Exception e) {
@@ -92,18 +152,47 @@ public class LlmTickerResolver implements TickerResolver {
         }
     }
 
-    private EvaluationVerdict evaluateSelection(String userInput, List<Candidate> candidates, String selectedSymbol) {
+    private EvaluationVerdict evaluateSelection(
+            String userInput,
+            List<Candidate> candidates,
+            String selectedSymbol,
+            String planningNotes
+    ) {
         try {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("userInput", userInput);
             payload.put("selectedSymbol", selectedSymbol);
             payload.put("candidates", candidates);
-            payload.put("criteria", "PASS if selectedSymbol best matches userInput identity; FAIL otherwise.");
+            payload.put("planningNotes", planningNotes);
+            payload.put("criteria", "PASS if selectedSymbol best matches userInput identity and is from candidates; FAIL otherwise.");
             String raw = evaluatorAgent.evaluate(objectMapper.writeValueAsString(payload));
             return parseEvaluationVerdict(raw);
         } catch (Exception e) {
             log.warn("Ticker evaluation failed for '{}': {}", userInput, e.getMessage());
             return EvaluationVerdict.pass("Evaluator unavailable");
+        }
+    }
+
+    private EvaluationVerdict auditSelection(
+            String userInput,
+            List<Candidate> candidates,
+            String selectedSymbol,
+            String planningNotes,
+            String evaluatorReason
+    ) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("userInput", userInput);
+            payload.put("selectedSymbol", selectedSymbol);
+            payload.put("candidates", candidates);
+            payload.put("planningNotes", planningNotes);
+            payload.put("evaluatorReason", evaluatorReason);
+            payload.put("criteria", "Independent audit: PASS only if selection is safe and identity-correct.");
+            String raw = auditorAgent.audit(objectMapper.writeValueAsString(payload));
+            return parseEvaluationVerdict(raw);
+        } catch (Exception e) {
+            log.warn("Ticker auditing failed for '{}': {}", userInput, e.getMessage());
+            return EvaluationVerdict.pass("Auditor unavailable");
         }
     }
 
@@ -121,16 +210,13 @@ public class LlmTickerResolver implements TickerResolver {
             }
             return symbol;
         } catch (Exception ignored) {
-            String fallback = cleaned.toUpperCase(Locale.ROOT)
-                    .replaceAll("[^A-Z0-9.\\-]", "")
-                    .trim();
-            return fallback.isBlank() ? null : fallback;
+            return null;
         }
     }
 
     private EvaluationVerdict parseEvaluationVerdict(String rawOutput) {
         if (rawOutput == null || rawOutput.trim().isEmpty()) {
-            return EvaluationVerdict.pass("Evaluator returned empty output");
+            return EvaluationVerdict.fail("Evaluator returned empty output");
         }
 
         String cleaned = stripCodeFences(rawOutput.trim());
@@ -145,25 +231,10 @@ public class LlmTickerResolver implements TickerResolver {
             if ("PASS".equals(verdict)) {
                 return EvaluationVerdict.pass(reason);
             }
-        } catch (Exception ignored) {
-            // Fallback to text parsing
+        } catch (Exception e) {
+            return EvaluationVerdict.fail("Evaluator returned non-JSON output: " + e.getMessage());
         }
-
-        String normalized = cleaned.toUpperCase(Locale.ROOT);
-        if (normalized.startsWith("FAIL")) {
-            return EvaluationVerdict.fail(cleaned);
-        }
-        if (normalized.startsWith("PASS")) {
-            return EvaluationVerdict.pass(cleaned);
-        }
-        return EvaluationVerdict.pass("Evaluator verdict unclear");
-    }
-
-    private boolean containsCandidate(List<Candidate> candidates, String symbol) {
-        Set<String> symbols = candidates.stream()
-                .map(c -> c.symbol() == null ? "" : c.symbol().trim().toUpperCase(Locale.ROOT))
-                .collect(java.util.stream.Collectors.toSet());
-        return symbols.contains(symbol.toUpperCase(Locale.ROOT));
+        return EvaluationVerdict.fail("Evaluator verdict missing PASS/FAIL");
     }
 
     private String stripCodeFences(String text) {
@@ -189,7 +260,14 @@ public class LlmTickerResolver implements TickerResolver {
         return value;
     }
 
-    private interface SymbolSelectionAgent {
+    interface SymbolResolutionPlannerAgent {
+        @SystemMessage("You are a planning agent for stock symbol resolution.\n" +
+                "Analyze user input and candidate list to produce disambiguation guidance.\n" +
+                "Respond in concise JSON with keys objective, risks, checks.")
+        String plan(@UserMessage String payloadJson);
+    }
+
+    interface SymbolSelectionAgent {
         @SystemMessage("You are a stock ticker selection agent.\n" +
                 "Given user input and a list of live candidates, choose the single best symbol.\n" +
                 "Rules:\n" +
@@ -200,13 +278,22 @@ public class LlmTickerResolver implements TickerResolver {
         String select(@UserMessage String payloadJson);
     }
 
-    private interface SymbolSelectionEvaluatorAgent {
+    interface SymbolSelectionEvaluatorAgent {
         @SystemMessage("You are an evaluator for ticker selection.\n" +
                 "Given user input, candidates, and selectedSymbol, verify selection quality.\n" +
-                "PASS only if identity match is strong.\n" +
+                "PASS only if identity match is strong and selectedSymbol exists in candidate list.\n" +
                 "FAIL if there is a likely company/ticker mismatch.\n" +
                 "Respond ONLY as JSON: {\"verdict\":\"PASS|FAIL\",\"reason\":\"...\"}")
         String evaluate(@UserMessage String payloadJson);
+    }
+
+    interface SymbolSelectionAuditorAgent {
+        @SystemMessage("You are an independent auditor for ticker selection.\n" +
+                "Use user input, candidate list, selectedSymbol, and evaluator reason.\n" +
+                "Perform an independent second check.\n" +
+                "PASS only if the symbol is safe to use and identity-consistent.\n" +
+                "Respond ONLY as JSON: {\"verdict\":\"PASS|FAIL\",\"reason\":\"...\"}")
+        String audit(@UserMessage String payloadJson);
     }
 
     private record EvaluationVerdict(boolean pass, String reason) {

@@ -20,13 +20,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 @Service
 public class MarketDataService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
-    private static final Pattern SYMBOL_PATTERN = Pattern.compile("^[A-Z0-9.\\-]{1,10}$");
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
     private final TickerResolver tickerResolver;
@@ -171,10 +169,6 @@ public class MarketDataService {
                 }
 
                 String normalizedSymbol = selectedSymbol.toUpperCase(Locale.ROOT);
-                if (!SYMBOL_PATTERN.matcher(normalizedSymbol).matches()) {
-                    continue;
-                }
-
                 candidatesBySymbol.putIfAbsent(
                         normalizedSymbol,
                         new TickerResolver.Candidate(
@@ -238,13 +232,7 @@ public class MarketDataService {
         if (symbol == null || symbol.trim().isEmpty()) {
             return false;
         }
-        
-        // Basic format validation (alphanumeric, 1-10 characters)
-        if (!symbol.matches("^[A-Z0-9]{1,10}$")) {
-            log.warn("Symbol {} does not match valid format (1-10 alphanumeric uppercase)", symbol);
-            return false;
-        }
-        
+
         // Try to fetch price to validate symbol exists
         BigDecimal price = getStockPrice(symbol);
         return price != null;
