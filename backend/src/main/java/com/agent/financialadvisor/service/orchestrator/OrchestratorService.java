@@ -168,6 +168,7 @@ public class OrchestratorService {
      */
     private String runPlanExecuteEvaluate(String userId, String userQuery, String sessionId) {
         String lastFeedback = null;
+        Map<String, String> lastResults = null;
 
         for (int attempt = 0; attempt <= MAX_PLAN_RETRIES; attempt++) {
             if (attempt > 0) {
@@ -179,11 +180,14 @@ public class OrchestratorService {
             // --- PLAN ---
             webSocketService.sendReasoning(sessionId, "📋 Analyzing your question and creating a plan...");
             String plannerInput = buildPlannerInput(userQuery, userId, sessionId, lastFeedback);
+            log.info("📤 [PLAN] Planner input for attempt {}: {}", attempt,
+                    plannerInput.length() > 500 ? plannerInput.substring(0, 500) + "..." : plannerInput);
+
             String planJson;
             try {
                 planJson = plannerAgent.createPlan(plannerInput);
             } catch (Exception e) {
-                log.error("❌ Planner failed on attempt {}: {}", attempt, e.getMessage(), e);
+                log.error("❌ [PLAN] Planner failed on attempt {}: {}", attempt, e.getMessage(), e);
                 if (attempt < MAX_PLAN_RETRIES) {
                     lastFeedback = "Planner failed: " + e.getMessage() + ". Try a simpler, more direct plan.";
                     continue;
@@ -191,15 +195,23 @@ public class OrchestratorService {
                 return "I apologize, but I had trouble understanding your request. Please try rephrasing your question.";
             }
 
+            log.info("📥 [PLAN] Raw planner response (attempt {}): {}", attempt, planJson);
+
             JsonNode plan = extractJson(planJson);
             if (plan == null) {
-                log.warn("⚠️ Could not parse plan JSON: {}", planJson);
+                log.warn("⚠️ [PLAN] Could not parse plan JSON on attempt {}: {}", attempt, planJson);
                 if (attempt < MAX_PLAN_RETRIES) {
                     lastFeedback = "Previous plan was not valid JSON. Produce a simpler, valid JSON plan.";
                     continue;
                 }
                 return "I apologize, but I had trouble processing your request. Please try again.";
             }
+
+            log.info("📋 [PLAN] Parsed plan (attempt {}): queryType={}, directResponse={}, steps={}",
+                    attempt,
+                    plan.path("queryType").asText("?"),
+                    plan.path("directResponse").asText("null"),
+                    plan.path("steps").size());
 
             // Check for direct response (greetings, chitchat)
             String directResponse = plan.path("directResponse").asText(null);
@@ -211,17 +223,30 @@ public class OrchestratorService {
             // --- EXECUTE ---
             JsonNode stepsNode = plan.path("steps");
             if (!stepsNode.isArray() || stepsNode.isEmpty()) {
-                log.warn("⚠️ Plan has no execution steps");
+                log.warn("⚠️ [EXECUTE] Plan has no execution steps on attempt {}", attempt);
                 return "I'm not sure how to help with that. Could you please ask a question about " +
                        "stocks, portfolios, or financial markets?";
             }
 
             int stepCount = Math.min(stepsNode.size(), MAX_PLAN_STEPS);
+            for (int s = 0; s < stepCount; s++) {
+                log.info("📋 [EXECUTE] Step {}: agent={}, task={}", s + 1,
+                        stepsNode.get(s).path("agent").asText("?"),
+                        stepsNode.get(s).path("task").asText("?"));
+            }
             webSocketService.sendReasoning(sessionId,
                     "🔧 Executing plan with " + stepCount + " step(s)...");
 
             Map<String, String> results = executePlanSteps(stepsNode, userId, sessionId);
-            log.info("✅ Execution complete: {} results collected for sessionId={}", results.size(), sessionId);
+            lastResults = results;
+            log.info("✅ [EXECUTE] Execution complete: {} results collected for sessionId={}", results.size(), sessionId);
+            for (Map.Entry<String, String> entry : results.entrySet()) {
+                String preview = entry.getValue();
+                if (preview != null && preview.length() > 300) {
+                    preview = preview.substring(0, 300) + "...";
+                }
+                log.info("📥 [EXECUTE] {}: {}", entry.getKey(), preview);
+            }
 
             // --- EVALUATE ---
             webSocketService.sendReasoning(sessionId, "🔍 Analyzing results...");
@@ -230,32 +255,42 @@ public class OrchestratorService {
             try {
                 evaluationJson = evaluatorAgent.evaluate(evaluationInput);
             } catch (Exception e) {
-                log.error("❌ Evaluator failed: {}", e.getMessage(), e);
+                log.error("❌ [EVALUATE] Evaluator failed: {}", e.getMessage(), e);
                 return buildFallbackResponse(results);
             }
 
+            log.info("📥 [EVALUATE] Raw evaluator response (attempt {}): {}", attempt,
+                    evaluationJson != null && evaluationJson.length() > 500
+                            ? evaluationJson.substring(0, 500) + "..." : evaluationJson);
+
             JsonNode evaluation = extractJson(evaluationJson);
             if (evaluation == null) {
-                log.warn("⚠️ Could not parse evaluation JSON, using raw evaluator output");
+                log.warn("⚠️ [EVALUATE] Could not parse evaluation JSON, using raw evaluator output");
                 return evaluationJson != null ? evaluationJson.trim() : buildFallbackResponse(results);
             }
 
             String verdict = evaluation.path("verdict").asText("PASS");
+            log.info("🔍 [EVALUATE] Verdict={} for attempt {} sessionId={}", verdict, attempt, sessionId);
 
             if ("PASS".equalsIgnoreCase(verdict)) {
                 String response = evaluation.path("response").asText("");
                 if (response.isEmpty()) {
+                    log.warn("⚠️ [EVALUATE] PASS verdict but empty response, using fallback");
                     return buildFallbackResponse(results);
                 }
-                log.info("✅ Evaluator PASSED for sessionId={}", sessionId);
+                log.info("✅ [EVALUATE] PASSED - response length={}", response.length());
                 return response;
             }
 
             // RETRY requested by evaluator
             lastFeedback = evaluation.path("feedback").asText("Results were insufficient. Try a different approach.");
-            log.info("🔄 Evaluator requested RETRY: {}", lastFeedback);
+            log.info("🔄 [EVALUATE] Evaluator requested RETRY (attempt {}): {}", attempt, lastFeedback);
         }
 
+        log.warn("⚠️ All {} attempts exhausted for sessionId={}", MAX_PLAN_RETRIES + 1, sessionId);
+        if (lastResults != null && !lastResults.isEmpty()) {
+            return buildFallbackResponse(lastResults);
+        }
         return "I apologize, but I wasn't able to fully answer your question after multiple attempts. " +
                "Please try rephrasing your question or asking something more specific.";
     }
@@ -349,21 +384,36 @@ public class OrchestratorService {
 
     /**
      * Execute a single agent task by routing to the appropriate sub-agent.
+     * Agent name matching is flexible to handle LLM naming variations
+     * (e.g., "MARKET_ANALYSIS", "MarketAnalysis", "Market Analysis" all work).
      */
     private String executeAgentTask(String agentName, String task, String userId, String sessionId) {
         String enrichedTask = enrichSubAgentQuery(task, userId);
-        log.info("🔄 [ORCHESTRATOR] Executing: agent={}, task={}", agentName, task);
+        String normalized = agentName.toUpperCase().replaceAll("[\\s_\\-]+", "");
+        log.info("🔄 [ORCHESTRATOR] Executing: agent={} (normalized={}), task={}", agentName, normalized, task);
 
-        return switch (agentName.toUpperCase()) {
-            case "MARKET_ANALYSIS" -> marketAnalysisAgent.processQuery(sessionId, enrichedTask);
-            case "USER_PROFILE" -> userProfileAgent.processQuery(sessionId, enrichedTask);
-            case "WEB_SEARCH" -> webSearchAgent.processQuery(sessionId, enrichedTask);
-            case "FINTWIT" -> fintwitAnalysisAgent.processQuery(sessionId, enrichedTask);
-            default -> {
-                log.warn("⚠️ Unknown agent in plan: {}", agentName);
-                yield "{\"error\":\"Unknown agent: " + agentName + "\"}";
+        try {
+            String result = switch (normalized) {
+                case "MARKETANALYSIS", "MARKET" -> marketAnalysisAgent.processQuery(sessionId, enrichedTask);
+                case "USERPROFILE", "USER", "PROFILE" -> userProfileAgent.processQuery(sessionId, enrichedTask);
+                case "WEBSEARCH", "WEB", "SEARCH" -> webSearchAgent.processQuery(sessionId, enrichedTask);
+                case "FINTWIT", "FINTWITANALYSIS", "TWITTER", "SENTIMENT" ->
+                        fintwitAnalysisAgent.processQuery(sessionId, enrichedTask);
+                default -> {
+                    log.warn("⚠️ Unknown agent in plan: {} (normalized: {}). Available: MARKET_ANALYSIS, USER_PROFILE, WEB_SEARCH, FINTWIT",
+                            agentName, normalized);
+                    yield "{\"error\":\"Unknown agent: " + agentName + ". Available: MARKET_ANALYSIS, USER_PROFILE, WEB_SEARCH, FINTWIT\"}";
+                }
+            };
+            if (result == null || result.trim().isEmpty()) {
+                log.warn("⚠️ Agent {} returned null/empty result for task: {}", agentName, task);
+                return "{\"error\":\"Agent " + agentName + " returned no data\"}";
             }
-        };
+            return result;
+        } catch (Exception e) {
+            log.error("❌ Agent {} threw exception: {}", agentName, e.getMessage(), e);
+            return "{\"error\":\"Agent " + agentName + " failed: " + e.getMessage() + "\"}";
+        }
     }
 
     private String enrichSubAgentQuery(String query, String userId) {
