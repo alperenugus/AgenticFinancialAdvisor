@@ -188,6 +188,44 @@ class OrchestratorServiceTest {
     }
 
     @Test
+    void coordinateAnalysis_HandlesFlexibleAgentNaming() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(plannerAgent.createPlan(anyString()))
+                .thenReturn("{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null," +
+                        "\"steps\":[{\"agent\":\"MarketAnalysis\",\"task\":\"Get Apple stock price\"}]}");
+        when(marketAnalysisAgent.processQuery(anyString(), anyString()))
+                .thenReturn("{\"symbol\":\"AAPL\",\"price\":195.50}");
+        when(evaluatorAgent.evaluate(anyString()))
+                .thenReturn("{\"verdict\":\"PASS\"," +
+                        "\"response\":\"Apple (AAPL) is at $195.50.\"," +
+                        "\"feedback\":null}");
+
+        String result = orchestratorService.coordinateAnalysis("user-1", "Apple stock price", "session-8");
+
+        assertThat(result).contains("195.50");
+        verify(marketAnalysisAgent).processQuery(anyString(), anyString());
+    }
+
+    @Test
+    void coordinateAnalysis_ReturnsDataOnRetriesExhausted() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(plannerAgent.createPlan(anyString()))
+                .thenReturn("{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null," +
+                        "\"steps\":[{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get AAPL price\"}]}");
+        when(marketAnalysisAgent.processQuery(anyString(), anyString()))
+                .thenReturn("{\"symbol\":\"AAPL\",\"price\":195.50}");
+        when(evaluatorAgent.evaluate(anyString()))
+                .thenReturn("{\"verdict\":\"RETRY\",\"response\":null,\"feedback\":\"Try again\"}");
+
+        String result = orchestratorService.coordinateAnalysis("user-1", "AAPL price", "session-9");
+
+        assertThat(result).contains("found");
+        assertThat(result).contains("AAPL");
+    }
+
+    @Test
     void coordinateAnalysis_HandlesInvalidPlanJsonWithRetry() {
         when(securityAgent.validateInput(anyString()))
                 .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
