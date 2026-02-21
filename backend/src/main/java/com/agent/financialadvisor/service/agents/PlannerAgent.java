@@ -81,9 +81,14 @@ public class PlannerAgent {
             "7. For personalized investment advice: include USER_PROFILE to get context, plus data agents.\n" +
             "8. Maximum 4 steps per plan. Keep plans efficient.\n" +
             "9. Order steps logically (e.g., if personalized advice is needed, include profile retrieval).\n" +
-            "10. Each step's task must be specific and actionable.\n" +
-            "11. Use conversation context (if provided) to resolve ambiguous references like 'it', 'that stock', 'compare them'.\n" +
-            "12. If retry feedback is provided, adjust the plan to address the feedback.\n\n" +
+            "10. CRITICAL - Task descriptions MUST be plain natural language. " +
+            "NEVER include JSON, function parameters, curly braces, or technical syntax in task descriptions. " +
+            "The agents handle all technical details internally. " +
+            "BAD task: 'Get stock price with params: {\"symbol\": \"AAPL\"}' " +
+            "GOOD task: 'Get current stock price for Apple'\n" +
+            "11. Use the exact company name or ticker the user mentioned. Do NOT resolve tickers yourself.\n" +
+            "12. Use conversation context (if provided) to resolve ambiguous references like 'it', 'that stock', 'compare them'.\n" +
+            "13. If retry feedback is provided, adjust the plan to address the feedback.\n\n" +
             "### EXAMPLES:\n" +
             "Query: \"Apple stock price\" → " +
             "{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null,\"steps\":[{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get current stock price for Apple\"}]}\n\n" +
