@@ -12,9 +12,8 @@ import org.springframework.context.annotation.Primary;
  * LangChain4j Configuration for Groq API
  * 
  * Groq provides fast, cost-effective LLM inference via OpenAI-compatible API.
- * We use two models:
- * - Orchestrator: llama-3.3-70b for high-level thinking and planning
- * - Tool Agent: llama-3.1-8b for fast, cheap function calling
+ * All agents use llama-3.3-70b-versatile for reliable tool calling and reasoning.
+ * The 8B tool-agent bean is retained for future use but not active.
  */
 @Lazy  // Delay Groq connection until first use (prevents blocking startup)
 @Configuration
@@ -101,13 +100,15 @@ public class LangChain4jConfig {
     }
 
     /**
-     * Agent ChatLanguageModel - used by individual agents (UserProfile, MarketAnalysis, WebSearch, Fintwit)
-     * Each agent has its own LLM instance using this model configuration
-     * Uses the tool-agent model for faster/cheaper tool-focused reasoning
+     * Agent ChatLanguageModel - used by individual agents (UserProfile, MarketAnalysis, WebSearch, Fintwit, Security)
+     * Each agent has its own LLM instance using this model configuration.
+     * Uses the same 70B orchestrator model for reliable tool calling.
+     * The 8B model (llama-3.1-8b-instant) generates function calls in the wrong format
+     * on Groq's API, causing tool_use_failed errors.
      */
     @Bean(name = "agentChatLanguageModel")
     public ChatLanguageModel agentChatLanguageModel() {
-        if (toolAgentApiKey == null || toolAgentApiKey.trim().isEmpty()) {
+        if (orchestratorApiKey == null || orchestratorApiKey.trim().isEmpty()) {
             throw new IllegalStateException(
                 "GROQ_API_KEY environment variable is required. " +
                 "Please set it in Railway environment variables or application.yml"
@@ -115,11 +116,11 @@ public class LangChain4jConfig {
         }
 
         return OpenAiChatModel.builder()
-                .apiKey(toolAgentApiKey)
-                .baseUrl(toolAgentBaseUrl)
-                .modelName(toolAgentModel)
-                .temperature(toolAgentTemperature)
-                .timeout(java.time.Duration.ofSeconds(toolAgentTimeoutSeconds))
+                .apiKey(orchestratorApiKey)
+                .baseUrl(orchestratorBaseUrl)
+                .modelName(orchestratorModel)
+                .temperature(orchestratorTemperature)
+                .timeout(java.time.Duration.ofSeconds(orchestratorTimeoutSeconds))
                 .logRequests(true)
                 .logResponses(true)
                 .build();

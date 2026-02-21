@@ -14,35 +14,38 @@ This document outlines the improved agent architecture for the Financial Advisor
 
 ## Proposed Agent Architecture
 
-### Core Agents
+### Core Agents (Plan-Execute-Evaluate Architecture)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              Orchestrator Agent (Orchestrator LLM)           │
-│              (llama-3.3-70b-versatile)                      │
-│    Delegates to agent LLMs, synthesizes responses            │
+│         OrchestratorService (Plan-Execute-Evaluate Loop)    │
+│                                                             │
+│  ┌──────────────┐  ┌────────────────┐  ┌────────────────┐ │
+│  │ PlannerAgent │  │ EvaluatorAgent │  │ SecurityAgent  │ │
+│  │ (70B LLM)    │  │ (70B LLM)      │  │ (70B LLM)      │ │
+│  │ Creates plan │  │ Reviews results│  │ Validates input│ │
+│  └──────────────┘  └────────────────┘  └────────────────┘ │
 └───────────────┬─────────────────────────────────────────────┘
                 │
-                │ Delegation Tools
+                │ Plan steps executed in parallel
                 │
-    ┌───────────┼───────────┬───────────┬───────────┐
-    │           │           │           │           │
-    ▼           ▼           ▼           ▼           ▼
-┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
-│ User   │ │Market │ │  Web   │ │Fintwit │ │Security│
-│Profile │ │ Data  │ │ Search │ │Analysis│ │ Agent  │
-│ Agent  │ │ Agent │ │ Agent  │ │ Agent  │ │        │
-│ (LLM)  │ │ (LLM) │ │ (LLM)  │ │ (LLM)  │ │ (LLM)  │
-└────────┘ └────────┘ └────────┘ └────────┘ └────────┘
-    │           │           │           │           │
-    │  Each agent has its own LLM instance for reasoning      │
-    │           │           │           │           │
-    └───────────┼───────────┼───────────┼───────────┘
-                │           │           │
-                ▼           ▼           ▼
+    ┌───────────┼───────────┬───────────┐
+    │           │           │           │
+    ▼           ▼           ▼           ▼
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│ User   │ │Market │ │  Web   │ │Fintwit │
+│Profile │ │Analysis│ │ Search │ │Analysis│
+│ Agent  │ │ Agent │ │ Agent  │ │ Agent  │
+│ (70B)  │ │ (70B) │ │ (70B)  │ │ (70B)  │
+└────────┘ └────────┘ └────────┘ └────────┘
+    │           │           │           │
+    │  All agents use llama-3.3-70b-versatile via Groq       │
+    └───────────┼───────────┼───────────┘
+                │           │
+                ▼           ▼
          ┌──────────────────────────────┐
          │    MarketDataService         │
-         │  (External API calls)        │
+         │  (Finnhub API)              │
          └──────────────────────────────┘
 ```
 
@@ -157,19 +160,17 @@ This document outlines the improved agent architecture for the Financial Advisor
 
 **Status**: ✅ Implemented, can be enhanced
 
-### 7. Orchestrator Agent (Existing - Needs Fix)
-**Purpose**: Coordinate all agents
+### 7. Orchestrator Service (Rewritten - Plan-Execute-Evaluate)
+**Purpose**: Coordinate all agents via structured agentic loop
 
-**Current Issues**:
-- Model outputs function calls as text
-- Not using agents effectively
-- Poor coordination between agents
+**Architecture**:
+- **PlannerAgent**: LLM creates structured JSON execution plan from user query
+- **Executor**: Runs plan steps in parallel via sub-agents
+- **EvaluatorAgent**: Reviews results, synthesizes response, or requests retry
+- Self-correcting via retry loop (max 2 retries)
+- No hardcoded patterns -- all query understanding done by LLMs
 
-**Fixes Needed**:
-- Better system message (already updated)
-- Ensure tools are called automatically
-- Better error handling
-- Improved agent coordination logic
+**Status**: ✅ Fully rewritten and working
 
 ## Implementation Plan
 

@@ -130,7 +130,7 @@ The Agentic Financial Advisor uses a **multi-agent architecture** where speciali
 
 ## Agent Workflow
 
-### Request Flow Diagram
+### Request Flow: Plan-Execute-Evaluate Loop
 
 ```
 User Query
@@ -144,79 +144,77 @@ User Query
          │
          ▼
 ┌─────────────────┐
-│ Orchestrator     │
-│   Service        │
-│  (LangChain4j)  │
+│ SecurityAgent    │──► Validates input (deterministic + LLM)
+└────────┬─────────┘
+         │ (if safe)
+         ▼
+┌─────────────────┐
+│ PlannerAgent     │──► Analyzes query, creates JSON execution plan
+│  (70B LLM)      │    (which agents, what tasks, what order)
 └────────┬─────────┘
          │
-         ├─► Parse user query
+         ├─► GREETING? → Return directResponse immediately
          │
-         ├─► Determine required agents
-         │
-         ├─► Delegate to agent LLMs:
-         │   │
-         │   ├─► delegateToUserProfileAgent()
-         │   │   └─► UserProfileAgent LLM reasons and calls tools
-         │   │       ├─► getUserProfile() → Get user risk tolerance, goals
-         │   │       └─► getPortfolioSummary() → Get user's current holdings
-         │   │
-         │   ├─► delegateToMarketAnalysisAgent()
-         │   │   └─► MarketAnalysisAgent LLM reasons and calls tools
-         │   │       ├─► getStockPrice()
-         │   │       ├─► analyzeTrends()
-         │   │       └─► getMarketNews()
-         │   │
-         │   ├─► delegateToWebSearchAgent()
-         │   │   └─► WebSearchAgent LLM reasons and calls tools
-         │   │       ├─► searchFinancialNews()
-         │   │       └─► searchStockAnalysis()
-         │   │
-         │   └─► delegateToFintwitAnalysisAgent()
-         │       └─► FintwitAnalysisAgent LLM reasons and calls tools
-         │           └─► analyzeFintwitSentiment()
-         │
-         ├─► Synthesize responses from all agent LLMs
+         ▼ (has steps)
+┌─────────────────┐
+│ Executor         │──► Runs plan steps IN PARALLEL:
+│ (Orchestrator)   │
+│                  │    ├─► UserProfileAgent (70B LLM + tools)
+│                  │    ├─► MarketAnalysisAgent (70B LLM + tools)
+│                  │    ├─► WebSearchAgent (70B LLM + tools)
+│                  │    └─► FintwitAnalysisAgent (70B LLM + tools)
+└────────┬─────────┘
          │
          ▼
 ┌─────────────────┐
-│ Final Response  │
-│  (JSON)         │
-└─────────────────┘
+│ EvaluatorAgent   │──► Reviews results, synthesizes response
+│  (70B LLM)      │
+└────────┬─────────┘
+         │
+         ├─► PASS → Return synthesized response to user
+         │
+         └─► RETRY → Back to PlannerAgent with feedback
+                      (max 2 retries, then return available data)
 ```
 
-### Agent Communication Pattern
+### Agent Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              Orchestrator Agent (Orchestrator LLM)          │
-│  - Analyzes user query                                      │
-│  - Decides which agent(s) to delegate to                    │
-│  - Synthesizes responses from multiple agents               │
+│           OrchestratorService (Plan-Execute-Evaluate)       │
+│  - Runs the agentic loop                                    │
+│  - No manual regex or hardcoded patterns                    │
+│  - Self-correcting via Evaluator retry feedback             │
+│  - Maintains conversation history for follow-ups            │
 └───────────────┬─────────────────────────────────────────────┘
                 │
-                │ Delegation Tool Calls
-                │ (delegateToUserProfileAgent, etc.)
+    ┌───────────┼───────────────────────────────────┐
+    │           │                                     │
+    ▼           ▼                                     ▼
+┌────────┐  ┌────────┐                          ┌────────┐
+│Planner │  │Evaluator│                         │Security│
+│ Agent  │  │ Agent   │                          │ Agent  │
+│(70B)   │  │ (70B)   │                          │(70B)   │
+└────────┘  └────────┘                          └────────┘
                 │
-    ┌───────────┼───────────┬───────────┬───────────┐
-    │           │           │           │           │
-    ▼           ▼           ▼           ▼           ▼
-┌───────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
-│ User  │  │ Market │  │   Web  │  │Fintwit │  │Security│
-│Profile│  │Analysis│  │ Search │  │Analysis│  │ Agent  │
-│ Agent │  │ Agent  │  │ Agent  │  │ Agent  │  │        │
-│(LLM)  │  │ (LLM)  │  │ (LLM)  │  │ (LLM)  │  │ (LLM)  │
-└───┬───┘  └───┬────┘  └───┬────┘  └───┬────┘  └───┬───┘
-    │           │            │           │           │
-    │           │            │           │           │
-    │           │            │           │           │
-    │  Each agent uses its own LLM to reason and call tools  │
-    │           │            │           │           │
-    └───────────┼────────────┼───────────┼───────────┘
-                │            │           │
-                ▼            ▼           ▼
+                │ Plan steps executed in parallel
+                │
+    ┌───────────┼───────────┬───────────┐
+    │           │           │           │
+    ▼           ▼           ▼           ▼
+┌───────┐  ┌────────┐  ┌────────┐  ┌────────┐
+│ User  │  │ Market │  │   Web  │  │Fintwit │
+│Profile│  │Analysis│  │ Search │  │Analysis│
+│ Agent │  │ Agent  │  │ Agent  │  │ Agent  │
+│(70B)  │  │ (70B)  │  │ (70B)  │  │ (70B)  │
+└───┬───┘  └───┬────┘  └───┬────┘  └───┬────┘
+    │           │            │           │
+    └───────────┼────────────┼───────────┘
+                │            │
+                ▼            ▼
          ┌──────────────────────────────────┐
          │    MarketDataService            │
-         │  (External API calls)          │
+         │  (Finnhub API)                  │
          └──────────────────────────────────┘
                 │
                 ▼
@@ -253,43 +251,43 @@ public String discoverStocks(String riskTolerance, String sectors, String exclud
 
 **Note**: Portfolio Recommendation Service is currently disabled. Will be re-enabled in a future iteration.
 
-### 1. Orchestrator Service
+### 1. Orchestrator Service (Plan-Execute-Evaluate)
 
-**Purpose**: Central coordinator that uses its own LLM instance to coordinate between specialized agent LLMs. Each agent has its own LLM instance for independent reasoning.
+**Purpose**: Coordinates the Plan-Execute-Evaluate agentic loop. All query understanding is done by LLMs -- no regex patterns, no hardcoded greeting lists, no manual bypasses.
 
 **Key Features**:
-- Maintains conversation context per session
-- Uses delegation tools to route queries to appropriate agent LLMs
-- Synthesizes responses from multiple agent LLMs
-- Sends real-time updates via WebSocket
-- **Intelligent greeting handling** - Responds naturally to greetings and guides users to financial questions
-- **Portfolio-aware** - Always checks user portfolio and profile before making recommendations
-- **Contextual queries** - Automatically includes user profile and portfolio context in every query
+- **Plan-Execute-Evaluate loop** with self-correction (max 2 retries)
+- **PlannerAgent** creates structured JSON execution plans from user queries
+- **EvaluatorAgent** reviews results, synthesizes responses, or requests retry
+- Parallel execution of plan steps via sub-agents
+- Conversation history (last 5 exchanges) for follow-up context
+- Sends real-time updates via WebSocket at each phase
+- Fallback response with collected data when retries exhaust
 
 **Architecture**:
-- **Orchestrator LLM**: Own LLM instance (llama-3.3-70b-versatile) that coordinates between agents
-- **Agent LLMs**: Each agent (UserProfile, MarketAnalysis, WebSearch, Fintwit) has its own LLM instance
-- **Delegation Pattern**: Orchestrator uses tools to delegate queries to agent LLMs:
-  - `delegateToUserProfileAgent(sessionId, query)`
-  - `delegateToMarketAnalysisAgent(sessionId, query)`
-  - `delegateToWebSearchAgent(sessionId, query)`
-  - `delegateToFintwitAnalysisAgent(sessionId, query)`
+- **PlannerAgent** (llama-3.3-70b-versatile): Analyzes query intent, creates structured plans
+- **EvaluatorAgent** (llama-3.3-70b-versatile): Reviews results, synthesizes or retries
+- **Sub-agents**: Each has its own 70B LLM instance for tool calling
+- **SecurityAgent**: Deterministic patterns + LLM validation (first gate)
 
-**Implementation**:
-```java
-// Orchestrator has its own LLM
-OrchestratorAgent orchestrator = AiServices.builder(OrchestratorAgent.class)
-    .chatLanguageModel(chatLanguageModel)  // Orchestrator LLM
-    .chatMemoryProvider(memoryProvider)
-    .tools(new AgentOrchestrationTools(...))  // Delegation tools
-    .build();
+**Plan Format** (produced by PlannerAgent):
+```json
+{
+  "queryType": "STOCK_PRICE",
+  "directResponse": null,
+  "steps": [
+    {"agent": "MARKET_ANALYSIS", "task": "Get current stock price for Apple"}
+  ]
+}
+```
 
-// Each agent has its own LLM
-UserProfileAgentService agent = AiServices.builder(UserProfileAgentService.class)
-    .chatLanguageModel(agentChatLanguageModel)  // Agent LLM
-    .chatMemoryProvider(memoryProvider)
-    .tools(this)  // Agent's own tools
-    .build();
+**Evaluation Format** (produced by EvaluatorAgent):
+```json
+{
+  "verdict": "PASS",
+  "response": "The current stock price for Apple (AAPL) is **$195.50** USD.",
+  "feedback": null
+}
 ```
 
 ### 2. Multi-Agent LLM Architecture
@@ -340,33 +338,22 @@ User Request
 Controller (REST/WebSocket)
     │
     ▼
-Orchestrator Service (Orchestrator LLM)
+OrchestratorService
     │
-    ├─► Orchestrator LLM analyzes query
+    ├─► SecurityAgent validates input
     │
-    ├─► Orchestrator decides which agent(s) to delegate to
+    ├─► PlannerAgent (70B) creates execution plan
+    │   └─► Returns JSON: queryType, steps[], or directResponse
     │
-    ├─► Delegation 1: delegateToUserProfileAgent()
-    │   └─► UserProfileAgent LLM reasons about query
-    │       └─► Calls tools: getUserProfile(), getPortfolio()
-    │           └─► Repository → Database
+    ├─► For each step (in parallel):
+    │   ├─► UserProfileAgent (70B) → tools → Database
+    │   ├─► MarketAnalysisAgent (70B) → tools → Finnhub API
+    │   ├─► WebSearchAgent (70B) → tools → Tavily/Serper API
+    │   └─► FintwitAnalysisAgent (70B) → tools → Twitter/Web Search
     │
-    ├─► Delegation 2: delegateToMarketAnalysisAgent()
-    │   └─► MarketAnalysisAgent LLM reasons about query
-    │       └─► Calls tools: getStockPrice(), analyzeTrends()
-    │           └─► MarketDataService → Alpha Vantage API
-    │
-    ├─► Delegation 3: delegateToWebSearchAgent()
-    │   └─► WebSearchAgent LLM reasons about query
-    │       └─► Calls tools: searchFinancialNews(), searchStockAnalysis()
-    │           └─► Tavily MCP → Web search results
-    │
-    └─► Delegation 4: delegateToFintwitAnalysisAgent()
-        └─► FintwitAnalysisAgent LLM reasons about query
-            └─► Calls tools: getFintwitSentiment()
-                └─► Twitter API / Web search → Social sentiment
-    │
-    ├─► Orchestrator LLM synthesizes responses from all agents
+    ├─► EvaluatorAgent (70B) reviews results
+    │   ├─► PASS → Synthesized response
+    │   └─► RETRY → Back to PlannerAgent with feedback
     │
     ▼
 Final Response (via WebSocket + REST)
@@ -383,9 +370,8 @@ Final Response (via WebSocket + REST)
 ### LLM Integration
 - **LangChain4j 0.34.0**: Java LLM framework
 - **Groq API**: Fast LLM inference
-  - **Orchestrator LLM**: llama-3.3-70b-versatile (coordination and synthesis)
-  - **Agent LLMs**: llama-3.3-70b-versatile (each agent has its own instance)
-  - **Tool Agent LLM**: llama-3.1-8b-instant (available for future optimization)
+  - **All agents**: llama-3.3-70b-versatile (Planner, Evaluator, and all sub-agents)
+  - The 70B model is used universally for reliable tool calling on Groq's API
 
 ### Authentication & Security
 - **Spring Security OAuth2**: Google Sign-In integration
