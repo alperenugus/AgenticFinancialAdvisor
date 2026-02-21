@@ -383,33 +383,12 @@ public class OrchestratorService {
     }
 
     /**
-     * Strip JSON objects/arrays and technical syntax from task descriptions.
-     * The planner sometimes embeds JSON params in tasks which confuses the
-     * sub-agent LLMs into generating invalid function call formats.
-     */
-    private String sanitizeTask(String task) {
-        if (task == null) return "";
-        String cleaned = task
-                .replaceAll("\\{[^}]*}", "")
-                .replaceAll("\\[[^]]*]", "")
-                .replaceAll("(?i)with\\s+params?\\s*:", "for")
-                .replaceAll("(?i)with\\s+symbol\\s*:", "for")
-                .replaceAll("\\s+", " ")
-                .trim();
-        if (cleaned.isEmpty()) {
-            return task.replaceAll("[{}\\[\\]\"]", " ").replaceAll("\\s+", " ").trim();
-        }
-        return cleaned;
-    }
-
-    /**
      * Execute a single agent task by routing to the appropriate sub-agent.
      * Agent name matching is flexible to handle LLM naming variations
      * (e.g., "MARKET_ANALYSIS", "MarketAnalysis", "Market Analysis" all work).
      */
     private String executeAgentTask(String agentName, String task, String userId, String sessionId) {
-        String cleanTask = sanitizeTask(task);
-        String enrichedTask = enrichSubAgentQuery(cleanTask, userId);
+        String enrichedTask = enrichSubAgentQuery(task, userId);
         String normalized = agentName.toUpperCase().replaceAll("[\\s_\\-]+", "");
         log.info("🔄 [ORCHESTRATOR] Executing: agent={} (normalized={}), task={}", agentName, normalized, task);
 
