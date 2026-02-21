@@ -32,18 +32,12 @@ JWT_EXPIRATION=86400000  # 24 hours in milliseconds
 # Get your API key from: https://console.groq.com/
 GROQ_API_KEY=your_groq_api_key_here
 
-# Optional: Override default models
-# Orchestrator model (high-level thinking) - default: llama-3.3-70b-versatile
-# This is Groq's most capable model for complex reasoning and analysis
-# Alternative: llama-3.1-70b-versatile (slightly faster), llama-3.1-8b-instant (much faster but less capable)
+# Optional: Override default model
+# All agents (Planner, Evaluator, sub-agents) use this model
+# default: llama-3.3-70b-versatile (required for reliable tool calling on Groq)
 GROQ_ORCHESTRATOR_MODEL=llama-3.3-70b-versatile
 GROQ_ORCHESTRATOR_TEMPERATURE=0.0
-GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=90  # Increased for comprehensive analysis
-
-# Tool Agent model (fast function calling) - default: llama-3.1-8b-instant
-GROQ_TOOL_AGENT_MODEL=llama-3.1-8b-instant
-GROQ_TOOL_AGENT_TEMPERATURE=0.3
-GROQ_TOOL_AGENT_TIMEOUT_SECONDS=30
+GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=90
 
 # Market Data API (REQUIRED - get free key from https://finnhub.io/)
 FINNHUB_API_KEY=your_finnhub_api_key_here
@@ -141,9 +135,8 @@ PORT=3000
 - [ ] `CORS_ORIGINS` - **REQUIRED** - Include frontend URL for OAuth2
 - [ ] `FRONTEND_REDIRECT_URL` - Optional - Frontend URL for OAuth2 callback
 - [ ] `PORT=8080` - Usually auto-set
-- [ ] (Optional) `GROQ_ORCHESTRATOR_MODEL` - Default: llama-3.3-70b-versatile (most capable model)
-- [ ] (Optional) `GROQ_ORCHESTRATOR_TIMEOUT_SECONDS` - Default: 90 (increased for comprehensive analysis)
-- [ ] (Optional) `GROQ_TOOL_AGENT_MODEL` - Default: llama-3.1-8b-instant
+- [ ] (Optional) `GROQ_ORCHESTRATOR_MODEL` - Default: llama-3.3-70b-versatile (used for all agents)
+- [ ] (Optional) `GROQ_ORCHESTRATOR_TIMEOUT_SECONDS` - Default: 90
 - [ ] (Optional) `NEWS_API_KEY` - If using NewsAPI
 - [ ] (Optional) `TAVILY_API_KEY` - For web search (recommended) - Get from https://tavily.com
 - [ ] (Optional) `SERPER_API_KEY` - Alternative web search API - Get from https://serper.dev

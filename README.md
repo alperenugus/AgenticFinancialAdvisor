@@ -4,19 +4,19 @@ A multi-agent financial advisory system powered by Groq API that provides person
 
 ## 🎯 Overview
 
-This system uses a **multi-agent architecture with individual LLM instances** where specialized AI agents work together to provide comprehensive financial advice. Each agent has its own LLM instance for independent reasoning, coordinated by an Orchestrator Agent that delegates queries and synthesizes responses. The AI Advisor has full access to user portfolio and profile data for personalized recommendations.
+This system uses a **Plan-Execute-Evaluate agentic architecture** where specialized AI agents work together to provide comprehensive financial advice. A PlannerAgent analyzes each query and creates a structured execution plan, sub-agents execute the plan steps in parallel, and an EvaluatorAgent reviews results and synthesizes responses with self-correction via retry. All agents use llama-3.3-70b-versatile via Groq API. The AI Advisor has full access to user portfolio and profile data for personalized recommendations.
 
 ## ✨ Features
 
 - **Google Sign-In Authentication**: Secure OAuth2 authentication with JWT tokens
-- **Multi-Agent Architecture**: 6 specialized AI agents working in coordination
-- **Intelligent Greeting Handling**: Natural conversation flow with contextual financial guidance
+- **Plan-Execute-Evaluate Architecture**: 7 specialized AI agents with self-correction via retry loop
+- **LLM-Powered Query Understanding**: No hardcoded patterns -- PlannerAgent handles all query types
 - **Portfolio & Profile Access**: AI Advisor has full access to user portfolio and profile data for personalized advice
 - **Real-time Market Data**: Integration with Finnhub API for live stock data
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and analysis
-- **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b-versatile (orchestrator) and llama-3.1-8b-instant (tool agents)
+- **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b-versatile for all agents
 - **Professional UI**: Modern, responsive light theme design with stock price graph branding
 
 ## 🏗️ System Architecture
@@ -44,21 +44,23 @@ This system uses a **multi-agent architecture with individual LLM instances** wh
 │         └───────┬──────────────────────────────┘               │
 │                 │                                               │
 │         ┌───────▼──────────────────────────────┐               │
-│         │     Orchestrator Service             │               │
-│         │  (Orchestrator LLM - Coordinates     │               │
-│         │   between agent LLMs via delegation)│               │
+│         │   Orchestrator (Plan-Execute-Evaluate)│               │
+│         │  ┌────────────┐  ┌──────────────┐   │               │
+│         │  │PlannerAgent│  │EvaluatorAgent │   │               │
+│         │  │  (70B LLM) │  │  (70B LLM)   │   │               │
+│         │  └────────────┘  └──────────────┘   │               │
 │         └───────┬──────────────────────────────┘               │
-│                 │                                               │
+│                 │  Plan steps executed in parallel              │
 │    ┌────────────┼────────────┬──────────────┬─────────────┐   │
 │    │            │            │              │             │   │
 │ ┌──▼──┐    ┌────▼────┐  ┌────▼────┐  ┌────▼────┐  ┌────▼──┐ │
 │ │User │    │ Market  │  │   Web  │  │Fintwit │  │Security│ │
 │ │Prof.│    │Analysis │  │ Search │  │Analysis │  │ Agent  │ │
 │ │Agent│    │  Agent  │  │ Agent  │  │ Agent   │  │        │ │
-│ │(LLM)│    │  (LLM)  │  │ (LLM)  │  │  (LLM)  │  │  (LLM) │ │
+│ │(70B)│    │  (70B)  │  │ (70B)  │  │  (70B)  │  │  (70B) │ │
 │ └──┬──┘    └────┬────┘  └────┬────┘  └────┬────┘  └───┬───┘ │
 │    │            │            │              │            │     │
-│    │  Each agent has its own LLM instance for reasoning │     │
+│    │  All agents use llama-3.3-70b-versatile via Groq  │     │
 │    │            │            │              │            │     │
 │    └────────────┼────────────┼──────────────┼──────────┘     │
 │                 │            │              │                  │
@@ -77,7 +79,7 @@ This system uses a **multi-agent architecture with individual LLM instances** wh
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
 │         │      LangChain4j + Groq API                │        │
-│         │  (Orchestrator LLM + Individual Agent LLMs)│        │
+│         │  (llama-3.3-70b-versatile for all agents) │        │
 │         └───────────────────────────────────────────┘        │
 └───────────────────────────────────────────────────────────────┘
 ```
@@ -148,11 +150,8 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
      groq:
        orchestrator:
          api-key: ${GROQ_API_KEY:}
-      model: llama-3.3-70b-versatile  # Most capable model for comprehensive analysis
-      timeout-seconds: 90  # Increased timeout for complex analysis
-      tool-agent:
-        api-key: ${GROQ_API_KEY:}
-        model: llama-3.1-8b-instant  # Fast, cost-effective for tool calls
+         model: llama-3.3-70b-versatile  # Used for all agents (planner, evaluator, sub-agents)
+         timeout-seconds: 90
    
    jwt:
      secret: ${JWT_SECRET:your-secure-secret-key}
@@ -194,10 +193,13 @@ The frontend will start on `http://localhost:5173`
 
 ## 🤖 Agents
 
-### 1. Orchestrator Agent
-Coordinates all other agent LLMs using its own LLM instance. Delegates queries to specialized agent LLMs and synthesizes their responses into final recommendations.
+### 1. Planner Agent (NEW)
+Analyzes user queries and creates structured JSON execution plans. Determines which sub-agents to invoke and what tasks to assign. Handles all query types (greetings, stock prices, portfolio, analysis) without any hardcoded patterns.
 
-### 2. User Profile Agent
+### 2. Evaluator Agent (NEW)
+Reviews execution results from sub-agents. Synthesizes professional user-facing responses or requests a retry with specific feedback when results are insufficient. Provides the self-correction capability.
+
+### 3. User Profile Agent
 Has its own LLM instance for reasoning about user profiles and portfolios. Manages user investment preferences, risk tolerance, goals, and constraints. **Also provides portfolio access tools.**
 
 **Tools:**
@@ -208,7 +210,7 @@ Has its own LLM instance for reasoning about user profiles and portfolios. Manag
 - `getPortfolioHoldings(userId)` - Get list of stocks user owns
 - `getPortfolioSummary(userId)` - Get portfolio summary (total value, gain/loss, holdings count)
 
-### 3. Market Analysis Agent
+### 4. Market Analysis Agent
 Has its own LLM instance for reasoning about market data. Analyzes stock prices, price trends, and technical indicators.
 
 **Tools:**
@@ -217,8 +219,8 @@ Has its own LLM instance for reasoning about market data. Analyzes stock prices,
 - `analyzeTrends(symbol, timeframe)` - Analyze price trends
 - `getTechnicalIndicators(symbol)` - Calculate technical indicators
 
-### 4. Web Search Agent
-Has its own LLM instance for reasoning about web search queries. Searches the web for financial news, analysis, and market insights using Tavily MCP.
+### 5. Web Search Agent
+Has its own LLM instance for reasoning about web search queries. Searches the web for financial news, analysis, and market insights using Tavily API.
 
 **Tools:**
 - `searchFinancialNews(query)` - Search for financial news and market insights
@@ -226,7 +228,7 @@ Has its own LLM instance for reasoning about web search queries. Searches the we
 - `searchMarketTrends(query)` - Search for market trends and sector analysis
 - `searchCompanyInfo(symbol)` - Search for company information and earnings
 
-### 5. Fintwit Analysis Agent
+### 6. Fintwit Analysis Agent
 Has its own LLM instance for reasoning about social sentiment. Analyzes social sentiment from financial Twitter (fintwit) for market insights.
 
 **Tools:**
@@ -236,27 +238,8 @@ Has its own LLM instance for reasoning about social sentiment. Analyzes social s
 - `calculateConfidence(factors)` - Calculate confidence score
 - `formatRecommendation(recommendation)` - Format for user
 
-### 7. Stock Discovery Agent
-Discovers stocks in real-time based on user criteria. **No hardcoded stock lists** - uses live market data validation.
-
-**Tools:**
-- `discoverStocks(riskTolerance, sectors, excludeOwned)` - Find stocks matching criteria with real-time validation
-- `validateStockSymbol(symbol)` - Verify if a stock symbol exists and is tradeable
-
-### 8. Portfolio Recommendation Service
-Generates portfolio-level recommendations using AI agents and real-time stock discovery.
-
-**Features:**
-- **Real-time stock discovery** - No hardcoded lists, validates stocks using live market data
-- **Portfolio-focused** - Considers current holdings, diversification, and risk alignment
-- **AI-powered** - Uses orchestrator to analyze stocks in context of user's portfolio
-- **Automatic generation** - Triggers when profile/portfolio changes
-
-**Triggers:**
-- When user profile is created/updated
-- When portfolio holdings are added/removed
-- When user requests recommendations and none exist
-- Manual trigger via `POST /api/advisor/generate-recommendations`
+### 7. Security Agent
+Validates user inputs for security threats using deterministic pattern matching and LLM-based analysis. First gate before any query processing.
 
 ## 🧪 Testing
 
@@ -279,7 +262,7 @@ mvn test jacoco:report
 - **Spring Security OAuth2** - Google Sign-In authentication
 - **JWT** - Token-based authentication
 - **LangChain4j 0.34.0** - LLM integration
-- **Groq API** - Fast LLM inference (llama-3.3-70b for orchestrator, llama-3.1-8b for subagents)
+- **Groq API** - Fast LLM inference (llama-3.3-70b-versatile for all agents)
 - **PostgreSQL** - Database
 - **WebSocket** - Real-time communication
 
@@ -363,7 +346,7 @@ AgenticFinancialAdvisor/
      - `GOOGLE_CLIENT_SECRET` (required)
      - `JWT_SECRET` (required - generate secure random 32+ character string)
      - `CORS_ORIGINS` (include your frontend URL)
-     - Optional: `GROQ_ORCHESTRATOR_MODEL`, `GROQ_TOOL_AGENT_MODEL` (defaults provided)
+     - Optional: `GROQ_ORCHESTRATOR_MODEL` (default: llama-3.3-70b-versatile, used for all agents)
 
 2. **Frontend Deployment**
    - Build: `npm run build`
