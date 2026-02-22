@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,11 @@ public class UserProfileAgent {
     private final WebSocketService webSocketService;
     private final ChatLanguageModel chatLanguageModel;
     private final Map<String, UserProfileAgentService> agentCache = new ConcurrentHashMap<>();
+
+    /** Self-reference (proxy) so tool invocations go through Spring proxy and @Transactional applies in thread-pool threads. */
+    @Autowired
+    @Lazy
+    private UserProfileAgent self;
 
     @Autowired
     public UserProfileAgent(
@@ -66,7 +72,7 @@ public class UserProfileAgent {
             
             return AiServices.builder(UserProfileAgentService.class)
                     .chatLanguageModel(chatLanguageModel)
-                    .tools(this)  // This agent's tools
+                    .tools(self)  // Use proxy so @Transactional applies when tools run in thread-pool threads
                     .build();
         });
     }
@@ -209,7 +215,7 @@ public class UserProfileAgent {
     @Tool("Get user's complete portfolio with all holdings, current values, and gain/loss. " +
           "ALWAYS refreshes current stock prices for accurate values. " +
           "Requires: userId (string). Returns portfolio with all holdings and summary.")
-    @Transactional(readOnly = true)
+    @Transactional
     public String getPortfolio(String userId) {
         log.info("🔵 getPortfolio CALLED with userId={}", userId);
         
@@ -218,7 +224,7 @@ public class UserProfileAgent {
         
         long startTime = System.currentTimeMillis();
         try {
-            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdWithHoldings(userId);
             if (portfolioOpt.isEmpty()) {
                 return String.format(
                     "{\"userId\": \"%s\", \"exists\": false, \"message\": \"Portfolio not found. User has no holdings yet.\"}",
@@ -251,7 +257,7 @@ public class UserProfileAgent {
                 // Save to trigger @PreUpdate calculations for both holdings and portfolio
                 portfolio = portfolioRepository.save(portfolio);
                 // Refresh from DB to get calculated totals
-                portfolio = portfolioRepository.findByUserId(userId).orElse(portfolio);
+                portfolio = portfolioRepository.findByUserIdWithHoldings(userId).orElse(portfolio);
             }
             
             // Materialize again after save to ensure we have the latest data
@@ -316,7 +322,7 @@ public class UserProfileAgent {
     public String getPortfolioHoldings(String userId) {
         log.info("🔵 getPortfolioHoldings CALLED with userId={}", userId);
         try {
-            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdWithHoldings(userId);
             if (portfolioOpt.isEmpty() || portfolioOpt.get().getHoldings() == null || 
                 portfolioOpt.get().getHoldings().isEmpty()) {
                 return String.format(
@@ -360,7 +366,7 @@ public class UserProfileAgent {
     public String getPortfolioSummary(String userId) {
         log.info("🔵 getPortfolioSummary CALLED with userId={}", userId);
         try {
-            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdWithHoldings(userId);
             if (portfolioOpt.isEmpty()) {
                 return String.format(
                     "{\"userId\": \"%s\", \"exists\": false, \"message\": \"Portfolio not found\"}",
@@ -370,7 +376,7 @@ public class UserProfileAgent {
 
             Portfolio portfolio = portfolioOpt.get();
             
-            // Materialize lazy collection to avoid LazyInitializationException
+            // Materialize lazy collection (already loaded via JOIN FETCH, but safe to copy)
             List<StockHolding> holdings = portfolio.getHoldings() != null 
                 ? new ArrayList<>(portfolio.getHoldings()) 
                 : new ArrayList<>();
