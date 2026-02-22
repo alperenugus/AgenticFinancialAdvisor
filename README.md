@@ -307,7 +307,6 @@ AgenticFinancialAdvisor/
 │   └── package.json
 ├── ARCHITECTURE.md                    # Architecture documentation
 ├── API.md                             # API documentation
-├── PROJECT_PLAN.md                    # Project plan
 └── README.md                          # This file
 ```
 

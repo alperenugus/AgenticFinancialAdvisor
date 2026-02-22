@@ -547,13 +547,18 @@ interface Recommendation {
 
 ## Rate Limiting
 
-### Alpha Vantage API
-- **Free Tier**: 5 calls per minute, 500 calls per day
-- The system implements basic rate limiting awareness
+### Finnhub API
+- **Free Tier**: 60 calls per minute, 1,000,000 calls per month
+- The system fetches fresh data on each request (no caching)
 
-### Recommendations
-- No rate limiting currently implemented
-- Recommended: 10 requests per minute per user
+### Groq API
+- Rate limits depend on your Groq plan (check [Groq Console](https://console.groq.com/))
+- The system uses llama-3.3-70b-versatile for all agents
+
+### Application Rate Limiting
+- Per-session rate limiting implemented using token bucket algorithm
+- Default: 20 requests per session
+- Configurable via `RATE_LIMIT_CAPACITY` environment variable
 
 ---
 

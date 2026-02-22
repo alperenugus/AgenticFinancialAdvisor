@@ -383,8 +383,9 @@ Final Response (via WebSocket + REST)
 - **H2**: In-memory database (testing)
 
 ### External APIs
-- **Alpha Vantage**: Market data (free tier: 5 calls/min, 500/day)
-- **Yahoo Finance**: Additional market data (unofficial)
+- **Finnhub**: Market data (free tier: 60 calls/min, 1,000,000 calls/month)
+- **Groq API**: Fast LLM inference (llama-3.3-70b-versatile)
+- **Tavily/Serper**: Web search for financial news and analysis (optional)
 - **NewsAPI**: Financial news (optional)
 
 ## Security Architecture

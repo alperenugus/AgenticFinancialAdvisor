@@ -14,17 +14,16 @@ This is the **complete guide** for deploying the Agentic Financial Advisor on Ra
 
 ## Project Structure
 
-You create **ONE Railway project** and add **4 services** within it:
+You create **ONE Railway project** and add **3 services** within it:
 
 ```
 Railway Project: "AgenticFinancialAdvisor"
 ├── 📊 PostgreSQL Database
-├── 🤖 Ollama Service
 ├── ⚙️ Backend Service
 └── 🎨 Frontend Service
 ```
 
-**See:** [RAILWAY_STRUCTURE.md](./RAILWAY_STRUCTURE.md) for detailed structure explanation.
+**Note:** The system uses **Groq API** for LLM inference (no local Ollama service needed).
 
 ---
 
@@ -41,20 +40,7 @@ Railway Project: "AgenticFinancialAdvisor"
 1. **New** → **Database** → **PostgreSQL**
 2. Railway auto-sets `DATABASE_URL` (no config needed)
 
-### Step 3: Deploy Ollama Service
-
-1. **New** → **Empty Service** (or GitHub Repo)
-2. Name: `ollama`
-3. **Settings** → **Source**:
-   - Root Directory: `ollama`
-4. **Settings** → **Deploy**:
-   - Builder: `Dockerfile`
-   - Dockerfile Path: `Dockerfile`
-5. **Settings** → **Volumes**:
-   - Add Volume: Mount Path `/root/.ollama`, Size `20GB`
-6. After deployment: Model auto-pulls (see [Ollama Setup](#ollama-setup))
-
-### Step 4: Deploy Backend Service
+### Step 3: Deploy Backend Service
 
 1. **New** → **GitHub Repo**
 2. Name: `backend`
@@ -64,7 +50,7 @@ Railway Project: "AgenticFinancialAdvisor"
    - Builder: `Dockerfile`
 5. **Settings** → **Variables** (see [Environment Variables](#environment-variables))
 
-### Step 5: Deploy Frontend Service
+### Step 4: Deploy Frontend Service
 
 1. **New** → **GitHub Repo**
 2. Name: `frontend`
@@ -82,13 +68,22 @@ Railway Project: "AgenticFinancialAdvisor"
 ### Backend Service
 
 ```bash
-# Ollama (REQUIRED)
-LANGCHAIN4J_OLLAMA_BASE_URL=https://your-ollama.railway.app
-LANGCHAIN4J_OLLAMA_MODEL=llama3.1
-LANGCHAIN4J_OLLAMA_TEMPERATURE=0.7
+# Groq API (REQUIRED - Get from https://console.groq.com/)
+GROQ_API_KEY=your_groq_api_key_here
 
-# Market Data (REQUIRED)
-ALPHA_VANTAGE_API_KEY=your_key_here
+# Market Data (REQUIRED - Get from https://finnhub.io/)
+FINNHUB_API_KEY=your_finnhub_api_key_here
+
+# Google OAuth2 (REQUIRED)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google
+
+# JWT (REQUIRED)
+JWT_SECRET=your-secure-random-secret-key-minimum-32-characters
+
+# CORS (REQUIRED)
+CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173
 
 # Database (auto-set by PostgreSQL)
 DATABASE_URL=postgresql://...
@@ -121,38 +116,31 @@ PORT=3000
 - **Dockerfile**: `backend/Dockerfile`
 - Uses `railway.toml` for health check configuration
 
-### Ollama
-
-- **Root Directory**: `ollama`
-- **Builder**: `Dockerfile`
-- **Dockerfile**: `ollama/Dockerfile`
-- Auto-pulls model on startup
-
 ### Frontend
 
 - **Root Directory**: `frontend`
 - **Build Command**: `npm install && npm run build`
 - **Start Command**: `npx serve -s dist -p $PORT`
 
-**See:** [RAILWAY_BUILD_COMMANDS.md](./RAILWAY_BUILD_COMMANDS.md) for detailed build info.
+**Note:** Railway automatically detects and builds the backend using the Dockerfile.
 
 ---
 
-## Ollama Setup
+## Getting API Keys
 
-### Automatic Model Pulling
+### Groq API Key
+1. Sign up at [Groq Console](https://console.groq.com/)
+2. Create an API key
+3. Set as `GROQ_API_KEY` environment variable
 
-The Ollama service automatically pulls `llama3.1` on startup. No manual steps needed!
+### Finnhub API Key
+1. Sign up at [Finnhub](https://finnhub.io/)
+2. Get your free API key
+3. Set as `FINNHUB_API_KEY` environment variable
 
-### Railway Volume (Recommended)
-
-1. Ollama service → **Settings** → **Volumes**
-2. Add volume:
-   - Mount Path: `/root/.ollama`
-   - Size: `20GB`
-3. Models persist across restarts
-
-**See:** [../troubleshooting/OLLAMA_DISK_SPACE.md](../troubleshooting/OLLAMA_DISK_SPACE.md) for disk space issues.
+### Google OAuth2
+1. Follow [Google Auth Setup Guide](../GOOGLE_AUTH_SETUP.md)
+2. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI`
 
 ---
 
@@ -160,23 +148,21 @@ The Ollama service automatically pulls `llama3.1` on startup. No manual steps ne
 
 ### Build Issues
 
-- **Nixpacks error**: See [RAILWAY_FIX_NIXPACKS.md](./RAILWAY_FIX_NIXPACKS.md)
-- **Build fails**: See [RAILWAY_BUILD_COMMANDS.md](./RAILWAY_BUILD_COMMANDS.md)
+- **Build fails**: Check Railway logs for specific error messages
+- **Dockerfile issues**: Ensure Dockerfile is in the `backend` directory
+- **Dependencies**: Verify all dependencies are correctly specified in `pom.xml`
 
 ### Health Check Failures
 
 - **Backend health check**: See [../troubleshooting/HEALTHCHECK_TROUBLESHOOTING.md](../troubleshooting/HEALTHCHECK_TROUBLESHOOTING.md)
 - **Health check timeout fixes**: See [../troubleshooting/RAILWAY_HEALTHCHECK_FIX.md](../troubleshooting/RAILWAY_HEALTHCHECK_FIX.md)
-- **Ollama 502 error**: See [../troubleshooting/OLLAMA_DISK_SPACE.md](../troubleshooting/OLLAMA_DISK_SPACE.md)
 
 ### Access Issues
 
-- **Ollama not accessible**: See [../troubleshooting/OLLAMA_ACCESS_FIX.md](../troubleshooting/OLLAMA_ACCESS_FIX.md)
+- **Authentication issues**: See [../GOOGLE_AUTH_TROUBLESHOOTING.md](../GOOGLE_AUTH_TROUBLESHOOTING.md)
 - **UI issues**: See [../HOW_TO_CHAT.md](../HOW_TO_CHAT.md)
+- **CORS issues**: See [../troubleshooting/CORS_FIX.md](../troubleshooting/CORS_FIX.md)
 
-### UI Configuration
-
-- **Railway UI changes**: See [RAILWAY_UI_GUIDE.md](./RAILWAY_UI_GUIDE.md)
 
 ---
 
@@ -193,19 +179,21 @@ After deployment, get URLs from:
 railway login
 railway link
 railway logs --service backend
-railway shell --service ollama
 railway variables set KEY=value --service backend
+railway variables --service backend  # List all variables
 ```
 
 ---
 
 ## Next Steps
 
-1. ✅ Deploy all services
-2. ✅ Set environment variables
-3. ✅ Add Ollama volume
-4. ✅ Test endpoints
-5. 🎉 Start using the app!
+1. ✅ Deploy PostgreSQL database
+2. ✅ Deploy backend service
+3. ✅ Deploy frontend service
+4. ✅ Set all environment variables (Groq, Finnhub, Google OAuth2, JWT)
+5. ✅ Test authentication flow
+6. ✅ Test API endpoints
+7. 🎉 Start using the app!
 
-For detailed step-by-step instructions, see [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
+For troubleshooting, see [RAILWAY_TROUBLESHOOTING.md](./RAILWAY_TROUBLESHOOTING.md)
 
