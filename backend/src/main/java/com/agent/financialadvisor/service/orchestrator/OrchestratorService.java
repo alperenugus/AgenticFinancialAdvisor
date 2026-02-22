@@ -340,12 +340,11 @@ public class OrchestratorService {
     }
 
     /**
-     * Execute plan steps in parallel, delegating to appropriate sub-agents.
+     * Execute plan steps sequentially so later steps can use results from earlier steps
+     * (e.g. MARKET_ANALYSIS can use USER_PROFILE portfolio data for analysis).
      */
     private Map<String, String> executePlanSteps(JsonNode stepsNode, String userId, String sessionId) {
         Map<String, String> results = new LinkedHashMap<>();
-        List<CompletableFuture<Map.Entry<String, String>>> futures = new ArrayList<>();
-
         int stepCount = Math.min(stepsNode.size(), MAX_PLAN_STEPS);
         long stepTimeoutSeconds = Math.max(15, toolCallTimeoutSeconds * 3L);
 
@@ -359,39 +358,44 @@ public class OrchestratorService {
                 continue;
             }
 
+            sendAgentActivity(sessionId, "agent_step", "Step " + (i + 1) + ": " + agentName + " - " + task,
+                    Map.of("agent", agentName, "task", task, "stepIndex", i, "status", "started"));
+
+            String enrichedTask = enrichSubAgentQuery(task, userId);
+            if (!results.isEmpty()) {
+                StringBuilder prevResults = new StringBuilder("\n\nPrevious step results (use this data for your analysis):\n");
+                for (Map.Entry<String, String> e : results.entrySet()) {
+                    String val = e.getValue();
+                    if (val != null && val.length() > 3000) val = val.substring(0, 2997) + "...";
+                    prevResults.append(e.getKey()).append(": ").append(val).append("\n\n");
+                }
+                enrichedTask = enrichedTask + prevResults;
+            }
+
+            final String taskForStep = enrichedTask;
             final int stepIndex = i;
             final String agentNameFinal = agentName;
             final String taskFinal = task;
-
-            sendAgentActivity(sessionId, "agent_step", "Step " + (stepIndex + 1) + ": " + agentNameFinal + " - " + taskFinal,
-                    Map.of("agent", agentNameFinal, "task", taskFinal, "stepIndex", stepIndex, "status", "started"));
 
             CompletableFuture<Map.Entry<String, String>> future = CompletableFuture.supplyAsync(() -> {
                 ToolCallAspect.setSessionId(sessionId);
                 try {
                     String key = "Step " + (stepIndex + 1) + " [" + agentNameFinal + "] - " + taskFinal;
-                    String result = executeAgentTask(agentNameFinal, taskFinal, userId, sessionId);
+                    String result = executeAgentTask(agentNameFinal, taskForStep, userId, sessionId);
                     return Map.entry(key, result);
                 } finally {
                     ToolCallAspect.clearSessionId();
                 }
             }, agentExecutor);
 
-            futures.add(future);
-        }
-
-        for (int i = 0; i < futures.size(); i++) {
-            JsonNode step = stepsNode.get(i);
-            String agentName = step.path("agent").asText("");
-            String task = step.path("task").asText("");
             try {
-                Map.Entry<String, String> entry = futures.get(i).get(stepTimeoutSeconds, TimeUnit.SECONDS);
+                Map.Entry<String, String> entry = future.get(stepTimeoutSeconds, TimeUnit.SECONDS);
                 results.put(entry.getKey(), entry.getValue());
                 sendAgentActivity(sessionId, "agent_step", "Completed: " + agentName,
                         Map.of("agent", agentName, "task", task, "stepIndex", i, "status", "completed",
                                 "result", truncate(entry.getValue(), 500)));
             } catch (TimeoutException e) {
-                futures.get(i).cancel(true);
+                future.cancel(true);
                 results.put("Step " + (i + 1) + " (timeout)",
                         "{\"error\":\"Agent timed out after " + stepTimeoutSeconds + " seconds\"}");
                 sendAgentActivity(sessionId, "agent_step", "Timeout: " + agentName,
@@ -409,11 +413,9 @@ public class OrchestratorService {
 
     /**
      * Execute a single agent task by routing to the appropriate sub-agent.
-     * Agent name matching is flexible to handle LLM naming variations
-     * (e.g., "MARKET_ANALYSIS", "MarketAnalysis", "Market Analysis" all work).
+     * The task should already be enriched with userId and any previous step results.
      */
-    private String executeAgentTask(String agentName, String task, String userId, String sessionId) {
-        String enrichedTask = enrichSubAgentQuery(task, userId);
+    private String executeAgentTask(String agentName, String enrichedTask, String userId, String sessionId) {
         String normalized = agentName.toUpperCase().replaceAll("[\\s_\\-]+", "");
         log.info("🔄 [ORCHESTRATOR] Executing: agent={} (normalized={}), task={}", agentName, normalized, task);
 
@@ -473,6 +475,7 @@ public class OrchestratorService {
 
     /**
      * Build a fallback response from raw agent results when the evaluator fails.
+     * Strips internal step labels and presents content in a user-friendly format.
      */
     private String buildFallbackResponse(Map<String, String> results) {
         if (results.isEmpty()) {
@@ -481,14 +484,16 @@ public class OrchestratorService {
 
         StringBuilder sb = new StringBuilder("Here's what I found:\n\n");
         for (Map.Entry<String, String> entry : results.entrySet()) {
-            sb.append("**").append(entry.getKey()).append("**: ");
             String value = entry.getValue();
-            if (value != null && value.length() > 500) {
-                value = value.substring(0, 497) + "...";
+            if (value == null || value.trim().isEmpty()) continue;
+            // Strip "Step N [AGENT] - task" prefix from content - present only the actual data
+            String content = value;
+            if (content.length() > 800) {
+                content = content.substring(0, 797) + "...";
             }
-            sb.append(value).append("\n\n");
+            sb.append(content).append("\n\n");
         }
-        return sb.toString();
+        return sb.toString().trim();
     }
 
     /**

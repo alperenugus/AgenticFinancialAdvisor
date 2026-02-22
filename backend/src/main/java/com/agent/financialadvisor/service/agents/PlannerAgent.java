@@ -100,7 +100,11 @@ public class PlannerAgent {
             "{\"agent\":\"WEB_SEARCH\",\"task\":\"Search for recent Tesla news and analysis\"}," +
             "{\"agent\":\"FINTWIT\",\"task\":\"Get social sentiment for Tesla\"}]}\n\n" +
             "Query: \"How is my portfolio doing?\" → " +
-            "{\"queryType\":\"PORTFOLIO\",\"directResponse\":null,\"steps\":[{\"agent\":\"USER_PROFILE\",\"task\":\"Get user portfolio with current values and gain/loss\"}]}"
+            "{\"queryType\":\"PORTFOLIO\",\"directResponse\":null,\"steps\":[{\"agent\":\"USER_PROFILE\",\"task\":\"Get user portfolio with current values and gain/loss\"}]}\n\n" +
+            "Query: \"What do you think about my portfolio?\" or \"Analyze my portfolio\" → " +
+            "{\"queryType\":\"PORTFOLIO\",\"directResponse\":null,\"steps\":[" +
+            "{\"agent\":\"USER_PROFILE\",\"task\":\"Get user portfolio with current values and gain/loss\"}," +
+            "{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get market trends for my top 5 holdings and provide analysis\"}]}"
         )
         String plan(@UserMessage String enrichedQuery);
     }

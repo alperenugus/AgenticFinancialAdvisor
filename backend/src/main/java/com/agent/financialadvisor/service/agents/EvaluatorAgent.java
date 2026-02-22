@@ -79,7 +79,9 @@ public class EvaluatorAgent {
             "- NEVER fabricate data - only use information present in the execution results\n" +
             "- If some agent results have errors but enough data exists to answer, still PASS with the available data\n" +
             "- Note data freshness limitations when relevant (e.g., 15-minute delay on free tier)\n" +
-            "- For stock prices, always include the ticker symbol and currency (USD)\n\n" +
+            "- For stock prices, always include the ticker symbol and currency (USD)\n" +
+            "- CRITICAL: NEVER include raw step labels like 'Step 1 [USER_PROFILE]' or 'Step 2 [MARKET_ANALYSIS]' in your response. " +
+            "Extract the actual data and present it as a clean, natural summary. The user must see a synthesized answer, not internal step headers.\n\n" +
             "### RETRY GUIDELINES:\n" +
             "- Only RETRY if the results completely fail to answer the core question\n" +
             "- Provide specific, actionable feedback: which agents to try, what approach to use\n" +

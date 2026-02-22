@@ -17,6 +17,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -75,6 +78,9 @@ public class MarketAnalysisAgent {
                 "Your role is to analyze stock prices, market data, technical indicators, and price trends. " +
                 "You have access to tools for getting stock prices, price data, market news, technical indicators, and trend analysis. " +
                 "When asked about stock prices, market data, or technical analysis, use the appropriate tools. " +
+                "For portfolio analysis: when you receive portfolio/holdings data in the context (from a previous step), extract the stock symbols " +
+                "(e.g. NVDA, AMD, AAPL) and use analyzeHoldingsTrends to get market trends for the top holdings. " +
+                "Then provide a concise comment on each holding's trend and an overall portfolio outlook. " +
                 "If user names a company (not ticker), pass that exact company name to tools and let tools resolve the ticker using live data. " +
                 "Never substitute a different company (for example, parent/subsidiary) from memory. " +
                 "ALWAYS use tools to get current data - your training data is outdated. " +
@@ -263,6 +269,39 @@ public class MarketAnalysisAgent {
         } catch (Exception e) {
             log.error("Error analyzing trends for {}: {}", symbol, e.getMessage(), e);
             return String.format("{\"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Error analyzing trends: %s\"}", symbol, timeframe, e.getMessage());
+        }
+    }
+
+    @Tool("Analyze market trends for multiple holdings at once. Use this when you have portfolio/holdings data " +
+          "and need to comment on each stock's trend. Requires: symbols (comma-separated, e.g. 'NVDA,AMD,AAPL,SMCI,ZETA'). " +
+          "Returns trend analysis for each symbol.")
+    public String analyzeHoldingsTrends(String symbols) {
+        log.info("🔵 analyzeHoldingsTrends CALLED with symbols={}", symbols);
+        if (symbols == null || symbols.isBlank()) {
+            return "{\"error\": \"No symbols provided. Pass comma-separated symbols e.g. NVDA,AMD,AAPL\"}";
+        }
+        String[] symbolArr = symbols.split("[,;\\s]+");
+        List<Map<String, Object>> results = new ArrayList<>();
+        int limit = Math.min(symbolArr.length, 5);
+        for (int i = 0; i < limit; i++) {
+            String sym = symbolArr[i].trim();
+            if (sym.isEmpty()) continue;
+            try {
+                String trendJson = analyzeTrends(sym, "daily");
+                Map<String, Object> parsed = objectMapper.readValue(trendJson, Map.class);
+                parsed.put("symbol", sym);
+                results.add(parsed);
+            } catch (Exception e) {
+                Map<String, Object> err = new LinkedHashMap<>();
+                err.put("symbol", sym);
+                err.put("error", e.getMessage());
+                results.add(err);
+            }
+        }
+        try {
+            return objectMapper.writeValueAsString(Map.of("holdings", results, "message", "Trend analysis for top " + results.size() + " holdings"));
+        } catch (Exception e) {
+            return "{\"error\": \"Failed to format results: " + e.getMessage() + "\"}";
         }
     }
 
