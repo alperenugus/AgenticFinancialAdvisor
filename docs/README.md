@@ -3,39 +3,43 @@
 ## Main Documentation
 
 - **[README.md](../README.md)** - Project overview and quick start
-- **[PROJECT_PLAN.md](../PROJECT_PLAN.md)** - Complete project plan and roadmap
 - **[ARCHITECTURE.md](../ARCHITECTURE.md)** - System architecture and design
 - **[API.md](../API.md)** - Complete API documentation
 - **[DEPLOYMENT.md](../DEPLOYMENT.md)** - General deployment guide
+- **[SYSTEM_DESIGN_V2.md](./SYSTEM_DESIGN_V2.md)** - Detailed system design and agent architecture
 
 ---
 
 ## Railway Deployment
 
 - **[RAILWAY_GUIDE.md](./railway/RAILWAY_GUIDE.md)** - **Start here!** Complete Railway deployment guide
-- **[RAILWAY_DEPLOYMENT.md](./railway/RAILWAY_DEPLOYMENT.md)** - Detailed step-by-step instructions
-- **[RAILWAY_STRUCTURE.md](./railway/RAILWAY_STRUCTURE.md)** - Project structure explanation
-- **[RAILWAY_BUILD_COMMANDS.md](./railway/RAILWAY_BUILD_COMMANDS.md)** - Build configuration details
-- **[RAILWAY_UI_GUIDE.md](./railway/RAILWAY_UI_GUIDE.md)** - Railway UI configuration
-- **[RAILWAY_FIX_NIXPACKS.md](./railway/RAILWAY_FIX_NIXPACKS.md)** - Fix Nixpacks detection issues
-- **[RAILWAY_VOLUMES.md](./railway/RAILWAY_VOLUMES.md)** - Setting up Railway volumes
+- **[RAILWAY_TROUBLESHOOTING.md](./railway/RAILWAY_TROUBLESHOOTING.md)** - Common Railway deployment issues
 
 ---
 
-## Troubleshooting
+## Setup & Configuration
 
-- **[HEALTHCHECK_TROUBLESHOOTING.md](./troubleshooting/HEALTHCHECK_TROUBLESHOOTING.md)** - Health check failures
-- **[RAILWAY_HEALTHCHECK_FIX.md](./troubleshooting/RAILWAY_HEALTHCHECK_FIX.md)** - Health check timeout fixes
-- **[OLLAMA_ACCESS_FIX.md](./troubleshooting/OLLAMA_ACCESS_FIX.md)** - Ollama not accessible
-- **[OLLAMA_DISK_SPACE.md](./troubleshooting/OLLAMA_DISK_SPACE.md)** - Disk space issues
+- **[GOOGLE_AUTH_SETUP.md](./GOOGLE_AUTH_SETUP.md)** - Google OAuth2 setup guide
+- **[GOOGLE_AUTH_TROUBLESHOOTING.md](./GOOGLE_AUTH_TROUBLESHOOTING.md)** - Google authentication issues
+- **[ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md)** - Complete environment variables guide
 
 ---
 
 ## Development
 
-- **[RUN_LOCALLY.md](./RUN_LOCALLY.md)** - Running backend locally
-- **[HOW_TO_CHAT.md](./HOW_TO_CHAT.md)** - How to access the chat interface
-- **[ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md)** - Complete environment variables guide
+- **[RUN_LOCALLY.md](./RUN_LOCALLY.md)** - Running the application locally
+- **[HOW_TO_CHAT.md](./HOW_TO_CHAT.md)** - How to use the chat interface
+- **[HOW_TO_CREATE_PROFILE.md](./HOW_TO_CREATE_PROFILE.md)** - Creating a user profile
+- **[DATA_FRESHNESS.md](./DATA_FRESHNESS.md)** - Understanding data freshness and caching
+- **[VALIDATION_GUIDE.md](./VALIDATION_GUIDE.md)** - Input validation documentation
+
+---
+
+## Troubleshooting
+
+- **[CORS_FIX.md](./troubleshooting/CORS_FIX.md)** - CORS configuration issues
+- **[HEALTHCHECK_TROUBLESHOOTING.md](./troubleshooting/HEALTHCHECK_TROUBLESHOOTING.md)** - Health check failures
+- **[RAILWAY_HEALTHCHECK_FIX.md](./troubleshooting/RAILWAY_HEALTHCHECK_FIX.md)** - Railway health check fixes
 
 ---
 

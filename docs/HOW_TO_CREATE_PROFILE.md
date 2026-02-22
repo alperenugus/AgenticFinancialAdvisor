@@ -29,28 +29,35 @@
 
 ## API Endpoints
 
-- **GET** `/api/profile/{userId}` - Get your profile
-- **POST** `/api/profile` - Create a new profile
-- **PUT** `/api/profile/{userId}` - Update existing profile
+All endpoints require authentication (JWT token in `Authorization` header):
+
+- **GET** `/api/profile` - Get your profile (userId extracted from JWT token)
+- **POST** `/api/profile` - Create a new profile (userId extracted from JWT token)
+- **PUT** `/api/profile` - Update existing profile (userId extracted from JWT token)
 
 ## Example Request
 
-```json
-{
-  "userId": "user-123",
-  "riskTolerance": "MODERATE",
-  "horizon": "MEDIUM",
-  "goals": ["RETIREMENT", "GROWTH"],
-  "budget": 10000,
-  "preferredSectors": ["Technology", "Healthcare"],
-  "excludedSectors": ["Energy"],
-  "ethicalInvesting": true
-}
+```bash
+curl -X POST http://localhost:8080/api/profile \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "riskTolerance": "MODERATE",
+    "horizon": "MEDIUM",
+    "goals": ["RETIREMENT", "GROWTH"],
+    "budget": 10000,
+    "preferredSectors": ["Technology", "Healthcare"],
+    "excludedSectors": ["Energy"],
+    "ethicalInvesting": true
+  }'
 ```
+
+**Note:** The `userId` is automatically extracted from your JWT token (from Google OAuth2 authentication). You don't need to provide it in the request.
 
 ## Notes
 
-- Your `userId` is automatically generated and stored in browser localStorage
+- You must be signed in with Google OAuth2 to create/update your profile
+- Your `userId` is your email address (from Google authentication)
 - You can update your profile anytime by going back to the Profile tab
 - The AI agents use your profile to provide personalized investment advice
 
