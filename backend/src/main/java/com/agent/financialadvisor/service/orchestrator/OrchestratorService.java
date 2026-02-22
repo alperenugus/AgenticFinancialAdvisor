@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -100,11 +101,14 @@ public class OrchestratorService {
         log.info("🎯 Orchestrator coordinating analysis for userId={}, query={}", userId, userQuery);
         sessionUserIdCache.put(sessionId, userId);
 
+        sendAgentActivity(sessionId, "query_start", "Processing: " + truncate(userQuery, 100), Map.of("query", userQuery));
+
         try {
             // Step 1: Security validation
             SecurityAgent.SecurityValidationResult validation = securityAgent.validateInput(userQuery);
             if (!validation.isSafe()) {
                 log.warn("🚫 Unsafe input detected: {}", validation.getReason());
+                sendAgentActivity(sessionId, "security", "Input rejected: " + validation.getReason(), Map.of("safe", false));
                 String errorMsg = "I apologize, but I cannot process that request. " +
                         "Please rephrase your question to focus on financial advisory services. " +
                         "I can help you with stock analysis, portfolio management, and investment strategies.";
@@ -179,6 +183,7 @@ public class OrchestratorService {
 
             // --- PLAN ---
             webSocketService.sendReasoning(sessionId, "📋 Analyzing your question and creating a plan...");
+            sendAgentActivity(sessionId, "planner", "Analyzing your question and creating an execution plan...", null);
             String plannerInput = buildPlannerInput(userQuery, userId, sessionId, lastFeedback);
             log.info("📤 [PLAN] Planner input for attempt {}: {}", attempt,
                     plannerInput.length() > 500 ? plannerInput.substring(0, 500) + "..." : plannerInput);
@@ -196,6 +201,7 @@ public class OrchestratorService {
             }
 
             log.info("📥 [PLAN] Raw planner response (attempt {}): {}", attempt, planJson);
+            sendAgentActivity(sessionId, "planner", "Plan created", Map.of("plan", truncate(planJson, 2000)));
 
             JsonNode plan = extractJson(planJson);
             if (plan == null) {
@@ -217,6 +223,7 @@ public class OrchestratorService {
             String directResponse = plan.path("directResponse").asText(null);
             if (directResponse != null && !directResponse.isEmpty() && !"null".equals(directResponse)) {
                 log.info("📝 Direct response from planner: {}", directResponse);
+                sendAgentActivity(sessionId, "planner", "Direct response (greeting)", Map.of("response", directResponse));
                 return directResponse;
             }
 
@@ -236,6 +243,7 @@ public class OrchestratorService {
             }
             webSocketService.sendReasoning(sessionId,
                     "🔧 Executing plan with " + stepCount + " step(s)...");
+            sendAgentActivity(sessionId, "orchestrator", "Executing plan with " + stepCount + " step(s)", Map.of("stepCount", stepCount));
 
             Map<String, String> results = executePlanSteps(stepsNode, userId, sessionId);
             lastResults = results;
@@ -250,6 +258,7 @@ public class OrchestratorService {
 
             // --- EVALUATE ---
             webSocketService.sendReasoning(sessionId, "🔍 Analyzing results...");
+            sendAgentActivity(sessionId, "evaluator", "Analyzing execution results and synthesizing response...", null);
             String evaluationInput = buildEvaluationInput(userQuery, planJson, results);
             String evaluationJson;
             try {
@@ -279,15 +288,18 @@ public class OrchestratorService {
                     return buildFallbackResponse(results);
                 }
                 log.info("✅ [EVALUATE] PASSED - response length={}", response.length());
+                sendAgentActivity(sessionId, "evaluator", "PASS - Response synthesized", Map.of("verdict", "PASS", "response", truncate(response, 500)));
                 return response;
             }
 
             // RETRY requested by evaluator
             lastFeedback = evaluation.path("feedback").asText("Results were insufficient. Try a different approach.");
+            sendAgentActivity(sessionId, "evaluator", "RETRY - Refining approach", Map.of("verdict", "RETRY", "feedback", lastFeedback));
             log.info("🔄 [EVALUATE] Evaluator requested RETRY (attempt {}): {}", attempt, lastFeedback);
         }
 
         log.warn("⚠️ All {} attempts exhausted for sessionId={}", MAX_PLAN_RETRIES + 1, sessionId);
+        sendAgentActivity(sessionId, "evaluator", "Max retries reached - using best available response", Map.of("verdict", "FALLBACK"));
         if (lastResults != null && !lastResults.isEmpty()) {
             return buildFallbackResponse(lastResults);
         }
@@ -351,6 +363,9 @@ public class OrchestratorService {
             final String agentNameFinal = agentName;
             final String taskFinal = task;
 
+            sendAgentActivity(sessionId, "agent_step", "Step " + (stepIndex + 1) + ": " + agentNameFinal + " - " + taskFinal,
+                    Map.of("agent", agentNameFinal, "task", taskFinal, "stepIndex", stepIndex, "status", "started"));
+
             CompletableFuture<Map.Entry<String, String>> future = CompletableFuture.supplyAsync(() -> {
                 ToolCallAspect.setSessionId(sessionId);
                 try {
@@ -366,16 +381,26 @@ public class OrchestratorService {
         }
 
         for (int i = 0; i < futures.size(); i++) {
+            JsonNode step = stepsNode.get(i);
+            String agentName = step.path("agent").asText("");
+            String task = step.path("task").asText("");
             try {
                 Map.Entry<String, String> entry = futures.get(i).get(stepTimeoutSeconds, TimeUnit.SECONDS);
                 results.put(entry.getKey(), entry.getValue());
+                sendAgentActivity(sessionId, "agent_step", "Completed: " + agentName,
+                        Map.of("agent", agentName, "task", task, "stepIndex", i, "status", "completed",
+                                "result", truncate(entry.getValue(), 500)));
             } catch (TimeoutException e) {
                 futures.get(i).cancel(true);
                 results.put("Step " + (i + 1) + " (timeout)",
                         "{\"error\":\"Agent timed out after " + stepTimeoutSeconds + " seconds\"}");
+                sendAgentActivity(sessionId, "agent_step", "Timeout: " + agentName,
+                        Map.of("agent", agentName, "stepIndex", i, "status", "timeout"));
             } catch (Exception e) {
                 results.put("Step " + (i + 1) + " (error)",
                         "{\"error\":\"Agent execution failed: " + e.getMessage() + "\"}");
+                sendAgentActivity(sessionId, "agent_step", "Error: " + agentName + " - " + e.getMessage(),
+                        Map.of("agent", agentName, "stepIndex", i, "status", "error"));
             }
         }
 
@@ -534,6 +559,21 @@ public class OrchestratorService {
         status.put("fintwitAnalysisAgent", fintwitAnalysisAgent != null);
         status.put("securityAgent", securityAgent != null);
         return status;
+    }
+
+    private void sendAgentActivity(String sessionId, String type, String content, Map<String, Object> data) {
+        Map<String, Object> event = new HashMap<>();
+        event.put("type", type);
+        event.put("content", content);
+        if (data != null) {
+            event.putAll(data);
+        }
+        webSocketService.sendAgentActivity(sessionId, event);
+    }
+
+    private static String truncate(String s, int maxLen) {
+        if (s == null) return "";
+        return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
     }
 
     /**

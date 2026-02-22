@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, AlertCircle, Brain, X } from "lucide-react";
 import { advisorAPI } from "../services/api";
 import websocketService from "../services/websocket";
+import AgentThinkingPanel from "./AgentThinkingPanel";
 
 const ChatComponent = () => {
   // Generate a new sessionId for each session (no persistence)
   const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  const [clearActivityTrigger, setClearActivityTrigger] = useState(0);
+  const [showAgentPanelMobile, setShowAgentPanelMobile] = useState(false);
   const [messages, setMessages] = useState(() => [
     {
       role: "assistant",
@@ -85,6 +88,7 @@ const ChatComponent = () => {
     setInput("");
     addMessage("user", userMessage);
     setIsLoading(true);
+    setClearActivityTrigger((t) => t + 1);
 
     try {
       const response = await advisorAPI.analyze(userMessage, sessionId);
@@ -114,7 +118,7 @@ const ChatComponent = () => {
   return (
     <div className="flex h-full bg-gradient-to-b from-white to-gray-50/50">
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Chat Header */}
         <div className="px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
           <div className="flex items-center gap-3">
@@ -209,7 +213,7 @@ const ChatComponent = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Professional Input Area */}
+        {/* Input Area */}
         <form
           onSubmit={handleSubmit}
           className="border-t border-gray-200 p-5 bg-white/80 backdrop-blur-sm"
@@ -251,6 +255,47 @@ const ChatComponent = () => {
           </p>
         </form>
       </div>
+
+      {/* Agent Thinking Panel - Desktop */}
+      <div className="w-[380px] flex-shrink-0 hidden lg:flex flex-col border-l border-gray-200 bg-white">
+        <AgentThinkingPanel sessionId={sessionId} clearTrigger={clearActivityTrigger} />
+      </div>
+
+      {/* Mobile: Toggle button */}
+      <button
+        type="button"
+        onClick={() => setShowAgentPanelMobile((v) => !v)}
+        className="lg:hidden fixed bottom-24 right-6 z-40 p-3 rounded-full bg-primary-600 text-white shadow-lg hover:bg-primary-700 transition-colors"
+        title="Agent thinking"
+      >
+        <Brain className="w-5 h-5" />
+      </button>
+
+      {/* Mobile: Slide-over panel */}
+      {showAgentPanelMobile && (
+        <>
+          <div
+            className="lg:hidden fixed inset-0 bg-black/30 z-40"
+            onClick={() => setShowAgentPanelMobile(false)}
+            aria-hidden="true"
+          />
+          <div className="lg:hidden fixed top-0 right-0 bottom-0 w-full max-w-sm bg-white shadow-xl z-50 flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <span className="font-semibold text-gray-900">Agent Thinking</span>
+              <button
+                type="button"
+                onClick={() => setShowAgentPanelMobile(false)}
+                className="p-2 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AgentThinkingPanel sessionId={sessionId} clearTrigger={clearActivityTrigger} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

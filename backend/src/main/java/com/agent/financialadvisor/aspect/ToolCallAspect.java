@@ -69,6 +69,14 @@ public class ToolCallAspect {
         // Send tool call notification
         webSocketService.sendToolCall(sessionId, toolName, parameters);
         
+        // Send to unified agent activity stream
+        Map<String, Object> toolCallEvent = new HashMap<>();
+        toolCallEvent.put("type", "tool_call");
+        toolCallEvent.put("toolName", toolName);
+        toolCallEvent.put("parameters", parameters);
+        toolCallEvent.put("content", "Calling " + formatToolCall(toolName, parameters));
+        webSocketService.sendAgentActivity(sessionId, toolCallEvent);
+        
         // Send human-friendly thinking update
         String humanFriendly = formatToolCall(toolName, parameters);
         webSocketService.sendReasoning(sessionId, "🔧 Calling tool: " + humanFriendly);
@@ -86,6 +94,15 @@ public class ToolCallAspect {
             
             // Send tool result notification
             webSocketService.sendToolResult(sessionId, toolName, resultStr, duration);
+            
+            // Send to unified agent activity stream
+            Map<String, Object> toolResultEvent = new HashMap<>();
+            toolResultEvent.put("type", "tool_result");
+            toolResultEvent.put("toolName", toolName);
+            toolResultEvent.put("result", resultStr);
+            toolResultEvent.put("duration", duration);
+            toolResultEvent.put("content", toolName + " completed in " + duration + "ms");
+            webSocketService.sendAgentActivity(sessionId, toolResultEvent);
             
             return result;
         } catch (Exception e) {
