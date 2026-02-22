@@ -79,8 +79,8 @@ const AgentThinkingPanel = ({ sessionId, clearTrigger }) => {
             id: `evt-${data.timestamp || Date.now()}-${Math.random().toString(36).slice(2)}`,
             type: data.type || 'unknown',
             content: data.content || '',
-            timestamp: new Date(data.timestamp || Date.now()),
             ...data,
+            timestamp: new Date(data.timestamp || Date.now()),
           };
           setEvents((prev) => [...prev, event]);
         } catch (e) {
@@ -287,7 +287,10 @@ const AgentThinkingPanel = ({ sessionId, clearTrigger }) => {
                     </div>
                   )}
                   <p className="text-xs text-gray-400 mt-2">
-                    {evt.timestamp.toLocaleTimeString([], {
+                    {(evt.timestamp instanceof Date
+                      ? evt.timestamp
+                      : new Date(evt.timestamp || Date.now())
+                    ).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
                       second: '2-digit',
