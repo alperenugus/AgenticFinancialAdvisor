@@ -95,6 +95,21 @@ public class WebSocketService {
         }
     }
 
+    /**
+     * Send unified agent activity event for the agent thinking timeline.
+     * All planner, orchestrator, sub-agent, tool, and evaluator events flow here.
+     */
+    public void sendAgentActivity(String sessionId, Map<String, Object> event) {
+        try {
+            event.put("timestamp", System.currentTimeMillis());
+            String topic = "/topic/agent-activity/" + sessionId;
+            messagingTemplate.convertAndSend(topic, event);
+            log.debug("📢 [WebSocket] Sent agent activity to topic={}, type={}", topic, event.get("type"));
+        } catch (Exception e) {
+            log.error("❌ [WebSocket] Error sending agent activity for sessionId={}", sessionId, e);
+        }
+    }
+
     public static class ThinkingMessage {
         private String type;
         private String content;
