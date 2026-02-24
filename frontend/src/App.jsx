@@ -89,7 +89,6 @@ function App() {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                   Financial Advisor AI
                 </h1>
-                <p className="text-xs text-gray-500 font-medium">Powered by Groq</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -186,7 +185,7 @@ function App() {
             {/* Footer Content */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-sm text-gray-600 font-medium">
-                Financial Advisor AI - Powered by <span className="text-primary-600 font-semibold">Groq</span> & LangChain4j
+                Financial Advisor AI
               </p>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <div className="w-2 h-2 bg-success-500 rounded-full"></div>
