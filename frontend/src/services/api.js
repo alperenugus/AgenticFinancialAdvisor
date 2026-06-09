@@ -29,10 +29,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    const url = error.config?.url || '';
+    // Don't bounce on a failed login/register attempt — let the form surface the error message.
+    const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register');
+    if (error.response?.status === 401 && !isAuthAttempt) {
+      // Token expired or invalid: clear it and return to the SPA root, which renders the login page.
+      // (There is no client-side "/login" route, so the old redirect produced a blank page.)
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -48,6 +52,9 @@ export const authAPI = {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     return api.post('/auth/validate', {}, { headers });
   },
+  // Email/password auth (alongside Google OAuth). Both return { token, user }.
+  register: (payload) => api.post('/auth/register', payload),
+  login: (credentials) => api.post('/auth/login', credentials),
 };
 
 // User Profile API

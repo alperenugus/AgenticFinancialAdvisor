@@ -22,9 +22,9 @@ GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google
 
-# JWT Configuration (REQUIRED)
-# Generate a secure random string (minimum 32 characters)
-# Example: openssl rand -base64 32
+# JWT Configuration (REQUIRED - app FAILS FAST at startup without a strong secret)
+# Must be a strong random string (minimum 32 characters, not the old placeholder)
+# Generate with: openssl rand -base64 48
 JWT_SECRET=your-secure-random-secret-key-minimum-32-characters-long
 JWT_EXPIRATION=86400000  # 24 hours in milliseconds
 
@@ -40,6 +40,9 @@ GROQ_ORCHESTRATOR_TEMPERATURE=0.0
 GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=90
 
 # Market Data API (REQUIRED - get free key from https://finnhub.io/)
+# Live quotes use Finnhub /quote with an automatic Yahoo Finance fallback.
+# Historical/candle data uses the Yahoo Finance fallback (Finnhub candles are premium-only).
+# Yahoo Finance (query1.finance.yahoo.com) needs NO API key.
 FINNHUB_API_KEY=your_finnhub_api_key_here
 
 # Server Port (Auto-set by Railway - usually don't need to set)
@@ -56,6 +59,11 @@ CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173
 # Frontend Redirect URL (for OAuth2 callback)
 # Default: http://localhost:5173 (local) or your frontend URL (production)
 FRONTEND_REDIRECT_URL=https://your-frontend.railway.app
+
+# Market Data Quote Cache TTL (OPTIONAL - default: 15 seconds)
+# Short-TTL cache for live quotes that protects the Finnhub free tier
+# without serving stale prices. Relaxed-binds to market-data.quote-cache-ttl-seconds.
+MARKET_DATA_QUOTE_CACHE_TTL_SECONDS=15
 
 # News API (optional - get free key from https://newsapi.org/)
 NEWS_API_KEY=your_news_api_key_here
@@ -128,7 +136,7 @@ PORT=3000
 - [ ] `GOOGLE_CLIENT_ID` - **REQUIRED** - Get from Google Cloud Console
 - [ ] `GOOGLE_CLIENT_SECRET` - **REQUIRED** - Get from Google Cloud Console
 - [ ] `GOOGLE_REDIRECT_URI` - **REQUIRED** - `https://your-backend.railway.app/login/oauth2/code/google`
-- [ ] `JWT_SECRET` - **REQUIRED** - Generate secure random 32+ character string
+- [ ] `JWT_SECRET` - **REQUIRED** - App fails fast without it. Generate via `openssl rand -base64 48` (min 32 chars)
 - [ ] `JWT_EXPIRATION` - Optional - Default: 86400000 (24 hours)
 - [ ] `GROQ_API_KEY` - **REQUIRED** - Get from https://console.groq.com/
 - [ ] `FINNHUB_API_KEY` - **REQUIRED** - Get from https://finnhub.io/
@@ -137,6 +145,7 @@ PORT=3000
 - [ ] `PORT=8080` - Usually auto-set
 - [ ] (Optional) `GROQ_ORCHESTRATOR_MODEL` - Default: llama-3.3-70b-versatile (used for all agents)
 - [ ] (Optional) `GROQ_ORCHESTRATOR_TIMEOUT_SECONDS` - Default: 90
+- [ ] (Optional) `MARKET_DATA_QUOTE_CACHE_TTL_SECONDS` - Default: 15 (quote cache TTL in seconds)
 - [ ] (Optional) `NEWS_API_KEY` - If using NewsAPI
 - [ ] (Optional) `TAVILY_API_KEY` - For web search (recommended) - Get from https://tavily.com
 - [ ] (Optional) `SERPER_API_KEY` - Alternative web search API - Get from https://serper.dev
@@ -293,17 +302,18 @@ See [Google Auth Setup Guide](../GOOGLE_AUTH_SETUP.md) for detailed instructions
 
 ### JWT Secret (Required)
 
-Generate a secure random secret:
+The app **fails fast at startup** if `JWT_SECRET` is missing, shorter than 32
+characters, or set to the old placeholder value. Generate a strong random secret:
 
 ```bash
-# Using OpenSSL
-openssl rand -base64 32
+# Using OpenSSL (recommended)
+openssl rand -base64 48
 
 # Or using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 
 # Or using Python
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
 Set as `JWT_SECRET` (minimum 32 characters).
@@ -407,7 +417,7 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 2. `GOOGLE_CLIENT_ID` - From Google Cloud Console
 3. `GOOGLE_CLIENT_SECRET` - From Google Cloud Console
 4. `GOOGLE_REDIRECT_URI` - `https://your-backend.railway.app/login/oauth2/code/google`
-5. `JWT_SECRET` - Generate secure random 32+ character string
+5. `JWT_SECRET` - Strong random secret (app fails fast without it); generate via `openssl rand -base64 48`
 6. `GROQ_API_KEY` - Get from https://console.groq.com/
 7. `FINNHUB_API_KEY` - Get free key
 8. `CORS_ORIGINS` - Include frontend URL

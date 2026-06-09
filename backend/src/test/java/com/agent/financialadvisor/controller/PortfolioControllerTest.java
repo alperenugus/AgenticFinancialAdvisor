@@ -3,6 +3,7 @@ package com.agent.financialadvisor.controller;
 import com.agent.financialadvisor.model.Portfolio;
 import com.agent.financialadvisor.model.StockHolding;
 import com.agent.financialadvisor.repository.PortfolioRepository;
+import com.agent.financialadvisor.service.JwtService;
 import com.agent.financialadvisor.service.MarketDataService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -35,7 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = PortfolioController.class, excludeAutoConfiguration = {
         org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class
+        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration.class
 })
 @AutoConfigureMockMvc(addFilters = false)
 class PortfolioControllerTest {
@@ -49,6 +51,9 @@ class PortfolioControllerTest {
     @MockBean
     private MarketDataService marketDataService;
 
+    @MockBean
+    private JwtService jwtService;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -57,7 +62,7 @@ class PortfolioControllerTest {
     @BeforeEach
     void setUp() {
         UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken("test-user", "n/a");
+                new UsernamePasswordAuthenticationToken("test-user", "n/a", java.util.Collections.emptyList());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         testPortfolio = new Portfolio();

@@ -2,6 +2,7 @@ package com.agent.financialadvisor.controller;
 
 import com.agent.financialadvisor.model.UserProfile;
 import com.agent.financialadvisor.repository.UserProfileRepository;
+import com.agent.financialadvisor.service.JwtService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = UserProfileController.class, excludeAutoConfiguration = {
         org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class
+        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration.class
 })
 @AutoConfigureMockMvc(addFilters = false)
 class UserProfileControllerTest {
@@ -42,12 +44,15 @@ class UserProfileControllerTest {
     @MockBean
     private UserProfileRepository userProfileRepository;
 
+    @MockBean
+    private JwtService jwtService;
+
     private UserProfile testProfile;
 
     @BeforeEach
     void setUp() {
         UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken("test-user", "n/a");
+                new UsernamePasswordAuthenticationToken("test-user", "n/a", java.util.Collections.emptyList());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         testProfile = new UserProfile();

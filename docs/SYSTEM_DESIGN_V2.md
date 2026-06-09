@@ -129,32 +129,32 @@ This document outlines the improved agent architecture for the Financial Advisor
 
 **Implementation**: Create `FintwitAnalysisAgent.java` using Twitter API or web search fallback
 
-### 5. Risk Assessment Agent (Existing)
+### 5. Risk Assessment Agent (Proposed)
 **Purpose**: Evaluate risk levels
 
-**Tools**:
+**Proposed Tools**:
 - `assessStockRisk(symbol, metrics)` - Individual stock risk
 - `calculatePortfolioRisk(userId)` - Portfolio risk
 - `checkRiskTolerance(userId, symbol)` - Compare with user tolerance
 - `getRiskMetrics(symbol)` - Risk metrics (volatility, beta)
 
-**Status**: ✅ Already implemented
+**Status**: ⏳ Not yet implemented. Risk considerations are currently handled inline by the orchestrator and existing agents rather than a dedicated Risk Assessment Agent.
 
-### 6. Research Agent (Existing - Enhanced)
+### 6. Research Agent (Proposed)
 **Purpose**: Fundamental analysis and company research
 
-**Current Tools**:
+**Proposed Tools**:
 - `getCompanyFundamentals(symbol)` - Financial ratios
 - `analyzeFinancials(symbol)` - Financial analysis
 - `compareCompanies(symbols)` - Company comparison
 - `getSectorAnalysis(symbol)` - Sector analysis
 
-**Enhancements**:
+**Possible Enhancements**:
 - Integrate with Web Search Agent for latest research
 - Add earnings analysis
 - Add analyst ratings
 
-**Status**: ✅ Implemented, can be enhanced
+**Status**: ⏳ Not yet implemented. Fundamental research needs are currently served by the Web Search Agent.
 
 ### 7. Orchestrator Service (Rewritten - Plan-Execute-Evaluate)
 **Purpose**: Coordinate all agents via structured agentic loop

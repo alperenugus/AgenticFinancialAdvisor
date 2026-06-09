@@ -56,3 +56,7 @@ backend/application-*.properties
 *.bak
 *.cache
 
+# Test/automation artifacts
+.playwright-mcp/
+prod-ai-advisor-live-price.png
+

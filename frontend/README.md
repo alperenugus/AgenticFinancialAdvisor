@@ -4,9 +4,9 @@ React + Vite frontend for the Agentic Financial Advisor application.
 
 ## Features
 
-- 💬 **Chat Interface** - Interactive chat with AI financial advisor
+- 🔐 **Authentication** - Sign in with Google OAuth2 or email/password
+- 💬 **Chat Interface** - Interactive chat with AI financial advisor (live market data)
 - 📊 **Portfolio Management** - View and manage your stock portfolio with visualizations
-- 📈 **Recommendations** - View AI-generated investment recommendations
 - 👤 **User Profile** - Configure your risk tolerance, goals, and preferences
 - 🔄 **Real-time Updates** - WebSocket integration for live agent thinking updates
 
@@ -54,10 +54,13 @@ The built files will be in the `dist` directory.
 frontend/
 ├── src/
 │   ├── components/
+│   │   ├── LoginPage.jsx          # Google + email/password sign-in
 │   │   ├── ChatComponent.jsx      # Main chat interface
+│   │   ├── AgentThinkingPanel.jsx # Live Plan-Execute-Evaluate stream
 │   │   ├── PortfolioView.jsx      # Portfolio management and charts
-│   │   ├── RecommendationCard.jsx # Recommendation display
+│   │   ├── OnboardingWizard.jsx   # First-run profile + portfolio setup
 │   │   └── UserProfileForm.jsx    # User profile configuration
+│   ├── contexts/                  # AuthContext / useAuth
 │   ├── services/
 │   │   ├── api.js                 # REST API client
 │   │   └── websocket.js           # WebSocket service
@@ -73,7 +76,7 @@ frontend/
 
 The frontend communicates with the backend through:
 
-- **REST API** (`/api/*`) - For user profiles, portfolios, and recommendations
+- **REST API** (`/api/*`) - For authentication, user profiles, portfolios, and advisor queries
 - **WebSocket** (`/ws`) - For real-time agent thinking updates
 
 See the main [README.md](../README.md) for API documentation.

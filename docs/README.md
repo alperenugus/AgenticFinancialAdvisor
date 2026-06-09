@@ -7,6 +7,7 @@
 - **[API.md](../API.md)** - Complete API documentation
 - **[DEPLOYMENT.md](../DEPLOYMENT.md)** - General deployment guide
 - **[SYSTEM_DESIGN_V2.md](./SYSTEM_DESIGN_V2.md)** - Detailed system design and agent architecture
+- **[PROJECT_EVALUATION.md](./PROJECT_EVALUATION.md)** - Project evaluation and assessment
 
 ---
 

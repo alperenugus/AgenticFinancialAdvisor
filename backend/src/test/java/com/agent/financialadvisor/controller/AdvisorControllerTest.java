@@ -1,5 +1,6 @@
 package com.agent.financialadvisor.controller;
 
+import com.agent.financialadvisor.service.JwtService;
 import com.agent.financialadvisor.service.RateLimitService;
 import com.agent.financialadvisor.service.orchestrator.OrchestratorService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,7 +31,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = AdvisorController.class, excludeAutoConfiguration = {
         org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class
+        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration.class
 })
 @AutoConfigureMockMvc(addFilters = false)
 class AdvisorControllerTest {
@@ -44,13 +46,20 @@ class AdvisorControllerTest {
     @MockBean
     private RateLimitService rateLimitService;
 
+    // Required so the security-filter slice can construct JwtAuthenticationFilter (addFilters=false
+    // disables the chain, but the bean is still instantiated).
+    @MockBean
+    private JwtService jwtService;
+
     @Autowired
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
+        // 3-arg constructor marks the token authenticated (the 2-arg form sets authenticated=false,
+        // which makes SecurityUtil.getCurrentUserEmail() return empty and the controller 500).
         UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken("test-user", "n/a");
+                new UsernamePasswordAuthenticationToken("test-user", "n/a", java.util.Collections.emptyList());
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 

@@ -64,6 +64,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     newUser.setName(name);
                     newUser.setGoogleId(googleId);
                     newUser.setPictureUrl(picture);
+                    newUser.setAuthProvider("GOOGLE");
                     User saved = userRepository.save(newUser);
                     log.info("New user created with ID: {}", saved.getId());
                     return saved;

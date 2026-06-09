@@ -29,6 +29,11 @@ spring:
 server:
   port: 8080
 
+# JWT (local dev only — production sets JWT_SECRET via env)
+jwt:
+  secret: ${JWT_SECRET:local-development-only-jwt-secret-not-for-production-use-32+chars}
+  expiration: ${JWT_EXPIRATION:86400000}
+
 # LangChain4j Configuration
 langchain4j:
   groq:

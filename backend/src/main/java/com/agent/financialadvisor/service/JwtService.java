@@ -3,6 +3,7 @@ package com.agent.financialadvisor.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +17,38 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
+    /** The placeholder that used to be the committed default — must never be accepted as a real secret. */
+    private static final String INSECURE_PLACEHOLDER =
+            "your-256-bit-secret-key-change-this-in-production-minimum-32-characters";
+
+    @Value("${jwt.secret:}")
     private String secret;
 
-    @Value("${jwt.expiration}")
+    @Value("${jwt.expiration:86400000}")
     private Long expiration;
+
+    /**
+     * Fail fast at startup if the signing secret is missing, too weak, or the well-known placeholder.
+     * This prevents the app from ever running with a forgeable, source-committed key (set JWT_SECRET on
+     * Railway; local/test profiles provide their own dev secret).
+     */
+    @PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_SECRET is not set. Configure a strong (>=32 char) secret via the JWT_SECRET " +
+                    "environment variable before starting the application.");
+        }
+        if (secret.equals(INSECURE_PLACEHOLDER)) {
+            throw new IllegalStateException(
+                    "JWT_SECRET is set to the insecure built-in placeholder. Generate a real secret, " +
+                    "e.g. `openssl rand -base64 48`, and set it as JWT_SECRET.");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET is too short for HS256 (needs >=32 bytes). Use a longer secret.");
+        }
+    }
 
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);

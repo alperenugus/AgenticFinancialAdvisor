@@ -23,6 +23,14 @@ public class User {
     @Column(name = "picture_url")
     private String pictureUrl;
 
+    /** BCrypt hash for local (email/password) accounts. Null for Google-only accounts. */
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    /** How the account authenticates: "GOOGLE" or "LOCAL". Defaults to GOOGLE for legacy rows. */
+    @Column(name = "auth_provider")
+    private String authProvider;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -79,6 +87,22 @@ public class User {
 
     public void setPictureUrl(String pictureUrl) {
         this.pictureUrl = pictureUrl;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
     }
 
     public LocalDateTime getCreatedAt() {

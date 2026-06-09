@@ -8,7 +8,7 @@ This document describes all input validation checks throughout the application.
 
 **Validations:**
 1. ✅ **Format validation**: Symbol must be 1-10 alphanumeric uppercase characters (regex: `^[A-Z0-9]{1,10}$`)
-2. ✅ **Existence validation**: Symbol must exist in the market (validated by fetching current price from Alpha Vantage)
+2. ✅ **Existence validation**: Symbol must exist in the market (validated by fetching a live quote from Finnhub, with a Yahoo Finance fallback)
 3. ✅ **Null/empty check**: Symbol cannot be null or empty
 4. ✅ **Quantity validation**: Must be a positive integer > 0
 5. ✅ **Average price validation**: Must be a positive number > 0
@@ -38,11 +38,11 @@ This document describes all input validation checks throughout the application.
 
 ### Market Data Service
 
-**`getStockPrice(String symbol)`:**
-- ✅ Checks for Alpha Vantage "Error Message" field
-- ✅ Checks for Alpha Vantage "Note" field (rate limiting)
-- ✅ Validates price data exists in response
-- ✅ Returns `null` if symbol is invalid or error occurs
+**`getStockPrice(String symbol)` / `getQuote(String symbol)`:**
+- ✅ Checks for a Finnhub `error` field and a valid `c` (current price) > 0
+- ✅ Falls back to the Yahoo Finance chart endpoint when Finnhub returns no usable quote
+- ✅ Short-TTL cache (~15s) to respect the Finnhub free-tier rate limit
+- ✅ Returns `null` if the symbol is invalid or all providers fail
 
 **`validateSymbol(String symbol)`:**
 - ✅ Format validation (1-10 alphanumeric uppercase)

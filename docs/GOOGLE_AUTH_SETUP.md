@@ -2,7 +2,9 @@
 
 ## Overview
 
-The application now uses Google OAuth2 for authentication. Users must sign in with their Google account to access the application.
+The application supports Google OAuth2 for authentication. Users can sign in with their Google account to access the application.
+
+> **Note:** The app also supports email/password authentication via `POST /api/auth/register` and `POST /api/auth/login`. Google OAuth2 setup is therefore optional if you only use local accounts.
 
 ## Backend Setup
 
@@ -77,7 +79,6 @@ All endpoints now require authentication (JWT token in `Authorization: Bearer <t
 - `DELETE /api/portfolio/holdings/{holdingId}` - Remove holding
 - `POST /api/portfolio/refresh` - Refresh prices
 - `POST /api/advisor/analyze` - Analyze query (no userId in body)
-- `GET /api/advisor/recommendations` - Get recommendations (no userId in path)
 
 ### New Endpoints
 

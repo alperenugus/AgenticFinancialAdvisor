@@ -2,26 +2,30 @@
 
 ## Current Implementation
 
-### ✅ Fresh Data Fetching (No Cache)
+### ✅ Live Data with Short-TTL Quote Cache
 
-The system fetches market data from **Finnhub** on each request:
+The system fetches market data from **Finnhub** with an automatic **Yahoo Finance** fallback:
 
-- No application-level cache in `MarketDataService`
-- Fresh HTTP request per tool invocation (`getStockPrice`, `getStockPriceData`, `getMarketNews`)
-- Data is not reused between requests
+- Live HTTP request per tool invocation (`getStockPrice`, `getStockPriceData`, `getMarketNews`)
+- A short-TTL quote cache (~15s) protects the free tier without serving stale prices
+  - TTL is configurable via `MARKET_DATA_QUOTE_CACHE_TTL_SECONDS` (relaxed-binds to `market-data.quote-cache-ttl-seconds`)
+- Quote responses include `quoteTime` (the provider's price timestamp) and `source` (`"finnhub"` or `"yahoo"`)
 
 ## Data Sources
 
-### Finnhub (Primary)
+### Finnhub (Primary, live quotes)
 
 - **Current Price** (`/quote`)
-- **Candles / historical aggregates** (`/stock/candle`)
 - **Company profile** (`/stock/profile2`)
 - **Company news** (`/company-news`)
 
+### Yahoo Finance (Automatic Fallback)
+
+- **Current Price** fallback when Finnhub fails or is rate-limited (`query1.finance.yahoo.com/v8/finance/chart`, no API key)
+- **Candles / historical aggregates** — Yahoo is used here because the Finnhub `/stock/candle` endpoint is **premium-only** and returns `403` on the free tier
+
 ### Optional Additional Sources
 
-- Yahoo Finance (configured in app settings, not primary)
 - External web/news providers via WebSearchAgent tools
 
 ## Important Limitations
@@ -50,9 +54,10 @@ Example flow for `getStockPrice("AAPL")`:
 
 1. Agent tool is called
 2. `MarketDataService.getStockPrice("AAPL")` executes
-3. A fresh request is sent to Finnhub
-4. Response is parsed and returned immediately
-5. No cache lookup is used
+3. The short-TTL (~15s) quote cache is checked; a fresh value is returned on hit
+4. On a miss, a live request is sent to Finnhub `/quote`
+5. If Finnhub fails or is rate-limited, the request falls back to Yahoo Finance
+6. The response (including `quoteTime` and `source`) is parsed, cached, and returned
 
 ## Operational Recommendations
 
@@ -62,8 +67,8 @@ Example flow for `getStockPrice("AAPL")`:
 
 ### For Production
 
-- Add clear UI labeling for fetched timestamp (`fetchedAt`) and provider delay caveat
-- Add fallback provider strategy if Finnhub is unavailable
+- Add clear UI labeling for the provider price timestamp (`quoteTime`) and provider delay caveat
+- Surface the `source` (`finnhub` / `yahoo`) so users know which provider answered
 - Add monitoring on rate-limit and timeout error rates
 - Consider tier upgrades if you need stricter real-time guarantees
 
@@ -71,10 +76,11 @@ Example flow for `getStockPrice("AAPL")`:
 
 | Area | Status |
 |---|---|
-| Fresh request per call | ✅ Yes |
-| App-level market-data cache | ❌ No |
+| Live request per call (cache miss) | ✅ Yes |
+| Short-TTL quote cache (~15s) | ✅ Yes |
+| Automatic Yahoo Finance fallback | ✅ Yes |
 | Provider-side delay possible | ⚠️ Yes |
 | Rate-limit impact possible | ⚠️ Yes |
 
-Key point: the app does not serve cached market data by default. If stale values appear, the most likely causes are provider delay, quota/rate-limit failures, or missing API configuration.
+Key point: quotes are served live, briefly cached (~15s) to protect the free tier, and fall back to Yahoo Finance when Finnhub is unavailable. Historical/candle data always uses Yahoo (Finnhub candles are premium-only). If stale values appear, the most likely causes are provider delay, quota/rate-limit failures, or missing API configuration.
 
