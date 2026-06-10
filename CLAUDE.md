@@ -250,6 +250,10 @@ After deploying, drive the live site with the `playwright` MCP browser tools:
   consistently; both read `CORS_ORIGINS`.
 - **Data freshness is a feature.** When editing `MarketDataService`/agents, preserve live fetches and surface
   the quote/news timestamp. See `docs/DATA_FRESHNESS.md`.
+- **Groq free tier = ~100K tokens/DAY on the 70B model** (~15–30 advisor queries). Heavy testing exhausts it;
+  the app then returns an honest capacity message ("try again in ~20 minutes"). SecurityAgent runs on the 8B
+  model (separate bucket). Don't burn the budget with bulk prod testing; paid Groq tier is required before
+  real user load.
 
 ---
 

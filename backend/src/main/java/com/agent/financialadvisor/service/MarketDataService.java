@@ -41,6 +41,16 @@ public class MarketDataService {
     /** Very short-TTL cache: protects the Finnhub free tier (60/min) without serving stale prices. */
     private final Map<String, CachedQuote> quoteCache = new ConcurrentHashMap<>();
 
+    private record CachedSnapshot(Map<String, Object> snapshot, long cachedAtMillis) {}
+
+    /**
+     * Technical snapshots derive from DAILY candles, so a ~10 min cache loses nothing intraday and
+     * prevents parallel plan steps (trend + RSI + MAs for the same symbol) from re-fetching the
+     * same one-year series and tripping Yahoo's rate limiting.
+     */
+    private static final long SNAPSHOT_CACHE_TTL_MILLIS = 10 * 60 * 1000L;
+    private final Map<String, CachedSnapshot> snapshotCache = new ConcurrentHashMap<>();
+
     public MarketDataService(
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper,
@@ -522,6 +532,12 @@ public class MarketDataService {
      * @return map of indicators, or an empty map when no usable series is available.
      */
     public Map<String, Object> getTechnicalSnapshot(String symbol) {
+        String key = symbol.toUpperCase(Locale.ROOT);
+        CachedSnapshot cached = snapshotCache.get(key);
+        if (cached != null && (System.currentTimeMillis() - cached.cachedAtMillis()) < SNAPSHOT_CACHE_TTL_MILLIS) {
+            return new HashMap<>(cached.snapshot());
+        }
+
         Map<String, Object> result = new HashMap<>();
         try {
             JsonNode chartResult = yahooChart(symbol.toUpperCase(Locale.ROOT), "1y", "1d")
@@ -583,6 +599,7 @@ public class MarketDataService {
             result.put("tradingDays", closes.length);
             result.put("methodology",
                     "SMA = simple moving average of closes; RSI14 uses Wilder smoothing; volatility = stdev of daily log returns (30d) annualized by sqrt(252).");
+            snapshotCache.put(key, new CachedSnapshot(new HashMap<>(result), System.currentTimeMillis()));
         } catch (Exception e) {
             logFetchError("technical snapshot", symbol, e);
         }
