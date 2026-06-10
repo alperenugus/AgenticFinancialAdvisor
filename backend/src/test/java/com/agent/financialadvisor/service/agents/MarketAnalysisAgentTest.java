@@ -132,51 +132,60 @@ class MarketAnalysisAgentTest {
     }
 
     @Test
-    void testAnalyzeTrends_Success() {
-        // Given
-        Map<String, Object> priceData = new HashMap<>();
-        priceData.put("high", new BigDecimal("160.00"));
-        priceData.put("low", new BigDecimal("140.00"));
-        priceData.put("average", new BigDecimal("150.00"));
-        priceData.put("symbol", "AAPL");
+    void testAnalyzeTrends_ClassifiesUptrendFromMovingAverages() {
+        // Given: close > SMA20 > SMA50 → UPTREND per the documented rule
+        Map<String, Object> snapshot = new HashMap<>();
+        snapshot.put("symbol", "AAPL");
+        snapshot.put("latestClose", new BigDecimal("160.00"));
+        snapshot.put("sma20", new BigDecimal("152.00"));
+        snapshot.put("sma50", new BigDecimal("147.50"));
+        snapshot.put("asOf", "2026-06-09T20:00:00Z");
+        snapshot.put("source", "yahoo-finance-daily-candles");
 
         when(marketDataService.resolveSymbol("AAPL")).thenReturn("AAPL");
-        when(marketDataService.getStockPriceData("AAPL", "daily")).thenReturn(priceData);
-        when(marketDataService.getStockPrice("AAPL")).thenReturn(new BigDecimal("155.00"));
+        when(marketDataService.getTechnicalSnapshot("AAPL")).thenReturn(snapshot);
 
         // When
         String result = marketAnalysisAgent.analyzeTrends("AAPL", "daily");
 
         // Then
         assertThat(result).contains("AAPL");
-        assertThat(result).contains("daily");
+        assertThat(result).contains("UPTREND");
         assertThat(result).contains("160.00");
-        assertThat(result).contains("140.00");
+        assertThat(result).contains("152.00");
+        assertThat(result).contains("2026-06-09T20:00:00Z"); // freshness propagated
         verify(marketDataService, times(1)).resolveSymbol("AAPL");
-        verify(marketDataService, times(1)).getStockPriceData("AAPL", "daily");
+        verify(marketDataService, times(1)).getTechnicalSnapshot("AAPL");
     }
 
     @Test
-    void testGetTechnicalIndicators_Success() {
+    void testGetTechnicalIndicators_ReturnsRealIndicatorsWithLiveQuote() {
         // Given
-        Map<String, Object> priceData = new HashMap<>();
-        priceData.put("high", new BigDecimal("160.00"));
-        priceData.put("low", new BigDecimal("140.00"));
-        priceData.put("average", new BigDecimal("150.00"));
+        Map<String, Object> snapshot = new HashMap<>();
+        snapshot.put("symbol", "AAPL");
+        snapshot.put("latestClose", new BigDecimal("155.00"));
+        snapshot.put("sma20", new BigDecimal("152.00"));
+        snapshot.put("rsi14", new BigDecimal("61.30"));
+        snapshot.put("week52High", new BigDecimal("199.62"));
+        snapshot.put("asOf", "2026-06-09T20:00:00Z");
 
         when(marketDataService.resolveSymbol("AAPL")).thenReturn("AAPL");
-        when(marketDataService.getStockPriceData("AAPL", "daily")).thenReturn(priceData);
-        when(marketDataService.getStockPrice("AAPL")).thenReturn(new BigDecimal("155.00"));
+        when(marketDataService.getTechnicalSnapshot("AAPL")).thenReturn(snapshot);
+        when(marketDataService.getQuote("AAPL"))
+                .thenReturn(new MarketDataService.Quote(new BigDecimal("155.20"), "finnhub", Instant.now()));
 
         // When
         String result = marketAnalysisAgent.getTechnicalIndicators("AAPL");
 
         // Then
         assertThat(result).contains("AAPL");
-        assertThat(result).contains("155.00");
+        assertThat(result).contains("61.30");   // RSI14
+        assertThat(result).contains("199.62");  // 52-week high
+        assertThat(result).contains("155.20");  // live quote
+        assertThat(result).contains("finnhub"); // quote provenance
         verify(marketDataService, times(1)).resolveSymbol("AAPL");
-        verify(marketDataService, times(1)).getStockPriceData("AAPL", "daily");
-        verify(marketDataService, times(1)).getStockPrice("AAPL");
+        verify(marketDataService, times(1)).getTechnicalSnapshot("AAPL");
+        verify(marketDataService, times(1)).getQuote("AAPL");
     }
 }
 

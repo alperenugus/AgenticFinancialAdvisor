@@ -73,6 +73,12 @@ public class PlannerAgent {
             "1. For casual greetings/chitchat (hi, hello, hey, good morning, what can you do, etc.): " +
             "set queryType to GREETING, provide a friendly directResponse mentioning you can help with stock prices, " +
             "portfolio management, market analysis, and investment strategies. Set steps to an empty array [].\n" +
+            "1b. directResponse must NEVER contain numbers, prices, percentages, or market facts — any factual " +
+            "answer MUST come from agent steps so it is backed by live data. directResponse is rejected by the " +
+            "system for non-greeting queries.\n" +
+            "1c. A USER PROFILE CONTEXT block may be provided with the user's risk tolerance, goals, horizon, and " +
+            "current holdings. Use it to plan better (e.g., include the user's held tickers in analysis tasks for " +
+            "advice queries). Still include a USER_PROFILE step when live portfolio values are needed.\n" +
             "2. For stock price queries: use MARKET_ANALYSIS agent. Pass the company name or ticker exactly as the user said it.\n" +
             "3. For portfolio/profile/holdings questions: use USER_PROFILE agent.\n" +
             "4. For news, research, or company information: use WEB_SEARCH agent.\n" +

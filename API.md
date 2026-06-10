@@ -712,7 +712,22 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 ## Changelog
 
-### v2.5.0 (Current)
+### v2.6.0 (Current)
+- **Anti-hallucination grounding gate** — every figure in an advisor response is deterministically verified
+  against raw tool output (`GroundingService`); violations trigger a corrective rewrite, and unverifiable
+  figures ship with an explicit caution. Grounding verdicts stream over the WebSocket as `grounding` events
+  ("Fact Check" in the UI).
+- **Raw tool-data capture** — `ToolCallAspect` records every tool result per session; the evaluator now
+  synthesizes from raw data (with `quoteTime`/`source`/`asOf`), not just sub-agent paraphrases.
+- **Deterministic personalization** — user profile (risk tolerance, horizon, goals, budget, sectors, ESG) +
+  portfolio allocation/concentration are injected into planning and answer synthesis on every query.
+- **Real technical indicators** — `getTechnicalIndicators`/`analyzeTrends` now return SMA20/50, RSI14,
+  30-day annualized volatility, 1m/3m/1y returns, and 52-week high/low computed from one year of daily
+  candles, each stamped with `asOf` + `source` + the classification rule used.
+- **directResponse hardening** — planner direct responses are honored only for greetings without figures.
+- Advice responses end with an education-not-advice disclaimer line.
+
+### v2.5.0
 - **Email/password authentication** — `POST /api/auth/register` and `POST /api/auth/login` (BCrypt-hashed),
   alongside the existing Google OAuth2. Returns `{ token, user }`.
 - **Public `/api/health` liveness endpoint** and `/api/advisor/status` made public — fixes the Railway

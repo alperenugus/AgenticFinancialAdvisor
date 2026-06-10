@@ -211,8 +211,9 @@ public class MarketAnalysisAgent {
         }
     }
 
-    @Tool("Analyze price trends for a stock. Determines uptrend, downtrend, or sideways movement. " +
-          "Requires: symbolOrCompany (string), timeframe ('daily', 'weekly', or 'monthly'). Returns trend direction and key levels.")
+    @Tool("Analyze price trend for a stock using real moving averages from one year of daily data. " +
+          "Returns trend classification (price vs SMA20 vs SMA50), period returns, and 52-week range. " +
+          "Requires: symbolOrCompany (string). The timeframe parameter is accepted for compatibility but daily data is used.")
     public String analyzeTrends(String symbol, String timeframe) {
         log.info("🔵 analyzeTrends CALLED with symbol={}, timeframe={}", symbol, timeframe);
         try {
@@ -224,52 +225,43 @@ public class MarketAnalysisAgent {
                 );
             }
 
-            Map<String, Object> priceData = marketDataService.getStockPriceData(resolvedSymbol, timeframe);
-            if (priceData.isEmpty()) {
-                return String.format("{\"requested\": \"%s\", \"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Unable to analyze trends - no price data available.\"}",
-                        escapeJson(symbol), resolvedSymbol, timeframe);
+            Map<String, Object> snapshot = marketDataService.getTechnicalSnapshot(resolvedSymbol);
+            if (snapshot.isEmpty()) {
+                return String.format("{\"requested\": \"%s\", \"symbol\": \"%s\", \"error\": \"Unable to analyze trends - no daily price series available.\"}",
+                        escapeJson(symbol), resolvedSymbol);
             }
 
-            // Simple trend analysis
-            BigDecimal high = (BigDecimal) priceData.get("high");
-            BigDecimal low = (BigDecimal) priceData.get("low");
-            BigDecimal average = (BigDecimal) priceData.get("average");
-            
-            if (high == null || low == null || average == null) {
-                return String.format("{\"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Insufficient data for trend analysis.\"}", symbol, timeframe);
-            }
-
-            // Calculate trend direction (simplified - comparing high/low to average)
-            String trendDirection = "SIDEWAYS";
-            BigDecimal range = high.subtract(low);
-            BigDecimal rangePercent = range.divide(average, 4, java.math.RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
-            
-            if (rangePercent.compareTo(BigDecimal.valueOf(5)) > 0) {
-                // Significant price movement
-                BigDecimal currentPrice = marketDataService.getStockPrice(resolvedSymbol);
-                if (currentPrice != null) {
-                    if (currentPrice.compareTo(average) > 0) {
-                        trendDirection = "UPTREND";
-                    } else {
-                        trendDirection = "DOWNTREND";
-                    }
+            // Standard moving-average trend classification: transparent rule, real data.
+            BigDecimal close = (BigDecimal) snapshot.get("latestClose");
+            BigDecimal sma20 = (BigDecimal) snapshot.get("sma20");
+            BigDecimal sma50 = (BigDecimal) snapshot.get("sma50");
+            String trend = "INSUFFICIENT_DATA";
+            String trendRule = "trend = UPTREND when close > SMA20 > SMA50; DOWNTREND when close < SMA20 < SMA50; otherwise MIXED";
+            if (close != null && sma20 != null && sma50 != null) {
+                if (close.compareTo(sma20) > 0 && sma20.compareTo(sma50) > 0) {
+                    trend = "UPTREND";
+                } else if (close.compareTo(sma20) < 0 && sma20.compareTo(sma50) < 0) {
+                    trend = "DOWNTREND";
+                } else {
+                    trend = "MIXED";
                 }
             }
 
-            return String.format(
-                "{\"symbol\": \"%s\", \"timeframe\": \"%s\", \"trend\": \"%s\", " +
-                "\"high\": %s, \"low\": %s, \"average\": %s, \"volatility\": \"%.2f%%\", " +
-                "\"message\": \"Trend analysis completed\"}",
-                resolvedSymbol, timeframe, trendDirection, high, low, average, rangePercent.doubleValue()
-            );
+            Map<String, Object> payload = new java.util.LinkedHashMap<>(snapshot);
+            payload.put("trend", trend);
+            payload.put("trendRule", trendRule);
+            if (symbol != null && !symbol.trim().equalsIgnoreCase(resolvedSymbol)) {
+                payload.put("requested", symbol.trim());
+            }
+            return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
             log.error("Error analyzing trends for {}: {}", symbol, e.getMessage(), e);
             return String.format("{\"symbol\": \"%s\", \"timeframe\": \"%s\", \"error\": \"Error analyzing trends: %s\"}", symbol, timeframe, e.getMessage());
         }
     }
 
-    @Tool("Get technical indicators for a stock. Returns technical analysis metrics. " +
+    @Tool("Get real technical indicators for a stock computed from one year of daily market data: " +
+          "SMA20, SMA50, RSI14 (Wilder), 30-day annualized volatility, 1-month/3-month/1-year returns, and 52-week high/low. " +
           "Requires: symbolOrCompany (string).")
     public String getTechnicalIndicators(String symbol) {
         log.info("🔵 getTechnicalIndicators CALLED with symbol={}", symbol);
@@ -282,44 +274,26 @@ public class MarketAnalysisAgent {
                 );
             }
 
-            // Get price data for calculation
-            Map<String, Object> dailyData = marketDataService.getStockPriceData(resolvedSymbol, "daily");
-            BigDecimal currentPrice = marketDataService.getStockPrice(resolvedSymbol);
-            
-            if (dailyData.isEmpty() || currentPrice == null) {
+            Map<String, Object> snapshot = marketDataService.getTechnicalSnapshot(resolvedSymbol);
+            if (snapshot.isEmpty()) {
                 return String.format(
-                        "{\"requested\": \"%s\", \"symbol\": \"%s\", \"error\": \"Unable to calculate technical indicators - insufficient data.\"}",
+                        "{\"requested\": \"%s\", \"symbol\": \"%s\", \"error\": \"Unable to calculate technical indicators - no daily price series available.\"}",
                         escapeJson(symbol), resolvedSymbol
                 );
             }
 
-            BigDecimal high = (BigDecimal) dailyData.get("high");
-            BigDecimal low = (BigDecimal) dailyData.get("low");
-            BigDecimal average = (BigDecimal) dailyData.get("average");
-
-            if (high == null || low == null || average == null) {
-                return String.format("{\"symbol\": \"%s\", \"error\": \"Insufficient data for technical indicators.\"}", symbol);
+            // Live quote alongside the daily-series indicators, with its own freshness stamp.
+            MarketDataService.Quote quote = marketDataService.getQuote(resolvedSymbol);
+            Map<String, Object> payload = new java.util.LinkedHashMap<>(snapshot);
+            if (quote != null) {
+                payload.put("livePrice", quote.price());
+                payload.put("livePriceSource", quote.source());
+                payload.put("livePriceTime", quote.quoteTime().toString());
             }
-
-            // Simple technical indicators
-            BigDecimal priceChange = currentPrice.subtract(average);
-            BigDecimal priceChangePercent = priceChange.divide(average, 4, java.math.RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
-            
-            String signal = "NEUTRAL";
-            if (priceChangePercent.compareTo(BigDecimal.valueOf(5)) > 0) {
-                signal = "BULLISH";
-            } else if (priceChangePercent.compareTo(BigDecimal.valueOf(-5)) < 0) {
-                signal = "BEARISH";
+            if (symbol != null && !symbol.trim().equalsIgnoreCase(resolvedSymbol)) {
+                payload.put("requested", symbol.trim());
             }
-
-            return String.format(
-                "{\"symbol\": \"%s\", \"currentPrice\": %s, \"averagePrice\": %s, " +
-                "\"priceChange\": \"%.2f%%\", \"signal\": \"%s\", " +
-                "\"supportLevel\": %s, \"resistanceLevel\": %s, " +
-                "\"message\": \"Technical indicators calculated\"}",
-                resolvedSymbol, currentPrice, average, priceChangePercent.doubleValue(), signal, low, high
-            );
+            return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
             log.error("Error getting technical indicators for {}: {}", symbol, e.getMessage(), e);
             return String.format("{\"symbol\": \"%s\", \"error\": \"Error calculating technical indicators: %s\"}", symbol, e.getMessage());

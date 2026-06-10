@@ -85,6 +85,17 @@ Key orchestration facts (see `service/orchestrator/OrchestratorService.java`):
   across instances — single-instance assumption).
 - Agent activity is pushed to the UI via `WebSocketService.sendAgentActivity()`.
 
+**Reliability invariants (do NOT weaken these — see `docs/STATE_OF_THE_ART.md`):**
+- **Grounding gate**: `GroundingService` + `OrchestratorService.enforceGrounding` verify every figure in a
+  response against raw tool data; `ToolCallAspect` captures raw `@Tool` results per session for this purpose.
+  Never bypass the gate or return LLM text to users without it.
+- **`directResponse` is code-gated** to GREETING plans with no figures — factual answers must come from tools.
+- **Deterministic personalization**: `UserContextService` injects profile + allocation into planner AND
+  evaluator inputs on every query. Don't make personalization depend on the LLM choosing a profile step.
+- **Indicators are computed in code** (`util/TechnicalIndicators`, `MarketDataService.getTechnicalSnapshot`)
+  — the LLM narrates numbers, it never computes them.
+- Tool outputs are wrapped in `<<TOOL_DATA>>` markers in evaluator input (prompt-injection isolation).
+
 ---
 
 ## 4. Repo layout

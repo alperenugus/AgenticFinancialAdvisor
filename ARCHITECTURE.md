@@ -216,30 +216,25 @@ User Query
 
 ## Component Details
 
-### 0. Stock Discovery Agent
+### 0. Reliability & Grounding Pipeline
 
-**Purpose**: Discovers stocks in real-time based on user criteria. **No hardcoded stock lists** - validates stocks using live market data.
+**Purpose**: A financial advisor must never invent figures. Three deterministic (non-LLM) mechanisms backstop the prompts — see [docs/STATE_OF_THE_ART.md](./docs/STATE_OF_THE_ART.md) for the full design rationale.
 
-**Key Features**:
-- Real-time stock validation using MarketDataService
-- Discovers stocks based on risk tolerance, sectors, and exclusion criteria
-- Validates stock symbols exist and are tradeable
-- Returns list of valid stocks matching criteria
+1. **Raw tool-data capture** (`ToolCallAspect`): every `@Tool` result is captured per session and fed to the
+   EvaluatorAgent as delimited `<<TOOL_DATA>>` blocks. Without this, the evaluator only sees the sub-agents'
+   LLM paraphrases of tool output (a "telephone game" that loses provenance and invites drift).
+2. **Numeric grounding gate** (`GroundingService` + `OrchestratorService.enforceGrounding`): every figure in a
+   synthesized response must match a number present in the raw tool data or profile context (tolerance-matched;
+   small counts/years whitelisted). Violations trigger one corrective evaluator rewrite; if figures remain
+   unverifiable, the response ships with an explicit caution. Verdicts stream to the UI as "Fact Check" events.
+3. **Deterministic personalization** (`UserContextService`): the user's profile (risk tolerance, horizon, goals,
+   budget, preferred/excluded sectors, ESG flag) + holdings + allocation/concentration summary are loaded from
+   the DB on every query and injected into BOTH the planner and evaluator inputs. Advice is tailored in the
+   evaluator by prompt contract (never recommend excluded sectors, flag ESG conflicts, cite risk tolerance).
 
-**Tools**:
-- `discoverStocks(riskTolerance, sectors, excludeOwned)` - Find stocks matching criteria
-- `validateStockSymbol(symbol)` - Verify stock exists and get current price
-
-**Implementation**:
-```java
-@Tool("Discover stocks that match specific criteria...")
-public String discoverStocks(String riskTolerance, String sectors, String excludeOwned) {
-    // Validate stocks from popular list using real-time market data
-    // Return only valid, tradeable stocks
-}
-```
-
-**Note**: Portfolio Recommendation Service is currently disabled. Will be re-enabled in a future iteration.
+Additional code-level gates: the planner's `directResponse` is honored **only** for `GREETING` plans containing
+no figures (otherwise a model-memory answer could ship unevaluated), and evaluator failures fall back to a
+clean grounded summarization pass instead of dumping raw step output.
 
 ### 1. Orchestrator Service (Plan-Execute-Evaluate)
 
@@ -250,9 +245,11 @@ public String discoverStocks(String riskTolerance, String sectors, String exclud
 - **PlannerAgent** creates structured JSON execution plans from user queries
 - **EvaluatorAgent** reviews results, synthesizes responses, or requests retry
 - Parallel execution of plan steps via sub-agents
+- **Deterministic profile injection** (UserContextService) into planner + evaluator on every query
+- **Numeric grounding gate** on every synthesized response (GroundingService; raw tool data as ground truth)
 - Conversation history (last 5 exchanges) for follow-up context
-- Sends real-time updates via WebSocket at each phase
-- Fallback response with collected data when retries exhaust
+- Sends real-time updates via WebSocket at each phase (including grounding verdicts)
+- Grounded fallback synthesis when the evaluator fails or retries exhaust
 
 **Architecture**:
 - **PlannerAgent** (llama-3.3-70b-versatile): Analyzes query intent, creates structured plans

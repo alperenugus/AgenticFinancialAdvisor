@@ -513,6 +513,89 @@ public class MarketDataService {
     }
 
     /**
+     * Rigorous technical snapshot computed from one year of daily Yahoo Finance candles using
+     * standard formulas (see {@link com.agent.financialadvisor.util.TechnicalIndicators}):
+     * SMA20/SMA50, RSI14 (Wilder), 30-day annualized realized volatility, period returns, and
+     * 52-week high/low. Every value is derived from real market data and stamped with the
+     * series' last trading timestamp so the LLM can cite freshness honestly.
+     *
+     * @return map of indicators, or an empty map when no usable series is available.
+     */
+    public Map<String, Object> getTechnicalSnapshot(String symbol) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            JsonNode chartResult = yahooChart(symbol.toUpperCase(Locale.ROOT), "1y", "1d")
+                    .path("chart").path("result").path(0);
+            JsonNode quote = chartResult.path("indicators").path("quote").path(0);
+            JsonNode closesNode = quote.path("close");
+            JsonNode highsNode = quote.path("high");
+            JsonNode lowsNode = quote.path("low");
+            JsonNode timestamps = chartResult.path("timestamp");
+
+            if (!closesNode.isArray() || closesNode.isEmpty()) {
+                log.warn("No daily series available for technical snapshot: {}", symbol);
+                return result;
+            }
+
+            // Collapse nulls (market holidays / missing ticks) into a contiguous series.
+            java.util.List<Double> closeList = new java.util.ArrayList<>();
+            java.util.List<Double> highList = new java.util.ArrayList<>();
+            java.util.List<Double> lowList = new java.util.ArrayList<>();
+            long lastTs = 0;
+            for (int i = 0; i < closesNode.size(); i++) {
+                if (closesNode.get(i) == null || closesNode.get(i).isNull()) {
+                    continue;
+                }
+                double close = closesNode.get(i).asDouble();
+                closeList.add(close);
+                highList.add(highsNode.isArray() && i < highsNode.size() && !highsNode.get(i).isNull()
+                        ? highsNode.get(i).asDouble() : close);
+                lowList.add(lowsNode.isArray() && i < lowsNode.size() && !lowsNode.get(i).isNull()
+                        ? lowsNode.get(i).asDouble() : close);
+                if (timestamps.isArray() && i < timestamps.size() && !timestamps.get(i).isNull()) {
+                    lastTs = timestamps.get(i).asLong();
+                }
+            }
+            if (closeList.size() < 2) {
+                return result;
+            }
+            double[] closes = closeList.stream().mapToDouble(Double::doubleValue).toArray();
+            double[] highs = highList.stream().mapToDouble(Double::doubleValue).toArray();
+            double[] lows = lowList.stream().mapToDouble(Double::doubleValue).toArray();
+
+            result.put("symbol", symbol.toUpperCase(Locale.ROOT));
+            result.put("source", "yahoo-finance-daily-candles");
+            result.put("asOf", lastTs > 0 ? Instant.ofEpochSecond(lastTs).toString() : Instant.now().toString());
+            result.put("latestClose", BigDecimal.valueOf(closes[closes.length - 1]).setScale(2, java.math.RoundingMode.HALF_UP));
+            putIfNotNull(result, "sma20", com.agent.financialadvisor.util.TechnicalIndicators.sma(closes, 20));
+            putIfNotNull(result, "sma50", com.agent.financialadvisor.util.TechnicalIndicators.sma(closes, 50));
+            putIfNotNull(result, "rsi14", com.agent.financialadvisor.util.TechnicalIndicators.rsi(closes, 14));
+            putIfNotNull(result, "annualizedVolatilityPercent30d",
+                    com.agent.financialadvisor.util.TechnicalIndicators.annualizedVolatilityPercent(closes, 30));
+            putIfNotNull(result, "return1MonthPercent",
+                    com.agent.financialadvisor.util.TechnicalIndicators.periodReturnPercent(closes, 21));
+            putIfNotNull(result, "return3MonthsPercent",
+                    com.agent.financialadvisor.util.TechnicalIndicators.periodReturnPercent(closes, 63));
+            putIfNotNull(result, "return1YearPercent",
+                    com.agent.financialadvisor.util.TechnicalIndicators.periodReturnPercent(closes, closes.length - 1));
+            putIfNotNull(result, "week52High", com.agent.financialadvisor.util.TechnicalIndicators.high(highs));
+            putIfNotNull(result, "week52Low", com.agent.financialadvisor.util.TechnicalIndicators.low(lows));
+            result.put("tradingDays", closes.length);
+            result.put("methodology",
+                    "SMA = simple moving average of closes; RSI14 uses Wilder smoothing; volatility = stdev of daily log returns (30d) annualized by sqrt(252).");
+        } catch (Exception e) {
+            logFetchError("technical snapshot", symbol, e);
+        }
+        return result;
+    }
+
+    private static void putIfNotNull(Map<String, Object> map, String key, Object value) {
+        if (value != null) {
+            map.put(key, value);
+        }
+    }
+
+    /**
      * Get company overview (fundamentals) using Finnhub company profile endpoint
      */
     public Map<String, Object> getCompanyOverview(String symbol) {
