@@ -233,14 +233,20 @@ public class UserProfileAgent {
                 ? new ArrayList<>(portfolio.getHoldings()) 
                 : new ArrayList<>();
             
-            // Refresh current prices for all holdings
+            // Refresh current prices for all holdings, capturing quote freshness for transparency.
+            String priceSource = null;
+            java.time.Instant pricesAsOf = null;
             if (!holdings.isEmpty()) {
                 for (StockHolding holding : holdings) {
                     try {
-                        BigDecimal currentPrice = marketDataService.getStockPrice(holding.getSymbol());
-                        if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
-                            holding.setCurrentPrice(currentPrice);
+                        MarketDataService.Quote quote = marketDataService.getQuote(holding.getSymbol());
+                        if (quote != null && quote.price() != null && quote.price().compareTo(BigDecimal.ZERO) > 0) {
+                            holding.setCurrentPrice(quote.price());
                             // @PreUpdate will handle value, gainLoss, gainLossPercent calculations
+                            priceSource = quote.source();
+                            if (quote.quoteTime() != null && (pricesAsOf == null || quote.quoteTime().isAfter(pricesAsOf))) {
+                                pricesAsOf = quote.quoteTime();
+                            }
                         }
                     } catch (Exception e) {
                         log.warn("Could not refresh price for {}: {}", holding.getSymbol(), e.getMessage());
@@ -277,13 +283,16 @@ public class UserProfileAgent {
             String result = String.format(
                 "{\"userId\": \"%s\", \"exists\": true, \"totalValue\": %s, \"totalGainLoss\": %s, " +
                 "\"totalGainLossPercent\": %s, \"holdings\": %s, \"holdingsCount\": %d, " +
+                "\"priceSource\": \"%s\", \"pricesAsOf\": \"%s\", " +
                 "\"message\": \"Portfolio retrieved with current prices\"}",
                 userId,
                 portfolio.getTotalValue() != null ? portfolio.getTotalValue().toString() : "0",
                 portfolio.getTotalGainLoss() != null ? portfolio.getTotalGainLoss().toString() : "0",
                 portfolio.getTotalGainLossPercent() != null ? portfolio.getTotalGainLossPercent().toString() : "0",
                 holdingsJson,
-                portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0
+                portfolio.getHoldings() != null ? portfolio.getHoldings().size() : 0,
+                priceSource != null ? priceSource : "unknown",
+                pricesAsOf != null ? pricesAsOf.toString() : "unknown"
             );
             
             // Log response

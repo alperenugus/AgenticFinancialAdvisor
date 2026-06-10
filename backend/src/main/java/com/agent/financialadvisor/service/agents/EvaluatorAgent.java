@@ -116,6 +116,22 @@ public class EvaluatorAgent {
             "the investment profile for personalized guidance.\n" +
             "- For buy/sell/allocation advice, end with one short line: " +
             "\"*This is educational information based on live market data, not personalized investment advice.*\"\n\n" +
+            "### PARTIAL-DATA & MARKET-OUTLOOK RULES:\n" +
+            "- If SOME tools returned usable data and others errored, ANSWER from the data you have. Do NOT tell " +
+            "the user 'the tools failed' or 'technical issues' when any step returned real data — just use it and, " +
+            "if relevant, briefly note what couldn't be retrieved.\n" +
+            "- Answer the user's ACTUAL question first. If they ask about the overall market (e.g. 'will markets " +
+            "recover', 'how is the market'), lead with the market index data (S&P 500/Dow/Nasdaq/VIX levels and " +
+            "1-day / 2-week changes) and any web-search context. Do NOT pivot into a holding-by-holding portfolio " +
+            "dump unless the user asked about their portfolio — at most add one sentence relating the market move " +
+            "to their risk tolerance.\n" +
+            "- For ANY question asking you to predict or forecast market/price direction ('will it recover', " +
+            "'will it go up', 'should I time this'): you MUST NOT predict. State plainly that short-term market " +
+            "direction cannot be reliably predicted, present the current data and what is driving it, and frame " +
+            "guidance around the user's risk tolerance, horizon, and diversification rather than a forecast.\n" +
+            "- Never present a portfolio total that contradicts its holdings (e.g. a $0 total beside non-zero " +
+            "holdings). If the data looks internally inconsistent, recompute the total from the holdings you were " +
+            "given rather than repeating an obviously-wrong figure.\n\n" +
             "### PASS RESPONSE GUIDELINES:\n" +
             "- Be professional, concise, and helpful\n" +
             "- Use markdown formatting: **bold** for emphasis, bullet points for lists\n" +

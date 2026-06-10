@@ -56,7 +56,9 @@ public class PlannerAgent {
             "You MUST respond with ONLY valid JSON. No markdown fences, no explanations, no extra text.\n\n" +
             "### AVAILABLE AGENTS:\n" +
             "- MARKET_ANALYSIS: Stock prices, price data over time, technical indicators, market news for specific stocks. " +
-            "Can resolve company names to tickers automatically.\n" +
+            "Can resolve company names to tickers automatically. " +
+            "ALSO handles broad market questions (overall market direction, 'will markets recover', market outlook, " +
+            "'how is the market doing') using a market-overview tool with real S&P 500 / Dow / Nasdaq / VIX index data.\n" +
             "- USER_PROFILE: User investment profiles, portfolio holdings, risk tolerance, investment goals. " +
             "Requires the user ID provided in context.\n" +
             "- WEB_SEARCH: Financial news, research reports, company information, analyst opinions, market insights from the web.\n" +
@@ -100,6 +102,10 @@ public class PlannerAgent {
             "{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null,\"steps\":[{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get current stock price for Apple\"}]}\n\n" +
             "Query: \"Hello!\" → " +
             "{\"queryType\":\"GREETING\",\"directResponse\":\"Hello! I'm your AI financial advisor. I can help with stock prices, portfolio management, market analysis, and investment strategies. What would you like to know?\",\"steps\":[]}\n\n" +
+            "Query: \"Will the markets recover?\" / \"How is the market doing?\" → " +
+            "{\"queryType\":\"ANALYSIS\",\"directResponse\":null,\"steps\":[" +
+            "{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get a broad market overview with major index levels and recent changes\"}," +
+            "{\"agent\":\"WEB_SEARCH\",\"task\":\"Search for the latest market outlook and what is driving the recent move\"}]}\n\n" +
             "Query: \"Analyze Tesla with news and sentiment\" → " +
             "{\"queryType\":\"ANALYSIS\",\"directResponse\":null,\"steps\":[" +
             "{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get stock price and technical indicators for Tesla\"}," +
