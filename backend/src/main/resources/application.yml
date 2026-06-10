@@ -43,30 +43,30 @@ server:
   forward-headers-strategy: framework
   use-forward-headers: true
 
-# LangChain4j Configuration
-# LangChain4j is the industry standard for Java LLM applications
-langchain4j:
-  # Groq API Configuration
-  # Groq provides fast, cost-effective LLM inference via OpenAI-compatible API
-  # Get API key from: https://console.groq.com/
-  groq:
-    # Orchestrator Model: High-level thinking and planning
-    # Using llama-3.3-70b-versatile for comprehensive analysis and research capabilities
-    # This is Groq's most capable model for complex reasoning and analysis
-    # Alternative models if needed: llama-3.1-70b-versatile (slightly faster), llama-3.1-8b-instant (much faster but less capable)
-    orchestrator:
-      api-key: ${GROQ_API_KEY:}
-      base-url: https://api.groq.com/openai/v1
-      model: ${GROQ_ORCHESTRATOR_MODEL:llama-3.3-70b-versatile}
-      temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.0} # Set to 0.0 for strict tool usage
-      timeout-seconds: ${GROQ_ORCHESTRATOR_TIMEOUT_SECONDS:90}
-    # Tool Agent Model: Fast, cheap function calling (llama-3.1-8b)
-    tool-agent:
-      api-key: ${GROQ_API_KEY:}
-      base-url: https://api.groq.com/openai/v1
-      model: ${GROQ_TOOL_AGENT_MODEL:llama-3.1-8b-instant}
-      temperature: ${GROQ_TOOL_AGENT_TEMPERATURE:0.3}
-      timeout-seconds: ${GROQ_TOOL_AGENT_TIMEOUT_SECONDS:30}
+# LLM Provider Configuration (OpenAI)
+# Uses OpenAI's Chat Completions API via LangChain4j's OpenAI client.
+# Set OPENAI_API_KEY in the environment (Railway). Each tier's model is override-able via env, so you
+# can swap models (e.g. gpt-4o -> gpt-4.1 or a newer model) without a code change.
+# NOTE: gpt-4o / gpt-4o-mini support the `temperature` parameter. If you switch a tier to an o-series
+# reasoning model that rejects temperature, also set that tier's *_TEMPERATURE to 1.
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  # Orchestrator: planning + final-answer synthesis (the quality-critical role).
+  orchestrator:
+    model: ${OPENAI_ORCHESTRATOR_MODEL:gpt-4o}
+    temperature: ${OPENAI_ORCHESTRATOR_TEMPERATURE:0.0}
+    timeout-seconds: ${OPENAI_ORCHESTRATOR_TIMEOUT_SECONDS:90}
+  # Sub-agents: tool-calling agents (market, profile, web search, fintwit).
+  agent:
+    model: ${OPENAI_AGENT_MODEL:gpt-4o}
+    temperature: ${OPENAI_AGENT_TEMPERATURE:0.0}
+    timeout-seconds: ${OPENAI_AGENT_TIMEOUT_SECONDS:60}
+  # Security gate: cheap, fast input classification (no tools).
+  security:
+    model: ${OPENAI_SECURITY_MODEL:gpt-4o-mini}
+    temperature: ${OPENAI_SECURITY_TEMPERATURE:0.0}
+    timeout-seconds: ${OPENAI_SECURITY_TIMEOUT_SECONDS:20}
 
 # Agent Timeout Configuration
 agent:
@@ -75,8 +75,8 @@ agent:
     tool-call-seconds: ${AGENT_TOOL_TIMEOUT_SECONDS:10}
     # Timeout for orchestrator's main chat call (in seconds)
     orchestrator-seconds: ${AGENT_ORCHESTRATOR_TIMEOUT_SECONDS:90}
-    # Timeout for security validation checks
-    security-seconds: ${AGENT_SECURITY_TIMEOUT_SECONDS:5}
+    # Timeout for security validation checks (wraps the LLM call; allow for provider cold start)
+    security-seconds: ${AGENT_SECURITY_TIMEOUT_SECONDS:8}
 
 # External API Configuration
 market-data:

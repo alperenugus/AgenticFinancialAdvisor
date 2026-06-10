@@ -1,10 +1,10 @@
 # Agentic Financial Advisor
 
-A multi-agent financial advisory system powered by Groq API that provides personalized financial advice through coordinated specialized AI agents with full access to user portfolio and profile data.
+A multi-agent financial advisory system powered by OpenAI API that provides personalized financial advice through coordinated specialized AI agents with full access to user portfolio and profile data.
 
 ## 🎯 Overview
 
-This system uses a **Plan-Execute-Evaluate agentic architecture** where specialized AI agents work together to provide comprehensive financial advice. A PlannerAgent analyzes each query and creates a structured execution plan, sub-agents execute the plan steps in parallel, and an EvaluatorAgent reviews results and synthesizes responses with self-correction via retry. All agents use llama-3.3-70b-versatile via Groq API. The AI Advisor has full access to user portfolio and profile data for personalized recommendations.
+This system uses a **Plan-Execute-Evaluate agentic architecture** where specialized AI agents work together to provide comprehensive financial advice. A PlannerAgent analyzes each query and creates a structured execution plan, sub-agents execute the plan steps in parallel, and an EvaluatorAgent reviews results and synthesizes responses with self-correction via retry. All agents use gpt-4o via OpenAI API. The AI Advisor has full access to user portfolio and profile data for personalized recommendations.
 
 ## ✨ Features
 
@@ -23,7 +23,7 @@ This system uses a **Plan-Execute-Evaluate agentic architecture** where speciali
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and analysis
-- **Fast LLM Inference**: Powered by Groq API with llama-3.3-70b-versatile for all agents
+- **Fast LLM Inference**: Powered by OpenAI API with gpt-4o for all agents
 - **Professional UI**: Modern, responsive light theme design with stock price graph branding
 
 ## 🏗️ System Architecture
@@ -68,7 +68,7 @@ This system uses a **Plan-Execute-Evaluate agentic architecture** where speciali
 │ │(70B)│    │  (70B)  │  │ (70B)  │  │  (70B)  │  │  (70B) │ │
 │ └──┬──┘    └────┬────┘  └────┬────┘  └────┬────┘  └───┬───┘ │
 │    │            │            │              │            │     │
-│    │  All agents use llama-3.3-70b-versatile via Groq  │     │
+│    │  All agents use gpt-4o via OpenAI  │     │
 │    │            │            │              │            │     │
 │    └────────────┼────────────┼──────────────┼──────────┘     │
 │                 │            │              │                  │
@@ -85,8 +85,8 @@ This system uses a **Plan-Execute-Evaluate agentic architecture** where speciali
 │         └───────────────────────────────────────────┘        │
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
-│         │      LangChain4j + Groq API                │        │
-│         │  (llama-3.3-70b-versatile for all agents) │        │
+│         │      LangChain4j + OpenAI API                │        │
+│         │  (gpt-4o for all agents) │        │
 │         └───────────────────────────────────────────┘        │
 └───────────────────────────────────────────────────────────────┘
 ```
@@ -101,7 +101,7 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
 - Maven 3.8+
 - PostgreSQL 14+ (or use H2 for testing)
 - Node.js 18+ and npm (for frontend)
-- Groq API Key - [Get one here](https://console.groq.com/)
+- OpenAI API Key - [Get one here](https://platform.openai.com/api-keys)
 - Google OAuth2 Credentials - [Setup Guide](./docs/GOOGLE_AUTH_SETUP.md)
 
 ### Backend Setup
@@ -123,7 +123,7 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
    ```
 
 3. **Get API Keys**
-   - **Groq API Key**: Sign up at [Groq Console](https://console.groq.com/) and create an API key
+   - **OpenAI API Key**: Sign up at [OpenAI Platform](https://platform.openai.com/api-keys) and create an API key
    - **Finnhub API Key**: Get free key from [Finnhub](https://finnhub.io/)
    - **Google OAuth2 Credentials**: Follow [Google Auth Setup Guide](./docs/GOOGLE_AUTH_SETUP.md)
 
@@ -131,7 +131,7 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
    
    Set environment variables:
    ```bash
-   export GROQ_API_KEY=your_groq_api_key_here
+   export OPENAI_API_KEY=your_openai_api_key_here
    export FINNHUB_API_KEY=your_finnhub_api_key
    export GOOGLE_CLIENT_ID=your_google_client_id
    export GOOGLE_CLIENT_SECRET=your_google_client_secret
@@ -156,12 +156,14 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
                client-id: ${GOOGLE_CLIENT_ID:}
                client-secret: ${GOOGLE_CLIENT_SECRET:}
    
-   langchain4j:
-     groq:
-       orchestrator:
-         api-key: ${GROQ_API_KEY:}
-         model: llama-3.3-70b-versatile  # Used for all agents (planner, evaluator, sub-agents)
-         timeout-seconds: 90
+   openai:
+     api-key: ${OPENAI_API_KEY:}
+     orchestrator:
+       model: gpt-4o        # planner + evaluator
+     agent:
+       model: gpt-4o        # tool-calling sub-agents
+     security:
+       model: gpt-4o-mini   # cheap input classification
    
    jwt:
      secret: ${JWT_SECRET:your-secure-secret-key}
@@ -272,7 +274,7 @@ mvn test jacoco:report
 - **Spring Security OAuth2** - Google Sign-In authentication
 - **JWT** - Token-based authentication
 - **LangChain4j 0.34.0** - LLM integration
-- **Groq API** - Fast LLM inference (llama-3.3-70b-versatile for all agents)
+- **OpenAI API** - Fast LLM inference (gpt-4o for all agents)
 - **PostgreSQL** - Database
 - **WebSocket** - Real-time communication
 
@@ -349,13 +351,13 @@ AgenticFinancialAdvisor/
    - Connect GitHub repository
    - Set environment variables:
      - `DATABASE_URL` (auto-set by Railway PostgreSQL)
-     - `GROQ_API_KEY` (required - get from https://console.groq.com/)
+     - `OPENAI_API_KEY` (required - get from https://platform.openai.com/api-keys)
      - `FINNHUB_API_KEY` (required)
      - `GOOGLE_CLIENT_ID` (required - see [Google Auth Setup](./docs/GOOGLE_AUTH_SETUP.md))
      - `GOOGLE_CLIENT_SECRET` (required)
      - `JWT_SECRET` (required - generate secure random 32+ character string)
      - `CORS_ORIGINS` (include your frontend URL)
-     - Optional: `GROQ_ORCHESTRATOR_MODEL` (default: llama-3.3-70b-versatile, used for all agents)
+     - Optional: `OPENAI_ORCHESTRATOR_MODEL` (default: gpt-4o, used for all agents)
 
 2. **Frontend Deployment**
    - Build: `npm run build`
@@ -431,7 +433,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - LangChain4j for excellent LLM integration
-- Groq for fast, cost-effective LLM inference
+- OpenAI for fast, cost-effective LLM inference
 - Finnhub for market data API
 - Spring Boot community
 
@@ -444,5 +446,5 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ using Groq API for fast LLM inference**
+**Built with ❤️ using OpenAI API for fast LLM inference**
 

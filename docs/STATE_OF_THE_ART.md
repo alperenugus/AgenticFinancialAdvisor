@@ -44,21 +44,24 @@ most hobby agentic advisors.
 
 The remaining distance to the leaders, stated honestly:
 
-- One mid-tier model (Groq `llama-3.3-70b`) serves every role vs. heterogeneous ensembles routed per task.
+- A small `gpt-4o` / `gpt-4o-mini` tiering vs. the leaders' larger, heterogeneous ensembles routed per task
+  (and no use of dedicated reasoning models for the hardest synthesis yet).
 - One regex-based numeric gate vs. Origin's 138 checks + CFP benchmark harness.
 - Free-tier, ~15-min-delayed quotes vs. institutional data feeds.
 - No tax/scenario/backtesting/factor analytics vs. PortfolioPilot's quant stack.
 - No persisted audit trail, eval suite in CI, or tool-call observability dashboards yet.
 - No regulatory registration (see §5 — this constrains how the product may be marketed).
 
-## 3b. Operational capacity constraint (verified on production)
+## 3b. LLM provider & cost (migrated from Groq → OpenAI)
 
-The Groq **free tier allows ~100,000 tokens/day** for `llama-3.3-70b-versatile`. One advisor query costs
-roughly 5–10 LLM calls (security, plan, N sub-agents, evaluate, grounding rewrite) — the daily budget supports
-only **~15–30 real queries/day**. We exhausted it during production testing on 2026-06-09; the system now
-degrades honestly (capacity message instead of confusing errors), the SecurityAgent runs on the 8B model
-(separate token bucket), and snapshots are cached. **Monetization requires the paid Groq Dev tier (or another
-provider) before any real user load.**
+The project originally ran on Groq's free tier, which capped at ~100K tokens/day and repeatedly blocked real
+use. It now runs on **OpenAI (pay-as-you-go)** via LangChain4j's OpenAI client — there is no daily token wall;
+cost is per token. Models are tiered and env-overridable (`OPENAI_*_MODEL`): orchestrator `gpt-4o` (planner +
+evaluator), agent `gpt-4o` (tool-calling sub-agents), security `gpt-4o-mini` (cheap classification). One advisor
+query is ~5–10 LLM calls; at gpt-4o rates that's roughly a few cents per query (drop the agent tier to
+`gpt-4o-mini` to cut it further). On a `429` the orchestrator returns an honest capacity message and snapshots
+are cached to limit redundant calls. **Operational watch item is now spend, not a daily cap** — set OpenAI
+usage limits/budget alerts before real user load.
 
 ## 4. Roadmap (next sprints, in priority order)
 

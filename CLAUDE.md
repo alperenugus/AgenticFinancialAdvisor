@@ -44,8 +44,9 @@ An **agentic AI financial advisor**: a multi-agent system that answers natural-l
 ## 2. Tech stack
 
 **Backend** (`backend/`) — Spring Boot 3.4.0, Java 21, Maven
-- LangChain4j 0.34 (`langchain4j` + `langchain4j-open-ai`) talking to **Groq** via its OpenAI-compatible API
-  (models: `llama-3.3-70b-versatile` for reasoning, `llama-3.1-8b-instant` for fast tool calls).
+- LangChain4j 0.34 (`langchain4j` + `langchain4j-open-ai`) calling **OpenAI**'s Chat Completions API.
+  Three env-overridable tiers (see `LangChain4jConfig` / `application.yml` `openai.*`): orchestrator
+  `gpt-4o` (planner+evaluator), agent `gpt-4o` (tool-calling sub-agents), security `gpt-4o-mini`.
 - Spring Security + OAuth2 client (Google) + **JWT** (jjwt 0.12.3), stateless sessions.
 - Spring Data JPA / Hibernate; **PostgreSQL** in prod, **H2** in test/local.
 - Spring WebFlux `WebClient` for outbound HTTP (market data, web search).
@@ -198,7 +199,7 @@ in the `permitAll()` list in `SecurityConfig`. **Never move it behind authentica
 |---|---|---|
 | `DATABASE_URL`, `SPRING_DATASOURCE_USERNAME/PASSWORD` | Postgres | injected by Railway |
 | `JWT_SECRET` | HMAC key for JWTs | **MUST be set** to a strong ≥32-char secret. If unset, the app falls back to the placeholder committed in `application.yml` → anyone can forge tokens. |
-| `GROQ_API_KEY` | LLM inference | required for the agents to work |
+| `OPENAI_API_KEY` | LLM inference | required for the agents to work |
 | `FINNHUB_API_KEY` | live quotes / company news | required for market data |
 | `TAVILY_API_KEY` | web search (latest news/info) | required for "latest info" |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth | |
@@ -250,10 +251,10 @@ After deploying, drive the live site with the `playwright` MCP browser tools:
   consistently; both read `CORS_ORIGINS`.
 - **Data freshness is a feature.** When editing `MarketDataService`/agents, preserve live fetches and surface
   the quote/news timestamp. See `docs/DATA_FRESHNESS.md`.
-- **Groq free tier = ~100K tokens/DAY on the 70B model** (~15–30 advisor queries). Heavy testing exhausts it;
-  the app then returns an honest capacity message ("try again in ~20 minutes"). SecurityAgent runs on the 8B
-  model (separate bucket). Don't burn the budget with bulk prod testing; paid Groq tier is required before
-  real user load.
+- **LLM is OpenAI (pay-as-you-go).** No daily token wall like the old Groq free tier — billing is per token,
+  so watch spend, not a daily cap. On a `429` rate-limit the orchestrator returns an honest capacity message
+  (`isRateLimited` → `CAPACITY_MESSAGE`). Tier the models via `OPENAI_*_MODEL` env vars; `gpt-4o`/`gpt-4o-mini`
+  accept `temperature` — if you switch a tier to an o-series reasoning model, set that tier's temperature to 1.
 
 ---
 

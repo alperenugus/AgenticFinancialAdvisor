@@ -1,7 +1,7 @@
 # Health Check Troubleshooting
 
 > This page previously documented an Ollama-based setup that the project no longer uses. The current
-> stack is **Groq** (LLM) + **Finnhub/Yahoo Finance** (market data) — there is no Ollama service.
+> stack is **OpenAI** (LLM) + **Finnhub/Yahoo Finance** (market data) — there is no Ollama service.
 
 The canonical, up-to-date guide for Railway health-check failures lives here:
 

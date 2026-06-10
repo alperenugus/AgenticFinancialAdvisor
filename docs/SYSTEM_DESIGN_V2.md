@@ -7,7 +7,7 @@ This document outlines the improved agent architecture for the Financial Advisor
 ## Current Status
 
 ✅ **All Issues Resolved**:
-1. ✅ **Function Calling**: Fixed - All agents use llama-3.3-70b-versatile via Groq for reliable tool calling
+1. ✅ **Function Calling**: Fixed - All agents use gpt-4o via OpenAI for reliable tool calling
 2. ✅ **Data Sources**: Finnhub API integrated for market data with high rate limits
 3. ✅ **Web Search**: WebSearchAgent implemented with Tavily/Serper API support
 4. ✅ **Social Sentiment**: FintwitAnalysisAgent implemented with Twitter API and web search fallback
@@ -40,7 +40,7 @@ This document outlines the improved agent architecture for the Financial Advisor
 │ (70B)  │ │ (70B) │ │ (70B)  │ │ (70B)  │
 └────────┘ └────────┘ └────────┘ └────────┘
     │           │           │           │
-    │  All agents use llama-3.3-70b-versatile via Groq       │
+    │  All agents use gpt-4o via OpenAI       │
     └───────────┼───────────┼───────────┘
                 │           │
                 ▼           ▼
@@ -188,7 +188,7 @@ This document outlines the improved agent architecture for the Financial Advisor
 
 ### ✅ Phase 4: Orchestrator - COMPLETE
 - ✅ Plan-Execute-Evaluate architecture implemented
-- ✅ Function calling fixed (using llama-3.3-70b-versatile)
+- ✅ Function calling fixed (using gpt-4o)
 - ✅ Self-correction via retry loop
 - ✅ Parallel agent execution
 - ✅ Error handling and timeouts

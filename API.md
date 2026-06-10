@@ -585,9 +585,11 @@ interface Recommendation {
 - **Short-TTL quote cache** (~15s, configurable via `MARKET_DATA_QUOTE_CACHE_TTL_SECONDS`) protects the free
   tier without serving stale prices. Quote responses include `quoteTime` (provider timestamp) and `source`.
 
-### Groq API
-- Rate limits depend on your Groq plan (check [Groq Console](https://console.groq.com/))
-- The system uses llama-3.3-70b-versatile for all agents
+### OpenAI API
+- Rate limits depend on your OpenAI plan (per-minute RPM/TPM; not a daily cap). On a `429` the advisor returns
+  a brief "rate-limited, try again in a few moments" message rather than erroring.
+- Models are tiered and env-overridable (`OPENAI_*_MODEL`): `gpt-4o` for the orchestrator (planner + evaluator)
+  and tool-calling sub-agents, `gpt-4o-mini` for the security gate.
 
 ### Application Rate Limiting
 - Per-session rate limiting implemented using token bucket algorithm
@@ -712,6 +714,16 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 ## Changelog
 
+### v2.7.0 (Current)
+- **LLM provider switched from Groq to OpenAI.** Uses OpenAI's Chat Completions API via LangChain4j.
+  Models are tiered and env-overridable (`OPENAI_API_KEY` + `OPENAI_ORCHESTRATOR_MODEL` / `OPENAI_AGENT_MODEL`
+  / `OPENAI_SECURITY_MODEL`): defaults `gpt-4o` (orchestrator + sub-agents), `gpt-4o-mini` (security). No more
+  daily-token wall; cost is pay-as-you-go.
+- **Portfolio total bug fixed** — `totalValue` no longer persists as `$0` when only holding prices change;
+  totals are recomputed explicitly on every read/refresh/add/remove path.
+- **Market overview** — broad questions ("will markets recover") now use real S&P/Dow/Nasdaq/VIX index data.
+- **Web search** — bounded retry around the Tavily call (fixes intermittent first-call timeouts).
+
 ### v2.6.0 (Current)
 - **Anti-hallucination grounding gate** — every figure in an advisor response is deterministically verified
   against raw tool output (`GroundingService`); violations trigger a corrective rewrite, and unverifiable
@@ -745,7 +757,7 @@ These are the tools available to the LLM orchestrator. They're called automatica
 - **Simplified UI** - Removed recommendation-related UI components and endpoints
 
 ### v2.3.0
-- **Fixed Model Error** - Reverted from decommissioned `mixtral-8x7b-32768` to `llama-3.3-70b-versatile`
+- **Fixed Model Error** - Reverted from decommissioned `mixtral-8x7b-32768` to `gpt-4o`
 - **Increased Timeout** - Orchestrator timeout increased to 90 seconds for comprehensive analysis
 - **Improved Function Calling** - Fixed function calling errors with better system message instructions
 

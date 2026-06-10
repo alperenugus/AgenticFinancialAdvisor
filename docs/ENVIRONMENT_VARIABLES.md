@@ -28,16 +28,16 @@ GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google
 JWT_SECRET=your-secure-random-secret-key-minimum-32-characters-long
 JWT_EXPIRATION=86400000  # 24 hours in milliseconds
 
-# Groq API Configuration (REQUIRED)
-# Get your API key from: https://console.groq.com/
-GROQ_API_KEY=your_groq_api_key_here
+# OpenAI API Configuration (REQUIRED)
+# Get your API key from: https://platform.openai.com/api-keys
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Optional: Override default model
 # All agents (Planner, Evaluator, sub-agents) use this model
-# default: llama-3.3-70b-versatile (required for reliable tool calling on Groq)
-GROQ_ORCHESTRATOR_MODEL=llama-3.3-70b-versatile
-GROQ_ORCHESTRATOR_TEMPERATURE=0.0
-GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=90
+# default: gpt-4o (required for reliable tool calling on OpenAI)
+OPENAI_ORCHESTRATOR_MODEL=gpt-4o
+OPENAI_ORCHESTRATOR_TEMPERATURE=0.0
+OPENAI_ORCHESTRATOR_TIMEOUT_SECONDS=90
 
 # Market Data API (REQUIRED - get free key from https://finnhub.io/)
 # Live quotes use Finnhub /quote with an automatic Yahoo Finance fallback.
@@ -138,13 +138,13 @@ PORT=3000
 - [ ] `GOOGLE_REDIRECT_URI` - **REQUIRED** - `https://your-backend.railway.app/login/oauth2/code/google`
 - [ ] `JWT_SECRET` - **REQUIRED** - App fails fast without it. Generate via `openssl rand -base64 48` (min 32 chars)
 - [ ] `JWT_EXPIRATION` - Optional - Default: 86400000 (24 hours)
-- [ ] `GROQ_API_KEY` - **REQUIRED** - Get from https://console.groq.com/
+- [ ] `OPENAI_API_KEY` - **REQUIRED** - Get from https://platform.openai.com/api-keys
 - [ ] `FINNHUB_API_KEY` - **REQUIRED** - Get from https://finnhub.io/
 - [ ] `CORS_ORIGINS` - **REQUIRED** - Include frontend URL for OAuth2
 - [ ] `FRONTEND_REDIRECT_URL` - Optional - Frontend URL for OAuth2 callback
 - [ ] `PORT=8080` - Usually auto-set
-- [ ] (Optional) `GROQ_ORCHESTRATOR_MODEL` - Default: llama-3.3-70b-versatile (used for all agents)
-- [ ] (Optional) `GROQ_ORCHESTRATOR_TIMEOUT_SECONDS` - Default: 90
+- [ ] (Optional) `OPENAI_ORCHESTRATOR_MODEL` - Default: gpt-4o (used for all agents)
+- [ ] (Optional) `OPENAI_ORCHESTRATOR_TIMEOUT_SECONDS` - Default: 90
 - [ ] (Optional) `MARKET_DATA_QUOTE_CACHE_TTL_SECONDS` - Default: 15 (quote cache TTL in seconds)
 - [ ] (Optional) `NEWS_API_KEY` - If using NewsAPI
 - [ ] (Optional) `TAVILY_API_KEY` - For web search (recommended) - Get from https://tavily.com
@@ -168,8 +168,8 @@ PORT=3000
 3. Click **Variables** section
 4. Click **"New Variable"** or **"Add Variable"**
 5. Enter:
-   - **Name**: `GROQ_API_KEY`
-   - **Value**: `your_groq_api_key_here`
+   - **Name**: `OPENAI_API_KEY`
+   - **Value**: `your_openai_api_key_here`
 6. Click **Save**
 7. Repeat for each variable
 
@@ -190,7 +190,7 @@ railway variables set GOOGLE_CLIENT_ID=your_client_id --service backend
 railway variables set GOOGLE_CLIENT_SECRET=your_client_secret --service backend
 railway variables set GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google --service backend
 railway variables set JWT_SECRET=$(openssl rand -base64 32) --service backend
-railway variables set GROQ_API_KEY=your_key --service backend
+railway variables set OPENAI_API_KEY=your_key --service backend
 railway variables set FINNHUB_API_KEY=your_key --service backend
 railway variables set CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173 --service backend
 
@@ -213,7 +213,7 @@ GOOGLE_CLIENT_ID=123456789-abcdefghijklmnop.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-abcdefghijklmnopqrstuvwxyz
 GOOGLE_REDIRECT_URI=https://backend-production-xxxx.up.railway.app/login/oauth2/code/google
 JWT_SECRET=your-secure-random-32-character-secret-key-here
-GROQ_API_KEY=gsk_abc123xyz789
+OPENAI_API_KEY=sk-proj-your_key_here
 FINNHUB_API_KEY=ABC123XYZ789
 CORS_ORIGINS=https://frontend-production-xxxx.up.railway.app,http://localhost:5173
 FRONTEND_REDIRECT_URL=https://frontend-production-xxxx.up.railway.app
@@ -248,12 +248,12 @@ PORT=3000
 
 See [Google Auth Setup Guide](../GOOGLE_AUTH_SETUP.md) for detailed instructions.
 
-### Groq API Key (Required)
+### OpenAI API Key (Required)
 
-1. Go to https://console.groq.com/
+1. Go to https://platform.openai.com/api-keys
 2. Sign up or log in
 3. Create an API key
-4. Set as `GROQ_API_KEY`
+4. Set as `OPENAI_API_KEY`
 
 ### Finnhub API Key (Required)
 
@@ -401,7 +401,7 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 
 - Forgetting to set `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` → Authentication won't work
 - Forgetting to set `JWT_SECRET` → Authentication will fail
-- Forgetting to set `GROQ_API_KEY` → LLM agents won't work
+- Forgetting to set `OPENAI_API_KEY` → LLM agents won't work
 - Forgetting to set `FINNHUB_API_KEY` → Market data won't work
 - Forgetting to set `VITE_API_BASE_URL` → Frontend can't connect to backend
 - Forgetting to set `CORS_ORIGINS` → OAuth2 redirects will fail
@@ -418,7 +418,7 @@ VITE_API_BASE_URL=https://backend.railway.app/api
 3. `GOOGLE_CLIENT_SECRET` - From Google Cloud Console
 4. `GOOGLE_REDIRECT_URI` - `https://your-backend.railway.app/login/oauth2/code/google`
 5. `JWT_SECRET` - Strong random secret (app fails fast without it); generate via `openssl rand -base64 48`
-6. `GROQ_API_KEY` - Get from https://console.groq.com/
+6. `OPENAI_API_KEY` - Get from https://platform.openai.com/api-keys
 7. `FINNHUB_API_KEY` - Get free key
 8. `CORS_ORIGINS` - Include frontend URL
 
