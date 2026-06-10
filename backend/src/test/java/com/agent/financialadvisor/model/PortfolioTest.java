@@ -24,7 +24,7 @@ class PortfolioTest {
     }
 
     private void recalc(Portfolio p) {
-        ReflectionTestUtils.invokeMethod(p, "calculateTotals");
+        p.recalculateTotals();
     }
 
     @Test

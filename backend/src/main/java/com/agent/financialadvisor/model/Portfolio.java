@@ -38,7 +38,7 @@ public class Portfolio {
     @PreUpdate
     protected void onUpdate() {
         lastUpdated = LocalDateTime.now();
-        calculateTotals();
+        recalculateTotals();
     }
 
     /**
@@ -50,8 +50,13 @@ public class Portfolio {
      * portfolio was saved after a price refresh, the children's value columns could still be null at
      * the moment this ran — persisting a total of 0.00 even though every holding had a real value.
      * Computing from currentPrice*quantity here is order-independent and always correct.
+     *
+     * PUBLIC and called EXPLICITLY by the controllers/agents after refreshing holding prices: when
+     * only child holdings change, Hibernate doesn't mark the parent dirty, so this callback alone
+     * would not fire and the total would stay stale (the "$0 total beside live holdings" bug).
+     * Calling it explicitly both computes the total AND dirties the parent so it persists.
      */
-    private void calculateTotals() {
+    public void recalculateTotals() {
         BigDecimal value = BigDecimal.ZERO;
         BigDecimal gain = BigDecimal.ZERO;
         BigDecimal cost = BigDecimal.ZERO;

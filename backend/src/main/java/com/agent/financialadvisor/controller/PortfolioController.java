@@ -42,7 +42,7 @@ public class PortfolioController {
             String userId = SecurityUtil.getCurrentUserEmail()
                     .orElseThrow(() -> new RuntimeException("User not authenticated"));
             
-            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdWithHoldings(userId);
             if (portfolioOpt.isEmpty()) {
                 // Create empty portfolio if doesn't exist
                 Portfolio portfolio = new Portfolio();
@@ -52,10 +52,12 @@ public class PortfolioController {
             }
 
             Portfolio portfolio = portfolioOpt.get();
-            // Update current prices
+            // Update current prices, then recompute totals explicitly (the parent isn't auto-dirtied
+            // by child-only changes, so the @PreUpdate alone would leave the total stale).
             updatePortfolioPrices(portfolio);
+            portfolio.recalculateTotals();
             portfolio = portfolioRepository.save(portfolio);
-            
+
             return ResponseEntity.ok(portfolio);
         } catch (Exception e) {
             log.error("Error getting portfolio: {}", e.getMessage(), e);
@@ -167,6 +169,8 @@ public class PortfolioController {
             holding.setCurrentPrice(currentPrice);
             log.info("Set current price for {}: {}", symbol, currentPrice);
 
+            // Recompute totals explicitly before saving so the parent total is never left stale.
+            portfolio.recalculateTotals();
             // Save portfolio (cascade will save the holding)
             portfolio = portfolioRepository.save(portfolio);
             
@@ -209,11 +213,12 @@ public class PortfolioController {
 
             Portfolio portfolio = portfolioOpt.get();
             boolean removed = portfolio.getHoldings().removeIf(h -> h.getId().equals(holdingId));
-            
+
             if (!removed) {
                 return ResponseEntity.notFound().build();
             }
 
+            portfolio.recalculateTotals();
             portfolio = portfolioRepository.save(portfolio);
 
             Map<String, Object> response = new HashMap<>();
@@ -238,13 +243,14 @@ public class PortfolioController {
             String userId = SecurityUtil.getCurrentUserEmail()
                     .orElseThrow(() -> new RuntimeException("User not authenticated"));
             
-            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserId(userId);
+            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdWithHoldings(userId);
             if (portfolioOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
 
             Portfolio portfolio = portfolioOpt.get();
             updatePortfolioPrices(portfolio);
+            portfolio.recalculateTotals();
             portfolio = portfolioRepository.save(portfolio);
 
             return ResponseEntity.ok(portfolio);
