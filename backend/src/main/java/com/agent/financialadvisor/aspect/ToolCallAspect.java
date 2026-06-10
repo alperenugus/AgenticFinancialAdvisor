@@ -11,12 +11,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * AOP Aspect to intercept tool calls and send updates via WebSocket
- * This allows users to see what tools the agent is using in real-time
+ * This allows users to see what tools the agent is using in real-time.
+ *
+ * It also captures the RAW result of every @Tool call per session. This matters for grounding:
+ * sub-agents return an LLM paraphrase of their tool data, so without this capture the evaluator
+ * (and the deterministic grounding check) would only ever see second-hand numbers. The orchestrator
+ * drains these raw results and feeds them to the evaluator + GroundingService as ground truth.
  */
 @Aspect
 @Component
@@ -24,11 +33,18 @@ import java.util.Map;
 public class ToolCallAspect {
 
     private static final Logger log = LoggerFactory.getLogger(ToolCallAspect.class);
+    private static final int MAX_RAW_RESULTS_PER_SESSION = 30;
+    private static final int MAX_RAW_RESULT_LENGTH = 4000;
+
     private final WebSocketService webSocketService;
-    
+
     // Thread-local storage for session ID (set by OrchestratorService)
     // Using InheritableThreadLocal to propagate to child threads (CompletableFuture)
     private static final InheritableThreadLocal<String> sessionIdHolder = new InheritableThreadLocal<>();
+
+    // Raw tool outputs per session (cross-thread: steps run on a pool). Bounded; cleared by the
+    // orchestrator before each execution and on session clear.
+    private static final Map<String, List<String>> sessionToolResults = new ConcurrentHashMap<>();
 
     @Autowired
     public ToolCallAspect(WebSocketService webSocketService) {
@@ -45,6 +61,32 @@ public class ToolCallAspect {
 
     public static String getSessionId() {
         return sessionIdHolder.get();
+    }
+
+    /** Remove and return all raw tool results captured for this session so far. */
+    public static List<String> drainToolResults(String sessionId) {
+        List<String> results = sessionToolResults.remove(sessionId);
+        return results != null ? new ArrayList<>(results) : new ArrayList<>();
+    }
+
+    /** Drop any captured raw tool results for this session (used on session clear / before runs). */
+    public static void clearToolResults(String sessionId) {
+        sessionToolResults.remove(sessionId);
+    }
+
+    private static void recordToolResult(String sessionId, String toolMethod, Object result) {
+        if (sessionId == null || result == null) {
+            return;
+        }
+        List<String> results = sessionToolResults.computeIfAbsent(sessionId, k -> new CopyOnWriteArrayList<>());
+        if (results.size() >= MAX_RAW_RESULTS_PER_SESSION) {
+            return;
+        }
+        String raw = result.toString();
+        if (raw.length() > MAX_RAW_RESULT_LENGTH) {
+            raw = raw.substring(0, MAX_RAW_RESULT_LENGTH - 3) + "...";
+        }
+        results.add(toolMethod + ": " + raw);
     }
 
     @Around("@annotation(tool)")
@@ -84,9 +126,12 @@ public class ToolCallAspect {
         try {
             // Execute the tool
             Object result = joinPoint.proceed();
-            
+
             long duration = System.currentTimeMillis() - startTime;
-            
+
+            // Capture the untruncated raw result for grounding verification downstream.
+            recordToolResult(sessionId, joinPoint.getSignature().getName(), result);
+
             // Format result for logging
             String resultStr = formatResult(result);
             log.info("✅ [AGENT] Tool response: {} returned in {}ms for sessionId={}", toolName, duration, sessionId);

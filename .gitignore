@@ -58,7 +58,7 @@ backend/application-*.properties
 
 # Test/automation artifacts
 .playwright-mcp/
-prod-ai-advisor-live-price.png
+prod-*.png
 
 # Test user credentials (live accounts on a public repo — keep local)
 TEST_USERS.md

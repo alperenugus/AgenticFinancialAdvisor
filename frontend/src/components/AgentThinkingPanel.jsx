@@ -9,6 +9,7 @@ import {
   MessageCircle,
   FileSearch,
   ShieldAlert,
+  ShieldCheck,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ const AGENT_ICONS = {
   tool_result: CheckCircle,
   query_start: MessageCircle,
   security: ShieldAlert,
+  grounding: ShieldCheck,
 };
 
 const AGENT_COLORS = {
@@ -34,6 +36,7 @@ const AGENT_COLORS = {
   tool_result: 'from-green-500 to-emerald-600',
   query_start: 'from-slate-500 to-gray-600',
   security: 'from-red-500 to-rose-600',
+  grounding: 'from-teal-500 to-cyan-600',
 };
 
 const AGENT_BG = {
@@ -45,6 +48,7 @@ const AGENT_BG = {
   tool_result: 'bg-green-50 border-green-200',
   query_start: 'bg-slate-50 border-slate-200',
   security: 'bg-red-50 border-red-200',
+  grounding: 'bg-teal-50 border-teal-200',
 };
 
 const AgentThinkingPanel = ({ sessionId, clearTrigger }) => {
@@ -155,6 +159,8 @@ const AgentThinkingPanel = ({ sessionId, clearTrigger }) => {
         return 'Query';
       case 'security':
         return 'Security';
+      case 'grounding':
+        return 'Fact Check';
       default:
         return evt.type;
     }

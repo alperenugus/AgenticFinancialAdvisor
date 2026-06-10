@@ -1,5 +1,7 @@
 package com.agent.financialadvisor.service.orchestrator;
 
+import com.agent.financialadvisor.service.GroundingService;
+import com.agent.financialadvisor.service.UserContextService;
 import com.agent.financialadvisor.service.WebSocketService;
 import com.agent.financialadvisor.service.agents.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +47,9 @@ class OrchestratorServiceTest {
     @Mock
     private WebSocketService webSocketService;
 
+    @Mock
+    private UserContextService userContextService;
+
     private OrchestratorService orchestratorService;
 
     @BeforeEach
@@ -58,6 +63,8 @@ class OrchestratorServiceTest {
                 fintwitAnalysisAgent,
                 securityAgent,
                 webSocketService,
+                userContextService,
+                new GroundingService(), // real implementation: pure logic, exercises the grounding gate
                 new ObjectMapper(),
                 90,
                 10
@@ -242,5 +249,90 @@ class OrchestratorServiceTest {
 
         assertThat(result).contains("195.50");
         verify(plannerAgent, atLeast(2)).createPlan(anyString());
+    }
+
+    @Test
+    void coordinateAnalysis_GroundingGateCorrectsHallucinatedFigures() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(plannerAgent.createPlan(anyString()))
+                .thenReturn("{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null," +
+                        "\"steps\":[{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get AAPL price\"}]}");
+        when(marketAnalysisAgent.processQuery(anyString(), anyString()))
+                .thenReturn("{\"symbol\":\"AAPL\",\"price\":195.50,\"currency\":\"USD\"}");
+        when(evaluatorAgent.evaluate(anyString()))
+                // First synthesis hallucinates a price that is NOT in the tool data.
+                .thenReturn("{\"verdict\":\"PASS\",\"response\":\"AAPL is trading at $312.40 USD.\",\"feedback\":null}")
+                // Corrective rewrite uses the real figure.
+                .thenReturn("{\"verdict\":\"PASS\",\"response\":\"AAPL is trading at $195.50 USD.\",\"feedback\":null}");
+
+        String result = orchestratorService.coordinateAnalysis("user-1", "AAPL price", "session-10");
+
+        assertThat(result).contains("195.50");
+        assertThat(result).doesNotContain("312.40");
+        verify(evaluatorAgent, atLeast(2)).evaluate(anyString());
+    }
+
+    @Test
+    void coordinateAnalysis_ShipsCautionWhenGroundingCannotBeFixed() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(plannerAgent.createPlan(anyString()))
+                .thenReturn("{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null," +
+                        "\"steps\":[{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get AAPL price\"}]}");
+        when(marketAnalysisAgent.processQuery(anyString(), anyString()))
+                .thenReturn("{\"symbol\":\"AAPL\",\"price\":195.50}");
+        when(evaluatorAgent.evaluate(anyString()))
+                // Both the original synthesis and the corrective rewrite carry an invented figure.
+                .thenReturn("{\"verdict\":\"PASS\",\"response\":\"AAPL is at $312.40.\",\"feedback\":null}")
+                .thenReturn("{\"verdict\":\"PASS\",\"response\":\"AAPL is at $315.00.\",\"feedback\":null}");
+
+        String result = orchestratorService.coordinateAnalysis("user-1", "AAPL price", "session-11");
+
+        assertThat(result).contains("could not be automatically verified");
+    }
+
+    @Test
+    void coordinateAnalysis_RejectsDirectResponseForNonGreetingQueries() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(plannerAgent.createPlan(anyString()))
+                // Model-memory answer smuggled into directResponse for a price query, no steps.
+                .thenReturn("{\"queryType\":\"STOCK_PRICE\"," +
+                        "\"directResponse\":\"AAPL is trading around $182.30.\",\"steps\":[]}")
+                // After feedback the planner produces a proper data-backed plan.
+                .thenReturn("{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null," +
+                        "\"steps\":[{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get AAPL price\"}]}");
+        when(marketAnalysisAgent.processQuery(anyString(), anyString()))
+                .thenReturn("{\"symbol\":\"AAPL\",\"price\":195.50}");
+        when(evaluatorAgent.evaluate(anyString()))
+                .thenReturn("{\"verdict\":\"PASS\",\"response\":\"AAPL is at $195.50 USD.\",\"feedback\":null}");
+
+        String result = orchestratorService.coordinateAnalysis("user-1", "AAPL price", "session-12");
+
+        assertThat(result).contains("195.50");
+        assertThat(result).doesNotContain("182.30");
+        verify(plannerAgent, atLeast(2)).createPlan(anyString());
+    }
+
+    @Test
+    void coordinateAnalysis_InjectsProfileContextIntoPlannerAndEvaluator() {
+        when(securityAgent.validateInput(anyString()))
+                .thenReturn(new SecurityAgent.SecurityValidationResult(true, "SAFE"));
+        when(userContextService.buildProfileContext("user-1"))
+                .thenReturn("USER PROFILE CONTEXT (authoritative, from database):\n- Risk tolerance: MODERATE\n");
+        when(plannerAgent.createPlan(anyString()))
+                .thenReturn("{\"queryType\":\"STOCK_PRICE\",\"directResponse\":null," +
+                        "\"steps\":[{\"agent\":\"MARKET_ANALYSIS\",\"task\":\"Get AAPL price\"}]}");
+        when(marketAnalysisAgent.processQuery(anyString(), anyString()))
+                .thenReturn("{\"symbol\":\"AAPL\",\"price\":195.50}");
+        when(evaluatorAgent.evaluate(anyString()))
+                .thenReturn("{\"verdict\":\"PASS\",\"response\":\"AAPL is at $195.50 USD.\",\"feedback\":null}");
+
+        orchestratorService.coordinateAnalysis("user-1", "AAPL price", "session-13");
+
+        // Personalization is deterministic: the profile context block reaches BOTH LLM inputs.
+        verify(plannerAgent).createPlan(contains("USER PROFILE CONTEXT"));
+        verify(evaluatorAgent).evaluate(contains("Risk tolerance: MODERATE"));
     }
 }

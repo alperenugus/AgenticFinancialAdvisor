@@ -23,6 +23,16 @@ The system fetches market data from **Finnhub** with an automatic **Yahoo Financ
 
 - **Current Price** fallback when Finnhub fails or is rate-limited (`query1.finance.yahoo.com/v8/finance/chart`, no API key)
 - **Candles / historical aggregates** — Yahoo is used here because the Finnhub `/stock/candle` endpoint is **premium-only** and returns `403` on the free tier
+- **Technical snapshot** — one year of daily candles powers real indicators computed in code
+  (SMA20/50, RSI14, 30-day annualized volatility, period returns, 52-week range); the snapshot carries
+  `asOf` (last trading timestamp) and `source` so the LLM can cite freshness
+
+### Grounding guarantee
+
+Every figure in a synthesized response is verified against the raw tool data before it reaches the user
+(`GroundingService`). Responses that fail verification are rewritten once; if figures still can't be matched
+to source data, the answer ships with an explicit caution. A reported price is not just *fetched* fresh —
+it is *provably the number the data provider returned*. See [STATE_OF_THE_ART.md](./STATE_OF_THE_ART.md).
 
 ### Optional Additional Sources
 

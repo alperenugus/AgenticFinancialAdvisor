@@ -10,8 +10,15 @@ This system uses a **Plan-Execute-Evaluate agentic architecture** where speciali
 
 - **Flexible Authentication**: Sign in with Google OAuth2 **or** email/password, both issuing JWT tokens
 - **Plan-Execute-Evaluate Architecture**: 7 specialized AI agents with self-correction via retry loop
+- **Anti-Hallucination Grounding Gate**: every figure in a response is deterministically verified against raw
+  tool data before it reaches the user; ungrounded figures trigger a corrective rewrite (visible in the UI as
+  "Fact Check" events) — see [docs/STATE_OF_THE_ART.md](./docs/STATE_OF_THE_ART.md)
+- **Deterministic Personalization**: risk tolerance, horizon, goals, budget, sector preferences, ESG flag, and
+  portfolio allocation are loaded from the database on every query and injected into the planning and
+  answer-synthesis steps — advice always reflects the user's profile
 - **LLM-Powered Query Understanding**: No hardcoded patterns -- PlannerAgent handles all query types
-- **Portfolio & Profile Access**: AI Advisor has full access to user portfolio and profile data for personalized advice
+- **Real Technical Analysis**: SMA20/50, RSI14 (Wilder), 30-day annualized volatility, period returns, and
+  52-week range computed in code from one year of daily candles (the LLM narrates, code calculates)
 - **Real-time Market Data**: Live quotes via Finnhub with an automatic Yahoo Finance fallback (no API key); historical/candle data is served from Yahoo Finance
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
