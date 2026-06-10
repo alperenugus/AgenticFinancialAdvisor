@@ -41,7 +41,10 @@ public class SecurityAgent {
 
     @Autowired
     public SecurityAgent(
-            @Qualifier("agentChatLanguageModel") ChatLanguageModel chatLanguageModel,
+            // The fast 8B model: security validation is pure classification (no tool calls, so the
+            // 8B tool-calling format bug doesn't apply). This moves per-query security checks off
+            // the 70B model's tokens-per-day budget (separate Groq rate bucket) and is faster.
+            @Qualifier("toolAgentChatLanguageModel") ChatLanguageModel chatLanguageModel,
             @Value("${agent.timeout.security-seconds:5}") int securityTimeoutSeconds
     ) {
         this.securityValidator = AiServices.builder(SecurityValidator.class)

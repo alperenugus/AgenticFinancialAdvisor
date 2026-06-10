@@ -51,6 +51,15 @@ The remaining distance to the leaders, stated honestly:
 - No persisted audit trail, eval suite in CI, or tool-call observability dashboards yet.
 - No regulatory registration (see §5 — this constrains how the product may be marketed).
 
+## 3b. Operational capacity constraint (verified on production)
+
+The Groq **free tier allows ~100,000 tokens/day** for `llama-3.3-70b-versatile`. One advisor query costs
+roughly 5–10 LLM calls (security, plan, N sub-agents, evaluate, grounding rewrite) — the daily budget supports
+only **~15–30 real queries/day**. We exhausted it during production testing on 2026-06-09; the system now
+degrades honestly (capacity message instead of confusing errors), the SecurityAgent runs on the 8B model
+(separate token bucket), and snapshots are cached. **Monetization requires the paid Groq Dev tier (or another
+provider) before any real user load.**
+
 ## 4. Roadmap (next sprints, in priority order)
 
 1. **Tool-invocation verification (fail closed):** verify each data step actually invoked a tool; reject

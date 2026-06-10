@@ -46,6 +46,11 @@ public class OrchestratorService {
     private static final int MAX_CONVERSATION_HISTORY = 5;
     private static final int MAX_PLAN_STEPS = 4;
 
+    /** Honest message when the LLM provider's rate/token budget is exhausted (e.g. Groq free-tier TPD). */
+    private static final String CAPACITY_MESSAGE =
+            "The AI service has temporarily reached its capacity limit. Your data is safe — " +
+            "please try again in about 20 minutes.";
+
     private final PlannerAgent plannerAgent;
     private final EvaluatorAgent evaluatorAgent;
     private final UserProfileAgent userProfileAgent;
@@ -206,6 +211,10 @@ public class OrchestratorService {
                 planJson = plannerAgent.createPlan(plannerInput);
             } catch (Exception e) {
                 log.error("❌ [PLAN] Planner failed on attempt {}: {}", attempt, e.getMessage(), e);
+                if (isRateLimited(e)) {
+                    // Retrying immediately just burns more budget; tell the user the truth.
+                    return CAPACITY_MESSAGE;
+                }
                 if (attempt < MAX_PLAN_RETRIES) {
                     lastFeedback = "Planner failed: " + e.getMessage() + ". Try a simpler, more direct plan.";
                     continue;
@@ -308,6 +317,9 @@ public class OrchestratorService {
                 evaluationJson = evaluatorAgent.evaluate(evaluationInput);
             } catch (Exception e) {
                 log.error("❌ [EVALUATE] Evaluator failed: {}", e.getMessage(), e);
+                if (isRateLimited(e)) {
+                    return CAPACITY_MESSAGE;
+                }
                 return synthesizeFallback(userQuery, results, profileContext, sessionId);
             }
 
@@ -404,6 +416,20 @@ public class OrchestratorService {
     private boolean stepsNodeHasSteps(JsonNode plan) {
         JsonNode steps = plan.path("steps");
         return steps.isArray() && !steps.isEmpty();
+    }
+
+    /** Detects LLM-provider rate/token-budget exhaustion anywhere in the exception chain. */
+    private boolean isRateLimited(Throwable e) {
+        Throwable t = e;
+        while (t != null) {
+            String msg = t.getMessage();
+            if (msg != null && (msg.contains("rate_limit_exceeded") || msg.contains("Rate limit")
+                    || msg.contains("429") || msg.contains("Too Many Requests"))) {
+                return true;
+            }
+            t = t.getCause() == t ? null : t.getCause();
+        }
+        return false;
     }
 
     private List<String> groundingSources(Map<String, String> results, String profileContext) {
