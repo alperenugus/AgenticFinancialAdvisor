@@ -5,7 +5,9 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = ""
-healthcheckPath = "/api/advisor/status"
+# Must be a PUBLIC path (permitAll in SecurityConfig). An auth-protected path 302-redirects to
+# Google login, which Railway reads as unhealthy and marks the deploy FAILED.
+healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

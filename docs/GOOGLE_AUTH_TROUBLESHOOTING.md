@@ -18,7 +18,7 @@ This error occurs when the redirect URI sent by your application doesn't match w
 
    In **Authorized redirect URIs**, add:
    ```
-   https://agenticfinancialadvisorbackend-production.up.railway.app/login/oauth2/code/google
+   https://<your-backend>.up.railway.app/login/oauth2/code/google
    ```
 
    **Important:**
@@ -31,7 +31,7 @@ This error occurs when the redirect URI sent by your application doesn't match w
 
    In your Railway backend service, set:
    ```
-   GOOGLE_REDIRECT_URI=https://agenticfinancialadvisorbackend-production.up.railway.app/login/oauth2/code/google
+   GOOGLE_REDIRECT_URI=https://<your-backend>.up.railway.app/login/oauth2/code/google
    ```
 
    **Important:** 

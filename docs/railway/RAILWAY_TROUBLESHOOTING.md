@@ -100,11 +100,11 @@ This error means Railway cannot find or access your service. Here's how to fix i
 - Check PostgreSQL service is running
 - Ensure database service is in the same Railway project
 
-#### Error: "Connection refused" or "Cannot connect to Ollama"
+#### Error: LLM calls fail / agents return errors
 **Solution:**
-- **Note:** You're using Groq API now, not Ollama
-- Verify `GROQ_API_KEY` is set correctly
-- Check API key is valid
+- The system uses the **Groq API** (no local Ollama service)
+- Verify `GROQ_API_KEY` is set correctly and the key is valid
+- Check the model name (`llama-3.3-70b-versatile`) is still available on Groq
 
 #### Error: "Port already in use"
 **Solution:**
@@ -245,14 +245,15 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # JWT (REQUIRED)
-JWT_SECRET=your-256-bit-secret-key-minimum-32-characters
+JWT_SECRET=<run: openssl rand -base64 48>   # REQUIRED, >=32 chars; app fails fast at boot without it
 
 # CORS (REQUIRED - set to your frontend URL)
 CORS_ORIGINS=https://your-frontend.railway.app
 
 # Optional
-ALPHA_VANTAGE_API_KEY=your_key
-NEWS_API_KEY=your_key
+TAVILY_API_KEY=your_key                     # web search (latest news/info)
+MARKET_DATA_QUOTE_CACHE_TTL_SECONDS=15      # quote cache TTL (default 15)
+NEWS_API_KEY=your_key                        # optional news provider
 ```
 
 ### Frontend Required Variables:

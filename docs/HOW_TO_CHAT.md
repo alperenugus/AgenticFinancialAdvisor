@@ -5,8 +5,8 @@
 You interact with the **Frontend**.  
 Frontend calls the **Backend** (REST + WebSocket).  
 Backend calls:
-- Groq models (`llama-3.3-70b-versatile` orchestrator, `llama-3.1-8b-instant` subagents)
-- Finnhub market-data API
+- Groq model `llama-3.3-70b-versatile` (orchestrator and all sub-agents)
+- Finnhub market-data API (with a Yahoo Finance fallback for quotes and historical data)
 
 ## Required services
 

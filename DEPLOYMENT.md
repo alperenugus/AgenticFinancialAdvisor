@@ -112,11 +112,15 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_REDIRECT_URI=https://your-backend.railway.app/login/oauth2/code/google
 
-# JWT Authentication
-JWT_SECRET=your-secure-random-secret-key-minimum-32-characters
+# JWT Authentication — REQUIRED. The app FAILS FAST at startup if this is unset, < 32 chars,
+# or the old built-in placeholder. Generate one with: openssl rand -base64 48
+JWT_SECRET=<run: openssl rand -base64 48>
 
 # CORS (Required if frontend on different domain)
 CORS_ORIGINS=https://your-frontend.railway.app,http://localhost:5173
+
+# Market data quote cache TTL in seconds (optional, default 15)
+MARKET_DATA_QUOTE_CACHE_TTL_SECONDS=15
 
 # Server
 PORT=8080

@@ -8,11 +8,11 @@ This system uses a **Plan-Execute-Evaluate agentic architecture** where speciali
 
 ## ✨ Features
 
-- **Google Sign-In Authentication**: Secure OAuth2 authentication with JWT tokens
+- **Flexible Authentication**: Sign in with Google OAuth2 **or** email/password, both issuing JWT tokens
 - **Plan-Execute-Evaluate Architecture**: 7 specialized AI agents with self-correction via retry loop
 - **LLM-Powered Query Understanding**: No hardcoded patterns -- PlannerAgent handles all query types
 - **Portfolio & Profile Access**: AI Advisor has full access to user portfolio and profile data for personalized advice
-- **Real-time Market Data**: Integration with Finnhub API for live stock data
+- **Real-time Market Data**: Live quotes via Finnhub with an automatic Yahoo Finance fallback (no API key); historical/candle data is served from Yahoo Finance
 - **Risk Assessment**: Automated risk evaluation based on user preferences
 - **Portfolio Management**: Track and manage investment portfolios with automatic price updates
 - **WebSocket Support**: Real-time updates on agent thinking and analysis
@@ -40,6 +40,7 @@ This system uses a **Plan-Execute-Evaluate agentic architecture** where speciali
 │         ┌──────────────────┴──────────────────┐               │
 │         │   Security Layer (OAuth2 + JWT)      │               │
 │         │  - Google OAuth2 Authentication     │               │
+│         │  - Email/Password Authentication    │               │
 │         │  - JWT Token Validation            │               │
 │         └───────┬──────────────────────────────┘               │
 │                 │                                               │
@@ -66,15 +67,14 @@ This system uses a **Plan-Execute-Evaluate agentic architecture** where speciali
 │                 │            │              │                  │
 │         ┌───────▼────────────▼──────────────▼───────┐        │
 │         │      MarketDataService                     │        │
-│         │  (Finnhub API Integration)                │        │
+│         │  (Finnhub + Yahoo Finance fallback)       │        │
 │         └───────────────────────────────────────────┘        │
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
 │         │      PostgreSQL Database                  │        │
-│         │  - Users (Google OAuth)                  │        │
+│         │  - Users (Google OAuth / Email+Password) │        │
 │         │  - User Profiles                          │        │
 │         │  - Portfolios                            │        │
-│         │  - Recommendations                       │        │
 │         └───────────────────────────────────────────┘        │
 │                                                               │
 │         ┌───────────────────────────────────────────┐        │
@@ -128,7 +128,10 @@ For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md
    export FINNHUB_API_KEY=your_finnhub_api_key
    export GOOGLE_CLIENT_ID=your_google_client_id
    export GOOGLE_CLIENT_SECRET=your_google_client_secret
-   export JWT_SECRET=your-secure-random-secret-key-minimum-32-characters
+   # Required: a strong secret (>=32 chars). There is no hardcoded fallback --
+   # the app fails fast at startup if this is missing or weak.
+   # Generate one with: openssl rand -base64 48
+   export JWT_SECRET=your-strong-random-secret-min-32-chars
    ```
    
    Or edit `application.yml`:

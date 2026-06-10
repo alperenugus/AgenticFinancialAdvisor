@@ -56,3 +56,10 @@ backend/application-*.properties
 *.bak
 *.cache
 
+# Test/automation artifacts
+.playwright-mcp/
+prod-ai-advisor-live-price.png
+
+# Test user credentials (live accounts on a public repo — keep local)
+TEST_USERS.md
+

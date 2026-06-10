@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token, loadUser]);
 
-  const login = () => {
+  const loginWithGoogle = () => {
     // Redirect to backend OAuth2 endpoint
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
     const backendUrl = apiBaseUrl.endsWith('/api')
@@ -58,11 +58,34 @@ export const AuthProvider = ({ children }) => {
     window.location.href = `${backendUrl}/oauth2/authorization/google`;
   };
 
+  // Apply a { token, user } response from register/login: persist token and set state.
+  const applyAuthResponse = useCallback((data) => {
+    if (data?.token) {
+      localStorage.setItem('token', data.token);
+      setToken(data.token);
+    }
+    if (data?.user) {
+      setUser(data.user);
+    }
+  }, []);
+
+  const loginWithPassword = useCallback(async (email, password) => {
+    const response = await authAPI.login({ email, password });
+    applyAuthResponse(response.data);
+  }, [applyAuthResponse]);
+
+  const register = useCallback(async (name, email, password) => {
+    const response = await authAPI.register({ name, email, password });
+    applyAuthResponse(response.data);
+  }, [applyAuthResponse]);
+
   const value = {
     user,
     token,
     loading,
-    login,
+    loginWithGoogle,
+    loginWithPassword,
+    register,
     logout,
     isAuthenticated: !!user && !!token,
   };

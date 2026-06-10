@@ -12,6 +12,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,9 +49,9 @@ class MarketAnalysisAgentTest {
     @Test
     void testGetStockPrice_Success() {
         // Given
-        BigDecimal expectedPrice = new BigDecimal("150.50");
+        MarketDataService.Quote quote = new MarketDataService.Quote(new BigDecimal("150.50"), "finnhub", Instant.now());
         when(marketDataService.resolveSymbol("AAPL")).thenReturn("AAPL");
-        when(marketDataService.getStockPrice("AAPL")).thenReturn(expectedPrice);
+        when(marketDataService.getQuote("AAPL")).thenReturn(quote);
 
         // When
         String result = marketAnalysisAgent.getStockPrice("AAPL");
@@ -59,15 +60,16 @@ class MarketAnalysisAgentTest {
         assertThat(result).contains("AAPL");
         assertThat(result).contains("150.50");
         assertThat(result).contains("USD");
+        assertThat(result).contains("finnhub");
         verify(marketDataService, times(1)).resolveSymbol("AAPL");
-        verify(marketDataService, times(1)).getStockPrice("AAPL");
+        verify(marketDataService, times(1)).getQuote("AAPL");
     }
 
     @Test
     void testGetStockPrice_WhenPriceIsNull() {
         // Given
         when(marketDataService.resolveSymbol("INVALID")).thenReturn("INVALID");
-        when(marketDataService.getStockPrice("INVALID")).thenReturn(null);
+        when(marketDataService.getQuote("INVALID")).thenReturn(null);
 
         // When
         String result = marketAnalysisAgent.getStockPrice("INVALID");
@@ -76,14 +78,15 @@ class MarketAnalysisAgentTest {
         assertThat(result).contains("INVALID");
         assertThat(result).contains("error");
         verify(marketDataService, times(1)).resolveSymbol("INVALID");
-        verify(marketDataService, times(1)).getStockPrice("INVALID");
+        verify(marketDataService, times(1)).getQuote("INVALID");
     }
 
     @Test
     void testGetStockPrice_ResolvesCompanyNameUsingLiveLookup() {
         // Given
         when(marketDataService.resolveSymbol("figma")).thenReturn("FIG");
-        when(marketDataService.getStockPrice("FIG")).thenReturn(new BigDecimal("42.00"));
+        when(marketDataService.getQuote("FIG"))
+                .thenReturn(new MarketDataService.Quote(new BigDecimal("42.00"), "finnhub", Instant.now()));
 
         // When
         String result = marketAnalysisAgent.getStockPrice("figma");
@@ -93,7 +96,7 @@ class MarketAnalysisAgentTest {
         assertThat(result).contains("\"symbol\": \"FIG\"");
         assertThat(result).contains("42.00");
         verify(marketDataService, times(1)).resolveSymbol("figma");
-        verify(marketDataService, times(1)).getStockPrice("FIG");
+        verify(marketDataService, times(1)).getQuote("FIG");
     }
 
     @Test

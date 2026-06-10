@@ -32,8 +32,9 @@ EXPOSE 8080
 
 # Health check - increased start period for Spring Boot startup (3 minutes)
 # Railway also has its own health check configured in railway.toml
+# Use the PUBLIC /api/health path (an auth-protected path 302-redirects and never reports healthy).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
-  CMD curl -f http://localhost:8080/api/advisor/status || exit 1
+  CMD curl -f http://localhost:8080/api/health || exit 1
 
 # Run the application
 ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

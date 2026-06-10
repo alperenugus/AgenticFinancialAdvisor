@@ -103,27 +103,30 @@ public class MarketAnalysisAgent {
                 );
             }
 
-            BigDecimal price = marketDataService.getStockPrice(resolvedSymbol);
-            if (price == null) {
+            MarketDataService.Quote quote = marketDataService.getQuote(resolvedSymbol);
+            if (quote == null) {
                 return String.format(
                         "{\"requested\": \"%s\", \"symbol\": \"%s\", \"error\": \"Unable to fetch stock price. Symbol may be invalid, newly listed but unavailable, or API limit reached.\"}",
                         escapeJson(requestedInput), resolvedSymbol
                 );
             }
-            // Include timestamp to show data freshness
-            String timestamp = java.time.LocalDateTime.now().toString();
+            // Surface real freshness: quoteTime is the provider's timestamp for the price; fetchedAt is now.
+            BigDecimal price = quote.price();
+            String quoteTime = quote.quoteTime().toString();
+            String source = quote.source();
+            String fetchedAt = java.time.Instant.now().toString();
             String result;
             if (requestedInput.equalsIgnoreCase(resolvedSymbol)) {
                 result = String.format(
-                    "{\"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"fetchedAt\": \"%s\", " +
-                    "\"note\": \"Fresh data fetched from API. Free tier may have 15-minute delay during market hours.\"}",
-                    resolvedSymbol, price, timestamp
+                    "{\"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"quoteTime\": \"%s\", \"source\": \"%s\", \"fetchedAt\": \"%s\", " +
+                    "\"note\": \"Live data. quoteTime is when the price was last set by the provider; free tier may be delayed ~15 min during market hours.\"}",
+                    resolvedSymbol, price, quoteTime, source, fetchedAt
                 );
             } else {
                 result = String.format(
-                    "{\"requested\": \"%s\", \"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"fetchedAt\": \"%s\", " +
-                    "\"note\": \"Fresh data fetched from API after live symbol resolution. Free tier may have 15-minute delay during market hours.\"}",
-                    escapeJson(requestedInput), resolvedSymbol, price, timestamp
+                    "{\"requested\": \"%s\", \"symbol\": \"%s\", \"price\": %s, \"currency\": \"USD\", \"quoteTime\": \"%s\", \"source\": \"%s\", \"fetchedAt\": \"%s\", " +
+                    "\"note\": \"Live data after symbol resolution. quoteTime is the provider's last price time; free tier may be delayed ~15 min during market hours.\"}",
+                    escapeJson(requestedInput), resolvedSymbol, price, quoteTime, source, fetchedAt
                 );
             }
             

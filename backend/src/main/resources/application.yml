@@ -131,7 +131,10 @@ fintwit:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-change-this-in-production-minimum-32-characters}
+  # No inline fallback on purpose: the app FAILS FAST at startup if JWT_SECRET is unset, too short, or the
+  # known placeholder (see JwtService.validateSecret). Generate one with `openssl rand -base64 48` and set it
+  # as the JWT_SECRET env var on Railway. Local/test profiles supply their own dev secret.
+  secret: ${JWT_SECRET:}
   expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
 
 logging:

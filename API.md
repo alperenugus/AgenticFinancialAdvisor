@@ -3,17 +3,21 @@
 ## Base URL
 
 - **Local Development**: `http://localhost:8080/api`
-- **Production**: `https://your-backend.railway.app/api`
+- **Production**: `https://agenticfinancialadvisorbackend-production.up.railway.app/api`
 
 ## Authentication
 
-The API uses **JWT (JSON Web Tokens)** for authentication. All endpoints (except `/api/auth/**` and `/oauth2/**`) require a valid JWT token in the `Authorization` header.
+The API uses **JWT (JSON Web Tokens)** for authentication. All endpoints except `/api/auth/**`, `/api/health`,
+`/api/advisor/status`, `/login/**`, and `/oauth2/**` require a valid JWT in the `Authorization` header.
 
-### Getting a Token
+Two ways to obtain a token:
 
-1. **Via Frontend**: Sign in with Google through the frontend - token is automatically stored
-2. **Via OAuth2 Flow**: Redirect to `/oauth2/authorization/google` - completes Google OAuth2 and redirects with token
-3. **Validate Token**: Use `/api/auth/validate` to check token validity
+- **Email + password** — `POST /api/auth/register` (sign up) or `POST /api/auth/login` (sign in). Both return
+  `{ token, user }`.
+- **Google OAuth2** — redirect the browser to `/oauth2/authorization/google`; on success the backend
+  redirects to `<frontend>/auth/callback?token=<jwt>`.
+
+Use `/api/auth/validate` to check a token's validity.
 
 ### Using Tokens
 
@@ -32,6 +36,46 @@ Authorization: Bearer <your_jwt_token>
 ---
 
 ## Authentication Endpoints
+
+### Register (email/password)
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "name": "Jane Investor",
+  "password": "at-least-8-chars"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "token": "<jwt>",
+  "user": { "id": 5, "email": "jane@example.com", "name": "Jane Investor", "pictureUrl": null }
+}
+```
+
+**Errors:** `400` invalid email / password &lt; 8 chars; `409` an account with that email already exists.
+
+### Login (email/password)
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "at-least-8-chars"
+}
+```
+
+**Response (200):** same `{ token, user }` shape as register.
+
+**Errors:** `401` for unknown email, wrong password, or a Google-only account (no local password set). The
+message is intentionally generic ("Invalid email or password.") to avoid leaking which emails are registered.
 
 ### Get Current User
 
@@ -282,52 +326,37 @@ GET /api/advisor/status
 {
   "status": "operational",
   "agents": {
+    "plannerAgent": true,
+    "evaluatorAgent": true,
     "userProfileAgent": true,
     "marketAnalysisAgent": true,
     "webSearchAgent": true,
     "fintwitAnalysisAgent": true,
-    "chatLanguageModel": true
+    "securityAgent": true
   }
 }
 ```
 
-**Note:** This endpoint is public (no authentication required) for health checks.
+**Note:** This endpoint is **public** (no authentication) and is one of the Railway healthcheck paths.
 
-### Debug Recommendations
+---
+
+## Health
+
+### Liveness
 
 ```http
-GET /api/advisor/debug-recommendations
-Authorization: Bearer <token>
+GET /api/health
 ```
 
-**Response:**
+**Response (200):**
 ```json
-{
-  "portfolioHoldings": ["AAPL", "NVDA", "MSFT", "GOOGL"],
-  "portfolioHoldingsCount": 4,
-  "recommendationsCount": 4,
-  "recommendationsBySymbol": {
-    "AAPL": ["BUY"],
-    "NVDA": ["HOLD"],
-    "MSFT": ["BUY"],
-    "GOOGL": ["HOLD"]
-  },
-  "recommendations": [
-    {
-      "id": 1,
-      "symbol": "AAPL",
-      "action": "BUY",
-      "createdAt": "2024-01-15T10:30:00"
-    }
-  ]
-}
+{ "status": "UP", "service": "financial-advisor", "timestamp": "2026-06-09T20:45:00Z" }
 ```
 
-**Note:**
-- Useful for troubleshooting why recommendations aren't showing
-- Shows all stocks in portfolio vs. recommendations in database
-- Helps identify missing recommendations or duplicates
-- Shows recommendation count per symbol
+**Note:** Public, dependency-free liveness probe used by the Railway healthcheck and the Docker
+`HEALTHCHECK`. It must stay public — an authenticated healthcheck path 302-redirects to the OAuth login,
+which Railway treats as unhealthy and fails the deploy.
 
 ---
 
@@ -393,15 +422,17 @@ stompClient.subscribe('/topic/error/{sessionId}', function(message) {
 
 ## Data Models
 
-### User (OAuth2)
+### User
 
 ```typescript
 interface User {
   id: number;
-  email: string;        // Unique identifier
+  email: string;          // Unique identifier
   name: string;
-  googleId: string;      // Google OAuth2 user ID
-  pictureUrl: string;   // Profile picture URL
+  googleId?: string;      // Google OAuth2 user ID (null for local accounts)
+  pictureUrl?: string;    // Profile picture URL
+  authProvider?: string;  // "GOOGLE" | "LOCAL"
+  // passwordHash is stored (BCrypt) for LOCAL accounts but is NEVER returned by the API.
   createdAt: string;
   updatedAt: string;
 }
@@ -547,9 +578,12 @@ interface Recommendation {
 
 ## Rate Limiting
 
-### Finnhub API
-- **Free Tier**: 60 calls per minute, 1,000,000 calls per month
-- The system fetches fresh data on each request (no caching)
+### Market data (Finnhub + Yahoo Finance)
+- **Finnhub Free Tier**: 60 calls/minute, 1,000,000 calls/month — used for live quotes and company news.
+- **Yahoo Finance fallback** (no API key): used automatically for live quotes when Finnhub is missing/limited,
+  and for historical/candle data (Finnhub's `/stock/candle` is premium-only and 403s on the free tier).
+- **Short-TTL quote cache** (~15s, configurable via `MARKET_DATA_QUOTE_CACHE_TTL_SECONDS`) protects the free
+  tier without serving stale prices. Quote responses include `quoteTime` (provider timestamp) and `source`.
 
 ### Groq API
 - Rate limits depend on your Groq plan (check [Groq Console](https://console.groq.com/))
@@ -640,13 +674,6 @@ stompClient.connect(
     });
   }
 );
-
-// 7. Get recommendations
-const recommendations = await fetch('/api/advisor/recommendations', {
-  headers: {
-    'Authorization': `Bearer ${token}`
-  }
-});
 ```
 
 ---
@@ -685,7 +712,19 @@ These are the tools available to the LLM orchestrator. They're called automatica
 
 ## Changelog
 
-### v2.4.0 (Current)
+### v2.5.0 (Current)
+- **Email/password authentication** — `POST /api/auth/register` and `POST /api/auth/login` (BCrypt-hashed),
+  alongside the existing Google OAuth2. Returns `{ token, user }`.
+- **Public `/api/health` liveness endpoint** and `/api/advisor/status` made public — fixes the Railway
+  healthcheck (an auth-protected path was 302-redirecting and failing every deploy).
+- **Market-data freshness** — Yahoo Finance fallback for live quotes and historical candles (the Finnhub
+  premium `/stock/candle` 403s on free tier), short-TTL quote cache, and `quoteTime`/`source` in responses.
+- **Security** — removed the hardcoded JWT fallback secret; the app now fails fast at startup unless a strong
+  `JWT_SECRET` is configured.
+- Removed documentation for the non-existent `/api/advisor/debug-recommendations` and
+  `/api/advisor/recommendations` endpoints.
+
+### v2.4.0
 - **Removed Recommendations Tab** - Recommendations feature temporarily disabled, will be re-enabled in future iteration
 - **AI Advisor Portfolio & Profile Access** - Confirmed AI Advisor has full access to user portfolio and profile via UserProfileAgent tools
 - **Simplified UI** - Removed recommendation-related UI components and endpoints
