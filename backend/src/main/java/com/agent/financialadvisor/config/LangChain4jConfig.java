@@ -9,122 +9,102 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 
 /**
- * LangChain4j Configuration for Groq API
- * 
- * Groq provides fast, cost-effective LLM inference via OpenAI-compatible API.
- * All agents use llama-3.3-70b-versatile for reliable tool calling and reasoning.
- * The 8B tool-agent bean is retained for future use but not active.
+ * LLM Configuration for OpenAI.
+ *
+ * The application talks to OpenAI's Chat Completions API through LangChain4j's OpenAI client.
+ * Three model tiers, each independently override-able via environment variables:
+ *   - orchestrator (planner + evaluator)       — the quality-critical role (default gpt-4o)
+ *   - agent (market / profile / web / fintwit)  — tool-calling sub-agents     (default gpt-4o)
+ *   - security (input classification, no tools) — cheap + fast                (default gpt-4o-mini)
+ *
+ * Set OPENAI_API_KEY in the environment. Beans are @Lazy so a missing key doesn't crash startup;
+ * the failure surfaces on the first LLM call instead.
  */
-@Lazy  // Delay Groq connection until first use (prevents blocking startup)
+@Lazy
 @Configuration
 public class LangChain4jConfig {
 
-    // Groq Orchestrator Configuration (llama-3.3-70b)
-    @Value("${langchain4j.groq.orchestrator.api-key:}")
-    private String orchestratorApiKey;
+    @Value("${openai.api-key:}")
+    private String apiKey;
 
-    @Value("${langchain4j.groq.orchestrator.base-url:https://api.groq.com/openai/v1}")
-    private String orchestratorBaseUrl;
+    @Value("${openai.base-url:https://api.openai.com/v1}")
+    private String baseUrl;
 
-    @Value("${langchain4j.groq.orchestrator.model:llama-3.3-70b-versatile}")
+    // Orchestrator (planner + evaluator)
+    @Value("${openai.orchestrator.model:gpt-4o}")
     private String orchestratorModel;
 
-    @Value("${langchain4j.groq.orchestrator.temperature:0.0}")
+    @Value("${openai.orchestrator.temperature:0.0}")
     private Double orchestratorTemperature;
 
-    @Value("${langchain4j.groq.orchestrator.timeout-seconds:60}")
+    @Value("${openai.orchestrator.timeout-seconds:90}")
     private Integer orchestratorTimeoutSeconds;
 
-    // Groq Tool Agent Configuration (llama-3.1-8b)
-    @Value("${langchain4j.groq.tool-agent.api-key:}")
-    private String toolAgentApiKey;
+    // Sub-agents (tool calling)
+    @Value("${openai.agent.model:gpt-4o}")
+    private String agentModel;
 
-    @Value("${langchain4j.groq.tool-agent.base-url:https://api.groq.com/openai/v1}")
-    private String toolAgentBaseUrl;
+    @Value("${openai.agent.temperature:0.0}")
+    private Double agentTemperature;
 
-    @Value("${langchain4j.groq.tool-agent.model:llama-3.1-8b-instant}")
-    private String toolAgentModel;
+    @Value("${openai.agent.timeout-seconds:60}")
+    private Integer agentTimeoutSeconds;
 
-    @Value("${langchain4j.groq.tool-agent.temperature:0.3}")
-    private Double toolAgentTemperature;
+    // Security gate (cheap classification)
+    @Value("${openai.security.model:gpt-4o-mini}")
+    private String securityModel;
 
-    @Value("${langchain4j.groq.tool-agent.timeout-seconds:30}")
-    private Integer toolAgentTimeoutSeconds;
+    @Value("${openai.security.temperature:0.0}")
+    private Double securityTemperature;
 
-    /**
-     * Orchestrator ChatLanguageModel - uses llama-3.3-70b for high-level thinking
-     * This is the primary model used by the orchestrator service
-     */
-    @Bean
-    @Primary
-    public ChatLanguageModel chatLanguageModel() {
-        if (orchestratorApiKey == null || orchestratorApiKey.trim().isEmpty()) {
+    @Value("${openai.security.timeout-seconds:20}")
+    private Integer securityTimeoutSeconds;
+
+    private void requireApiKey() {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new IllegalStateException(
-                "GROQ_API_KEY environment variable is required. " +
-                "Please set it in Railway environment variables or application.yml"
+                "OPENAI_API_KEY environment variable is required. " +
+                "Set it in Railway environment variables (or your local environment)."
             );
         }
-
-        return OpenAiChatModel.builder()
-                .apiKey(orchestratorApiKey)
-                .baseUrl(orchestratorBaseUrl)
-                .modelName(orchestratorModel)
-                .temperature(orchestratorTemperature)
-                .timeout(java.time.Duration.ofSeconds(orchestratorTimeoutSeconds))
-                .logRequests(true)  // Enable logging to debug function call issues
-                .logResponses(true)
-                .build();
     }
 
-    /**
-     * Tool Agent ChatLanguageModel - uses llama-3.1-8b for fast function calling
-     * Currently not used, but available for future optimization where tool calls
-     * could be made by a separate, cheaper model
-     */
-    @Bean(name = "toolAgentChatLanguageModel")
-    public ChatLanguageModel toolAgentChatLanguageModel() {
-        if (toolAgentApiKey == null || toolAgentApiKey.trim().isEmpty()) {
-            throw new IllegalStateException(
-                "GROQ_API_KEY environment variable is required. " +
-                "Please set it in Railway environment variables or application.yml"
-            );
-        }
-
+    private ChatLanguageModel build(String model, Double temperature, Integer timeoutSeconds) {
+        requireApiKey();
         return OpenAiChatModel.builder()
-                .apiKey(toolAgentApiKey)
-                .baseUrl(toolAgentBaseUrl)
-                .modelName(toolAgentModel)
-                .temperature(toolAgentTemperature)
-                .timeout(java.time.Duration.ofSeconds(toolAgentTimeoutSeconds))
-                .build();
-    }
-
-    /**
-     * Agent ChatLanguageModel - used by individual agents (UserProfile, MarketAnalysis, WebSearch, Fintwit, Security)
-     * Each agent has its own LLM instance using this model configuration.
-     * Uses the same 70B orchestrator model for reliable tool calling.
-     * The 8B model (llama-3.1-8b-instant) generates function calls in the wrong format
-     * on Groq's API, causing tool_use_failed errors.
-     */
-    @Bean(name = "agentChatLanguageModel")
-    public ChatLanguageModel agentChatLanguageModel() {
-        if (orchestratorApiKey == null || orchestratorApiKey.trim().isEmpty()) {
-            throw new IllegalStateException(
-                "GROQ_API_KEY environment variable is required. " +
-                "Please set it in Railway environment variables or application.yml"
-            );
-        }
-
-        return OpenAiChatModel.builder()
-                .apiKey(orchestratorApiKey)
-                .baseUrl(orchestratorBaseUrl)
-                .modelName(orchestratorModel)
-                .temperature(orchestratorTemperature)
-                .timeout(java.time.Duration.ofSeconds(orchestratorTimeoutSeconds))
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(model)
+                .temperature(temperature)
+                .timeout(java.time.Duration.ofSeconds(timeoutSeconds))
                 .logRequests(true)
                 .logResponses(true)
                 .build();
     }
+
+    /**
+     * Orchestrator model — used by the OrchestratorService, PlannerAgent, and EvaluatorAgent.
+     */
+    @Bean
+    @Primary
+    public ChatLanguageModel chatLanguageModel() {
+        return build(orchestratorModel, orchestratorTemperature, orchestratorTimeoutSeconds);
+    }
+
+    /**
+     * Sub-agent model — used by MarketAnalysis, UserProfile, WebSearch, and Fintwit agents for tool calling.
+     */
+    @Bean(name = "agentChatLanguageModel")
+    public ChatLanguageModel agentChatLanguageModel() {
+        return build(agentModel, agentTemperature, agentTimeoutSeconds);
+    }
+
+    /**
+     * Lightweight model — used by the SecurityAgent for cheap, fast input classification (no tools).
+     * (Bean name kept as "toolAgentChatLanguageModel" so existing @Qualifier injection points are unchanged.)
+     */
+    @Bean(name = "toolAgentChatLanguageModel")
+    public ChatLanguageModel toolAgentChatLanguageModel() {
+        return build(securityModel, securityTemperature, securityTimeoutSeconds);
+    }
 }
-
-

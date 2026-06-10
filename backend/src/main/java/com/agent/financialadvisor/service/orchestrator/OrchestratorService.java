@@ -46,10 +46,9 @@ public class OrchestratorService {
     private static final int MAX_CONVERSATION_HISTORY = 5;
     private static final int MAX_PLAN_STEPS = 4;
 
-    /** Honest message when the LLM provider's rate/token budget is exhausted (e.g. Groq free-tier TPD). */
+    /** Honest message when the LLM provider returns a rate-limit error (e.g. OpenAI 429). */
     private static final String CAPACITY_MESSAGE =
-            "The AI service has temporarily reached its capacity limit. Your data is safe — " +
-            "please try again in about 20 minutes.";
+            "The AI service is briefly rate-limited. Your data is safe — please try again in a few moments.";
 
     private final PlannerAgent plannerAgent;
     private final EvaluatorAgent evaluatorAgent;

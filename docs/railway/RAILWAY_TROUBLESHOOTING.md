@@ -64,7 +64,7 @@ This error means Railway cannot find or access your service. Here's how to fix i
 
 3. **Settings → Variables:**
    - ✅ `DATABASE_URL` (auto-set by PostgreSQL service)
-   - ✅ `GROQ_API_KEY` (required)
+   - ✅ `OPENAI_API_KEY` (required)
    - ✅ `GOOGLE_CLIENT_ID` (required for auth)
    - ✅ `GOOGLE_CLIENT_SECRET` (required for auth)
    - ✅ `JWT_SECRET` (required)
@@ -102,9 +102,9 @@ This error means Railway cannot find or access your service. Here's how to fix i
 
 #### Error: LLM calls fail / agents return errors
 **Solution:**
-- The system uses the **Groq API** (no local Ollama service)
-- Verify `GROQ_API_KEY` is set correctly and the key is valid
-- Check the model name (`llama-3.3-70b-versatile`) is still available on Groq
+- The system uses the **OpenAI API** (no local Ollama service)
+- Verify `OPENAI_API_KEY` is set correctly and the key is valid
+- Check the model name (`gpt-4o`) is still available on OpenAI
 
 #### Error: "Port already in use"
 **Solution:**
@@ -237,8 +237,8 @@ If Backend fails, Frontend will also fail.
 # Database (auto-set by Railway)
 DATABASE_URL=postgresql://...
 
-# Groq API (REQUIRED)
-GROQ_API_KEY=your_groq_api_key
+# OpenAI API (REQUIRED)
+OPENAI_API_KEY=your_openai_api_key
 
 # Google OAuth (REQUIRED)
 GOOGLE_CLIENT_ID=your_google_client_id

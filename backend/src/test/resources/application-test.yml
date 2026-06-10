@@ -19,9 +19,11 @@ jwt:
   secret: test-only-jwt-secret-value-minimum-32-characters-long-12345
   expiration: 86400000
 
-# Use mock LLM for testing (we'll create a mock)
-langchain4j:
-  provider: mock
+# LLM config for tests. Tests inject mock ChatLanguageModels and never build the real beans,
+# but a dummy key keeps things safe if any context-loading test touches the config.
+openai:
+  api-key: test-dummy-key
+  base-url: https://api.openai.com/v1
 
 logging:
   level:

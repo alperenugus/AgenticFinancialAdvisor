@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Agentic Financial Advisor uses a **multi-agent architecture** where specialized AI agents collaborate to provide investment recommendations. The system is built on Spring Boot with LangChain4j for LLM integration, powered by Groq API for fast LLM inference. The application supports both Google OAuth2 and email/password authentication, issuing JWT tokens.
+The Agentic Financial Advisor uses a **multi-agent architecture** where specialized AI agents collaborate to provide investment recommendations. The system is built on Spring Boot with LangChain4j for LLM integration, powered by OpenAI API for fast LLM inference. The application supports both Google OAuth2 and email/password authentication, issuing JWT tokens.
 
 The system runs **7 agents** coordinated by a Plan-Execute-Evaluate orchestrator: **Planner**, **Evaluator**, **Security**, **UserProfile**, **MarketAnalysis**, **WebSearch**, and **Fintwit**.
 
@@ -110,7 +110,7 @@ The system runs **7 agents** coordinated by a Plan-Execute-Evaluate orchestrator
 │                         EXTERNAL SERVICES                                    │
 │                                                                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │    Google    │  │    Groq      │  │   Alpha     │  │   NewsAPI   │     │
+│  │    Google    │  │    OpenAI      │  │   Alpha     │  │   NewsAPI   │     │
 │  │   OAuth2     │  │     API      │  │  Vantage    │  │  (Optional) │     │
 │  │              │  │              │  │  (Market     │  │             │     │
 │  │ Authentication│  │  LLM Inference│  │   Data)     │  │             │     │
@@ -252,8 +252,8 @@ clean grounded summarization pass instead of dumping raw step output.
 - Grounded fallback synthesis when the evaluator fails or retries exhaust
 
 **Architecture**:
-- **PlannerAgent** (llama-3.3-70b-versatile): Analyzes query intent, creates structured plans
-- **EvaluatorAgent** (llama-3.3-70b-versatile): Reviews results, synthesizes or retries
+- **PlannerAgent** (gpt-4o): Analyzes query intent, creates structured plans
+- **EvaluatorAgent** (gpt-4o): Reviews results, synthesizes or retries
 - **Sub-agents**: Each has its own 70B LLM instance for tool calling
 - **SecurityAgent**: Deterministic patterns + LLM validation (first gate)
 
@@ -282,7 +282,7 @@ clean grounded summarization pass instead of dumping raw step output.
 **Key Innovation**: Each agent has its own LLM instance, enabling independent reasoning and specialized behavior.
 
 **Agent LLM Configuration**:
-- All agents use the same `agentChatLanguageModel` bean (llama-3.3-70b-versatile)
+- All agents use the same `agentChatLanguageModel` bean (gpt-4o)
 - Each agent maintains its own conversation memory per session
 - Agents can reason independently before calling their tools
 
@@ -356,9 +356,9 @@ Final Response (via WebSocket + REST)
 
 ### LLM Integration
 - **LangChain4j 0.34.0**: Java LLM framework
-- **Groq API**: Fast LLM inference
-  - **All agents**: llama-3.3-70b-versatile (Planner, Evaluator, and all sub-agents)
-  - The 70B model is used universally for reliable tool calling on Groq's API
+- **OpenAI API**: Fast LLM inference
+  - **All agents**: gpt-4o (Planner, Evaluator, and all sub-agents)
+  - The 70B model is used universally for reliable tool calling on OpenAI's API
 
 ### Authentication & Security
 - **Spring Security OAuth2**: Google Sign-In integration
@@ -371,7 +371,7 @@ Final Response (via WebSocket + REST)
 
 ### External APIs
 - **Finnhub**: Market data (free tier: 60 calls/min, 1,000,000 calls/month)
-- **Groq API**: Fast LLM inference (llama-3.3-70b-versatile)
+- **OpenAI API**: Fast LLM inference (gpt-4o)
 - **Tavily/Serper**: Web search for financial news and analysis (optional)
 - **NewsAPI**: Financial news (optional)
 
@@ -473,7 +473,7 @@ Frontend stores token in localStorage
 │                          └──────────────────┘       │
 │                                                       │
 │  ┌──────────────┐         ┌──────────────┐         │
-│  │    Google    │         │    Groq      │         │
+│  │    Google    │         │    OpenAI      │         │
 │  │   OAuth2     │         │     API      │         │
 │  │              │         │  (LLM)       │         │
 │  └──────────────┘         └──────────────┘         │

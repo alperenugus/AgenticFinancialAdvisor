@@ -5,7 +5,7 @@
 You interact with the **Frontend**.  
 Frontend calls the **Backend** (REST + WebSocket).  
 Backend calls:
-- Groq model `llama-3.3-70b-versatile` (orchestrator and all sub-agents)
+- OpenAI model `gpt-4o` (orchestrator and all sub-agents)
 - Finnhub market-data API (with a Yahoo Finance fallback for quotes and historical data)
 
 ## Required services
@@ -19,7 +19,7 @@ Backend calls:
 ### Backend
 
 ```bash
-GROQ_API_KEY=your_groq_key
+OPENAI_API_KEY=your_openai_api_key
 FINNHUB_API_KEY=your_finnhub_key
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
@@ -46,8 +46,8 @@ VITE_WS_URL=https://your-backend-url/ws
 
 ### No response / timeout
 - Check backend logs for timeout messages
-- Verify `GROQ_API_KEY`
-- Verify backend can reach Groq and Finnhub
+- Verify `OPENAI_API_KEY`
+- Verify backend can reach OpenAI and Finnhub
 
 ### Market price looks stale or missing
 - Verify `FINNHUB_API_KEY`

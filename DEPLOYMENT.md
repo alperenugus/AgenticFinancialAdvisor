@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers deploying the Agentic Financial Advisor system. The system uses **Groq API** for fast, cost-effective LLM inference with llama-3.3-70b-versatile model.
+This guide covers deploying the Agentic Financial Advisor system. The system uses **OpenAI API** for fast, cost-effective LLM inference with gpt-4o model.
 
 ## Deployment Options
 
@@ -41,7 +41,7 @@ Railway offers a free tier that's perfect for this project.
    railway link --service backend
    
    # Set required environment variables
-   railway variables set GROQ_API_KEY=your_groq_api_key_here
+   railway variables set OPENAI_API_KEY=your_openai_api_key_here
    railway variables set FINNHUB_API_KEY=your_finnhub_api_key_here
    railway variables set GOOGLE_CLIENT_ID=your_google_client_id
    railway variables set GOOGLE_CLIENT_SECRET=your_google_client_secret
@@ -52,7 +52,7 @@ Railway offers a free tier that's perfect for this project.
    ```
    
    **Important**: 
-   - Get your Groq API key from [Groq Console](https://console.groq.com/)
+   - Get your OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys)
    - Get your Finnhub API key from [Finnhub](https://finnhub.io/)
    - See [Environment Variables Guide](./docs/ENVIRONMENT_VARIABLES.md) for complete list
 
@@ -85,7 +85,7 @@ Railway offers a free tier that's perfect for this project.
 
 3. **Set Environment Variables**
    ```
-   GROQ_API_KEY=your_groq_api_key
+   OPENAI_API_KEY=your_openai_api_key
    FINNHUB_API_KEY=your_finnhub_api_key
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
@@ -101,8 +101,8 @@ Railway offers a free tier that's perfect for this project.
 # Database (Auto-set by Railway PostgreSQL)
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
 
-# Groq API (LLM Provider)
-GROQ_API_KEY=your_groq_api_key_here
+# OpenAI API (LLM Provider)
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Market Data
 FINNHUB_API_KEY=your_finnhub_api_key_here
@@ -129,10 +129,10 @@ PORT=8080
 ### Optional Variables
 
 ```bash
-# Groq Model Configuration (defaults shown)
-GROQ_ORCHESTRATOR_MODEL=llama-3.3-70b-versatile
-GROQ_ORCHESTRATOR_TEMPERATURE=0.0
-GROQ_ORCHESTRATOR_TIMEOUT_SECONDS=90
+# OpenAI Model Configuration (defaults shown)
+OPENAI_ORCHESTRATOR_MODEL=gpt-4o
+OPENAI_ORCHESTRATOR_TEMPERATURE=0.0
+OPENAI_ORCHESTRATOR_TIMEOUT_SECONDS=90
 
 # Web Search APIs (Optional but recommended)
 TAVILY_API_KEY=your_tavily_api_key
@@ -154,8 +154,8 @@ Set these in Railway dashboard for your backend service:
 # Database (Auto-set by Railway PostgreSQL)
 DATABASE_URL=<auto-set by Railway>
 
-# Groq API (Required)
-GROQ_API_KEY=your_groq_api_key_here
+# OpenAI API (Required)
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Market Data (Required)
 FINNHUB_API_KEY=your_finnhub_api_key_here
@@ -184,10 +184,10 @@ VITE_WS_URL=https://your-backend.railway.app/ws
 
 ## Cost Considerations
 
-### Groq API Pricing
-- **Free Tier**: Limited requests (check current limits at [Groq Console](https://console.groq.com/))
+### OpenAI API Pricing
+- **Free Tier**: Limited requests (check current limits at [OpenAI Platform](https://platform.openai.com/api-keys))
 - **Paid Tier**: Pay-per-use pricing, very cost-effective for LLM inference
-- **Model**: llama-3.3-70b-versatile provides excellent quality at competitive pricing
+- **Model**: gpt-4o provides excellent quality at competitive pricing
 
 ### Railway Pricing
 - **Free Tier**: $5 credit/month
@@ -197,7 +197,7 @@ VITE_WS_URL=https://your-backend.railway.app/ws
 ## Production Checklist
 
 - [ ] Deploy PostgreSQL database (Railway auto-sets `DATABASE_URL`)
-- [ ] Get Groq API key from [Groq Console](https://console.groq.com/)
+- [ ] Get OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys)
 - [ ] Get Finnhub API key from [Finnhub](https://finnhub.io/)
 - [ ] Set up Google OAuth2 credentials (see [Google Auth Setup](./docs/GOOGLE_AUTH_SETUP.md))
 - [ ] Set all required environment variables
@@ -212,12 +212,12 @@ VITE_WS_URL=https://your-backend.railway.app/ws
 
 ## Troubleshooting
 
-### Groq API Issues
+### OpenAI API Issues
 
 ```bash
-# Test Groq API connection
-curl https://api.groq.com/openai/v1/models \
-  -H "Authorization: Bearer $GROQ_API_KEY"
+# Test OpenAI API connection
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer $OPENAI_API_KEY"
 
 # Should return list of available models
 ```
@@ -264,9 +264,9 @@ railway logs --follow
   - CDN for frontend static assets
   - Load balancing for multiple backend instances
 
-### Groq API Scaling
+### OpenAI API Scaling
 
-- Groq API handles high throughput automatically
+- OpenAI API handles high throughput automatically
 - No infrastructure management needed
 - Pay-per-use pricing scales with usage
 

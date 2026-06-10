@@ -23,7 +23,7 @@ Railway Project: "AgenticFinancialAdvisor"
 └── 🎨 Frontend Service
 ```
 
-**Note:** The system uses **Groq API** for LLM inference (no local Ollama service needed).
+**Note:** The system uses **OpenAI API** for LLM inference (no local Ollama service needed).
 
 ---
 
@@ -68,8 +68,8 @@ Railway Project: "AgenticFinancialAdvisor"
 ### Backend Service
 
 ```bash
-# Groq API (REQUIRED - Get from https://console.groq.com/)
-GROQ_API_KEY=your_groq_api_key_here
+# OpenAI API (REQUIRED - Get from https://platform.openai.com/api-keys)
+OPENAI_API_KEY=your_openai_api_key_here
 
 # Market Data (REQUIRED - Get from https://finnhub.io/)
 FINNHUB_API_KEY=your_finnhub_api_key_here
@@ -128,10 +128,10 @@ PORT=3000
 
 ## Getting API Keys
 
-### Groq API Key
-1. Sign up at [Groq Console](https://console.groq.com/)
+### OpenAI API Key
+1. Sign up at [OpenAI Platform](https://platform.openai.com/api-keys)
 2. Create an API key
-3. Set as `GROQ_API_KEY` environment variable
+3. Set as `OPENAI_API_KEY` environment variable
 
 ### Finnhub API Key
 1. Sign up at [Finnhub](https://finnhub.io/)
@@ -190,7 +190,7 @@ railway variables --service backend  # List all variables
 1. ✅ Deploy PostgreSQL database
 2. ✅ Deploy backend service
 3. ✅ Deploy frontend service
-4. ✅ Set all environment variables (Groq, Finnhub, Google OAuth2, JWT)
+4. ✅ Set all environment variables (OpenAI, Finnhub, Google OAuth2, JWT)
 5. ✅ Test authentication flow
 6. ✅ Test API endpoints
 7. 🎉 Start using the app!

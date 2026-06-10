@@ -34,21 +34,22 @@ jwt:
   secret: ${JWT_SECRET:local-development-only-jwt-secret-not-for-production-use-32+chars}
   expiration: ${JWT_EXPIRATION:86400000}
 
-# LangChain4j Configuration
-langchain4j:
-  groq:
-    orchestrator:
-      api-key: ${GROQ_API_KEY:}
-      base-url: https://api.groq.com/openai/v1
-      model: ${GROQ_ORCHESTRATOR_MODEL:llama-3.3-70b-versatile}
-      temperature: ${GROQ_ORCHESTRATOR_TEMPERATURE:0.0}
-      timeout-seconds: ${GROQ_ORCHESTRATOR_TIMEOUT_SECONDS:90}
-    tool-agent:
-      api-key: ${GROQ_API_KEY:}
-      base-url: https://api.groq.com/openai/v1
-      model: ${GROQ_TOOL_AGENT_MODEL:llama-3.1-8b-instant}
-      temperature: ${GROQ_TOOL_AGENT_TEMPERATURE:0.3}
-      timeout-seconds: ${GROQ_TOOL_AGENT_TIMEOUT_SECONDS:30}
+# LLM Provider Configuration (OpenAI) — set OPENAI_API_KEY in your local environment
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  orchestrator:
+    model: ${OPENAI_ORCHESTRATOR_MODEL:gpt-4o}
+    temperature: ${OPENAI_ORCHESTRATOR_TEMPERATURE:0.0}
+    timeout-seconds: ${OPENAI_ORCHESTRATOR_TIMEOUT_SECONDS:90}
+  agent:
+    model: ${OPENAI_AGENT_MODEL:gpt-4o}
+    temperature: ${OPENAI_AGENT_TEMPERATURE:0.0}
+    timeout-seconds: ${OPENAI_AGENT_TIMEOUT_SECONDS:60}
+  security:
+    model: ${OPENAI_SECURITY_MODEL:gpt-4o-mini}
+    temperature: ${OPENAI_SECURITY_TEMPERATURE:0.0}
+    timeout-seconds: ${OPENAI_SECURITY_TIMEOUT_SECONDS:20}
 
 agent:
   timeout:
