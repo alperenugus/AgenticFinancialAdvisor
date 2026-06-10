@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -217,8 +218,11 @@ public class MarketDataService {
         if (range != null && interval != null) {
             url.append("?range=").append(range).append("&interval=").append(interval);
         }
+        // Pass a fully-constructed URI so WebClient uses it verbatim. Passing the String overload
+        // treats it as a URI template and re-encodes the '%' in already-encoded symbols like
+        // "%5EGSPC" (^GSPC) into "%255EGSPC", which Yahoo 404s. Index symbols broke; tickers didn't.
         String response = webClient.get()
-                .uri(url.toString())
+                .uri(URI.create(url.toString()))
                 .header("User-Agent", "Mozilla/5.0 (compatible; FinancialAdvisor/1.0)")
                 .retrieve()
                 .bodyToMono(String.class)
