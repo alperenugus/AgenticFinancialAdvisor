@@ -44,16 +44,24 @@ public class StockHolding {
     @PreUpdate
     protected void onUpdate() {
         lastUpdated = LocalDateTime.now();
-        if (currentPrice != null && quantity != null) {
-            value = currentPrice.multiply(BigDecimal.valueOf(quantity));
+        if (quantity == null) {
+            return;
+        }
+        BigDecimal qty = BigDecimal.valueOf(quantity);
+        if (currentPrice != null && currentPrice.compareTo(BigDecimal.ZERO) > 0) {
+            value = currentPrice.multiply(qty);
             if (averagePrice != null) {
                 BigDecimal priceDiff = currentPrice.subtract(averagePrice);
-                gainLoss = priceDiff.multiply(BigDecimal.valueOf(quantity));
+                gainLoss = priceDiff.multiply(qty);
                 if (averagePrice.compareTo(BigDecimal.ZERO) > 0) {
                     gainLossPercent = priceDiff.divide(averagePrice, 4, java.math.RoundingMode.HALF_UP)
                             .multiply(BigDecimal.valueOf(100));
                 }
             }
+        } else if (averagePrice != null) {
+            // No live price (refresh failed/unavailable): value the holding at cost so it isn't
+            // silently zeroed. Gain/loss is left unset because it can't be computed without a quote.
+            value = averagePrice.multiply(qty);
         }
     }
 

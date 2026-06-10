@@ -3,6 +3,7 @@ package com.agent.financialadvisor.model;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,28 +41,50 @@ public class Portfolio {
         calculateTotals();
     }
 
+    /**
+     * Recompute totals directly from each holding's raw fields (currentPrice/averagePrice/quantity)
+     * rather than from the holdings' derived {@code value}/{@code gainLoss} columns.
+     *
+     * Why: JPA does NOT guarantee that a child's @PreUpdate (which sets StockHolding.value) fires
+     * before the parent's @PreUpdate. The previous implementation summed h.getValue(), so when a
+     * portfolio was saved after a price refresh, the children's value columns could still be null at
+     * the moment this ran — persisting a total of 0.00 even though every holding had a real value.
+     * Computing from currentPrice*quantity here is order-independent and always correct.
+     */
     private void calculateTotals() {
-        if (holdings != null && !holdings.isEmpty()) {
-            totalValue = holdings.stream()
-                    .map(h -> h.getValue() != null ? h.getValue() : BigDecimal.ZERO)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal value = BigDecimal.ZERO;
+        BigDecimal gain = BigDecimal.ZERO;
+        BigDecimal cost = BigDecimal.ZERO;
 
-            totalGainLoss = holdings.stream()
-                    .map(h -> h.getGainLoss() != null ? h.getGainLoss() : BigDecimal.ZERO)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (holdings != null) {
+            for (StockHolding h : holdings) {
+                if (h == null || h.getQuantity() == null) {
+                    continue;
+                }
+                BigDecimal qty = BigDecimal.valueOf(h.getQuantity());
+                BigDecimal current = h.getCurrentPrice();
+                BigDecimal avg = h.getAveragePrice();
 
-            // Calculate weighted average gain/loss percent
-            BigDecimal totalCost = holdings.stream()
-                    .map(h -> h.getAveragePrice() != null && h.getQuantity() != null
-                            ? h.getAveragePrice().multiply(BigDecimal.valueOf(h.getQuantity()))
-                            : BigDecimal.ZERO)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            if (totalCost.compareTo(BigDecimal.ZERO) > 0) {
-                totalGainLossPercent = totalGainLoss.divide(totalCost, 4, java.math.RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100));
+                // Use the live price when we have it; fall back to cost basis so a single failed
+                // price refresh never silently zeroes out a holding's contribution to the total.
+                BigDecimal effectivePrice = (current != null && current.signum() > 0) ? current : avg;
+                if (effectivePrice != null) {
+                    value = value.add(effectivePrice.multiply(qty));
+                }
+                if (current != null && current.signum() > 0 && avg != null) {
+                    gain = gain.add(current.subtract(avg).multiply(qty));
+                }
+                if (avg != null) {
+                    cost = cost.add(avg.multiply(qty));
+                }
             }
         }
+
+        totalValue = value;
+        totalGainLoss = gain;
+        totalGainLossPercent = cost.compareTo(BigDecimal.ZERO) > 0
+                ? gain.divide(cost, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                : BigDecimal.ZERO;
     }
 
     // Getters and Setters

@@ -15,6 +15,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -610,6 +612,86 @@ public class MarketDataService {
         if (value != null) {
             map.put(key, value);
         }
+    }
+
+    /**
+     * Broad market overview from real index data (Yahoo Finance, no API key): S&P 500, Dow,
+     * Nasdaq Composite, and the VIX volatility index, each with current level, 1-day change,
+     * and ~2-week (10 trading day) change. This is what grounds questions like "how is the
+     * market doing" or "will markets recover" — without it the agents have no market-level data.
+     *
+     * @return map keyed by index name; empty map only if every index fetch fails.
+     */
+    public Map<String, Object> getMarketOverview() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        // symbol → display name
+        Map<String, String> indices = new LinkedHashMap<>();
+        indices.put("^GSPC", "S&P 500");
+        indices.put("^DJI", "Dow Jones");
+        indices.put("^IXIC", "Nasdaq Composite");
+        indices.put("^VIX", "VIX (volatility)");
+
+        long latestTs = 0;
+        for (Map.Entry<String, String> e : indices.entrySet()) {
+            try {
+                JsonNode chartResult = yahooChart(e.getKey(), "1mo", "1d")
+                        .path("chart").path("result").path(0);
+                JsonNode meta = chartResult.path("meta");
+                JsonNode closesNode = chartResult.path("indicators").path("quote").path(0).path("close");
+
+                BigDecimal level = meta.path("regularMarketPrice").isMissingNode()
+                        ? null : meta.path("regularMarketPrice").decimalValue();
+                BigDecimal prevClose = meta.path("chartPreviousClose").isMissingNode()
+                        ? null : meta.path("chartPreviousClose").decimalValue();
+                if (level == null) {
+                    continue;
+                }
+
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("level", level.setScale(2, java.math.RoundingMode.HALF_UP));
+                if (prevClose != null && prevClose.signum() > 0) {
+                    entry.put("dayChangePercent", pctChange(prevClose, level));
+                }
+
+                // ~2-week change: compare to the close ~10 trading days back in the daily series.
+                List<Double> closes = new java.util.ArrayList<>();
+                if (closesNode.isArray()) {
+                    for (JsonNode c : closesNode) {
+                        if (c != null && !c.isNull()) {
+                            closes.add(c.asDouble());
+                        }
+                    }
+                }
+                if (closes.size() > 10) {
+                    BigDecimal twoWeeksAgo = BigDecimal.valueOf(closes.get(closes.size() - 1 - 10));
+                    entry.put("twoWeekChangePercent", pctChange(twoWeeksAgo, level));
+                }
+
+                long t = meta.path("regularMarketTime").asLong(0);
+                if (t > latestTs) {
+                    latestTs = t;
+                }
+                result.put(e.getValue(), entry);
+            } catch (Exception ex) {
+                logFetchError("market overview", e.getKey(), ex);
+            }
+        }
+
+        if (!result.isEmpty()) {
+            result.put("source", "yahoo-finance-indices");
+            result.put("asOf", latestTs > 0 ? Instant.ofEpochSecond(latestTs).toString() : Instant.now().toString());
+            result.put("note", "Index levels with 1-day and ~2-week percentage changes. A rising VIX indicates higher expected volatility.");
+        }
+        return result;
+    }
+
+    private BigDecimal pctChange(BigDecimal from, BigDecimal to) {
+        if (from == null || to == null || from.signum() == 0) {
+            return BigDecimal.ZERO;
+        }
+        return to.subtract(from).divide(from, 6, java.math.RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     /**

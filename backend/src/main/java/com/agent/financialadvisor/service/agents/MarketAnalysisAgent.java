@@ -84,6 +84,24 @@ public class MarketAnalysisAgent {
         String chat(@MemoryId String sessionId, @UserMessage String userMessage);
     }
 
+    @Tool("Get a broad stock-market overview with REAL index data: S&P 500, Dow Jones, Nasdaq, and the VIX " +
+          "volatility index, each with current level, 1-day change, and ~2-week change. " +
+          "Use this for general market questions like 'how is the market doing', 'will markets recover', " +
+          "'is the market up or down', or market outlook/sentiment. Takes no arguments.")
+    public String getMarketOverview() {
+        log.info("🔵 getMarketOverview CALLED - fetching live index data");
+        try {
+            Map<String, Object> overview = marketDataService.getMarketOverview();
+            if (overview.isEmpty()) {
+                return "{\"error\": \"Market index data is temporarily unavailable. Please try again shortly.\"}";
+            }
+            return objectMapper.writeValueAsString(overview);
+        } catch (Exception e) {
+            log.error("Error getting market overview: {}", e.getMessage(), e);
+            return String.format("{\"error\": \"Error fetching market overview: %s\"}", e.getMessage());
+        }
+    }
+
     @Tool("Get current stock price for a ticker OR company name. ALWAYS use this tool for stock prices - your training data is outdated. " +
           "Requires: symbolOrCompany (string, e.g., 'AAPL', 'TSLA', 'Figma'). Tool performs live symbol resolution and returns current price with timestamp.")
     public String getStockPrice(String symbol) {

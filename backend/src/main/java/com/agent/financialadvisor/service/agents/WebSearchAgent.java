@@ -17,7 +17,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.util.retry.Retry;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -25,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Web Search Agent - Provides web search capabilities for financial data
@@ -215,14 +218,20 @@ public class WebSearchAgent {
             requestBody.put("include_raw_content", false);
 
             log.info("🔍 Calling Tavily Direct API with query: {}", query);
-            
+
+            // Per-attempt timeout is short (8s) with 2 bounded retries: the first outbound HTTPS call
+            // after idle intermittently stalls on connection/TLS setup (observed ~15s hang) while the
+            // immediate retry returns in ~1.5s. Total worst case stays within the agent step budget.
             String response = webClient.post()
                     .uri(tavilyBaseUrl + "/search")
                     .header("Content-Type", "application/json")
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(Duration.ofSeconds(8))
+                    .retryWhen(Retry.backoff(2, Duration.ofMillis(400))
+                            .filter(t -> t instanceof TimeoutException || t instanceof IOException
+                                    || (t.getCause() instanceof TimeoutException)))
                     .block();
 
             log.debug("Tavily API response: {}", response);
