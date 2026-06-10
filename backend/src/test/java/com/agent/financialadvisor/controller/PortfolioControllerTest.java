@@ -79,25 +79,25 @@ class PortfolioControllerTest {
 
     @Test
     void testGetPortfolio_Success() throws Exception {
-        when(portfolioRepository.findByUserId("test-user")).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findByUserIdWithHoldings("test-user")).thenReturn(Optional.of(testPortfolio));
         when(portfolioRepository.save(any(Portfolio.class))).thenReturn(testPortfolio);
 
         mockMvc.perform(get("/api/portfolio"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").value("test-user"));
 
-        verify(portfolioRepository, times(1)).findByUserId("test-user");
+        verify(portfolioRepository, times(1)).findByUserIdWithHoldings("test-user");
     }
 
     @Test
     void testGetPortfolio_CreatesNewIfNotExists() throws Exception {
-        when(portfolioRepository.findByUserId("test-user")).thenReturn(Optional.empty());
+        when(portfolioRepository.findByUserIdWithHoldings("test-user")).thenReturn(Optional.empty());
         when(portfolioRepository.save(any(Portfolio.class))).thenReturn(testPortfolio);
 
         mockMvc.perform(get("/api/portfolio"))
                 .andExpect(status().isOk());
 
-        verify(portfolioRepository, times(1)).findByUserId("test-user");
+        verify(portfolioRepository, times(1)).findByUserIdWithHoldings("test-user");
         verify(portfolioRepository, times(1)).save(any(Portfolio.class));
     }
 
@@ -143,13 +143,13 @@ class PortfolioControllerTest {
 
     @Test
     void testRefreshPortfolio_Success() throws Exception {
-        when(portfolioRepository.findByUserId("test-user")).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findByUserIdWithHoldings("test-user")).thenReturn(Optional.of(testPortfolio));
         when(portfolioRepository.save(any(Portfolio.class))).thenReturn(testPortfolio);
 
         mockMvc.perform(post("/api/portfolio/refresh"))
                 .andExpect(status().isOk());
 
-        verify(portfolioRepository, times(1)).findByUserId("test-user");
+        verify(portfolioRepository, times(1)).findByUserIdWithHoldings("test-user");
         verify(portfolioRepository, times(1)).save(any(Portfolio.class));
     }
 }

@@ -252,9 +252,11 @@ public class UserProfileAgent {
                         log.warn("Could not refresh price for {}: {}", holding.getSymbol(), e.getMessage());
                     }
                 }
-                // Update portfolio with refreshed holdings
+                // Update portfolio with refreshed holdings, then recompute totals explicitly
+                // (child-only changes don't auto-dirty the parent, so the @PreUpdate alone would
+                // leave the total stale — this is the "$0 total beside live holdings" bug).
                 portfolio.setHoldings(holdings);
-                // Save to trigger @PreUpdate calculations for both holdings and portfolio
+                portfolio.recalculateTotals();
                 portfolio = portfolioRepository.save(portfolio);
                 // Refresh from DB to get calculated totals
                 portfolio = portfolioRepository.findByUserIdWithHoldings(userId).orElse(portfolio);
